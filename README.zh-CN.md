@@ -1241,11 +1241,11 @@ CLI 支持多种输出格式：
 **5** results
 Total: 42
 
-### 1. [Machine Learning Tutorial](https://example.com/ml)
+### 1. [Machine Learning Tutorial](https://example.com/ml) [Source score: 1]
 
 Learn machine learning from scratch...
 
-Engine: google | Category: general | Score: 1
+Rank: 1 · Engine: google · Category: general · Retrieved: 2026-09-09T00:00:00.000Z
 
 ---
 
@@ -1254,6 +1254,10 @@ Engine: google | Category: general | Score: 1
 - deep learning tutorial
 - neural networks
 ```
+
+结果元数据中的 `score` 保留搜索引擎原始值，不表示跨引擎统一百分比；多查询和
+Session 融合时使用独立的 `fusionScore`。`publishedDate` 是来源发布时间（如引擎提供），
+`retrievedAt` 是 sxng 收到结果的时间。
 
 #### JSON 信封格式
 

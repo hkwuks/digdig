@@ -46,6 +46,9 @@ export interface SessionResult {
     engine?: string;
     category?: string;
     score?: number;
+    fusionScore?: number;
+    retrievedAt?: number;
+    rank?: number;
     publishedDate?: string;
     byline?: string;
     siteName?: string;
@@ -64,6 +67,9 @@ export interface SessionResultInput {
     engine?: string;
     category?: string;
     score?: number;
+    fusionScore?: number;
+    retrievedAt?: number;
+    rank?: number;
     publishedDate?: string;
     byline?: string;
     siteName?: string;
@@ -414,6 +420,12 @@ export function appendSessionResults(
             if (input.excerpt !== undefined && input.excerpt !== existing.excerpt) {
                 existing.excerpt = input.excerpt;
                 changed = true;
+            }
+            for (const field of ['score', 'fusionScore', 'retrievedAt', 'rank', 'publishedDate'] as const) {
+                if (input[field] !== undefined && input[field] !== existing[field]) {
+                    (existing as Record<string, unknown>)[field] = input[field];
+                    changed = true;
+                }
             }
             if (changed) {
                 touch(existing);

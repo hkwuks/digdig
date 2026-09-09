@@ -139,6 +139,53 @@ describe('CLI program (commander)', () => {
         }
     });
 
+    it('keeps the source score unchanged and persists retrieval time', async () => {
+        const sessionDir = mkdtempSync(join(tmpdir(), 'sxng-cli-score-test-'));
+        const output = vi.spyOn(console, 'log').mockImplementation(() => {});
+        vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+
+        try {
+            await runCli(['score query', '--session', sessionDir, '--format', 'md'], {
+                search: vi.fn().mockResolvedValue({
+                    query: 'score query', numberOfResults: 1,
+                    results: [{
+                        url: 'https://example.com/score', title: 'Score', content: 'content',
+                        engine: 'test', category: 'general', score: 2.4, retrievedAt: 1234,
+                    }],
+                    suggestions: [], answers: [], corrections: [], infoboxes: [], unresponsiveEngines: [],
+                }),
+            } as any);
+
+            expect(output.mock.calls.at(-1)![0]).toContain('Source score: 2.4');
+            expect(output.mock.calls.at(-1)![0]).not.toContain('240.0');
+            expect(loadSessionResults(sessionDir)[0]).toMatchObject({ score: 2.4, retrievedAt: 1234 });
+        } finally {
+            rmSync(sessionDir, { recursive: true, force: true });
+        }
+    });
+
+    it('keeps source score separate from RRF fusion score', async () => {
+        const output = vi.spyOn(console, 'log').mockImplementation(() => {});
+        vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+        const search = vi.fn()
+            .mockResolvedValueOnce({
+                query: 'first', numberOfResults: 1,
+                results: [{ url: 'https://example.com/shared', title: 'Shared', content: 'one', engine: 'a', category: 'general', score: 4 }],
+                suggestions: [], answers: [], corrections: [], infoboxes: [], unresponsiveEngines: [],
+            })
+            .mockResolvedValueOnce({
+                query: 'second', numberOfResults: 1,
+                results: [{ url: 'https://example.com/shared', title: 'Shared', content: 'two', engine: 'b', category: 'general', score: 0.2 }],
+                suggestions: [], answers: [], corrections: [], infoboxes: [], unresponsiveEngines: [],
+            });
+
+        await runCli(['--queries', 'first,second', '--format', 'json'], { search } as any);
+
+        const result = JSON.parse(output.mock.calls.at(-1)![0] as string);
+        expect(result.data.results[0].score).toBe(4);
+        expect(result.data.results[0].fusionScore).toBeGreaterThan(0);
+    });
+
     it('stores the single-query origin and allocated round in the session result', async () => {
         const sessionDir = mkdtempSync(join(tmpdir(), 'sxng-cli-origin-test-'));
         const output = vi.spyOn(console, 'log').mockImplementation(() => {});

@@ -40,12 +40,15 @@ export class OllamaService {
     const raw: Array<{ title?: string; url?: string; content?: string }> =
       response.data?.results ?? [];
 
-    const results: SearchResult[] = raw.map((item) => ({
-      title: item.title || '',
-      url: item.url || '',
-      content: item.content || '',
-      engine: 'ollama',
-      category: 'general',
+    const retrievedAt = Date.now();
+    const results: SearchResult[] = raw.map((item, index) => ({
+        title: item.title || '',
+        url: item.url || '',
+        content: item.content || '',
+        engine: 'ollama',
+        category: 'general',
+        retrievedAt,
+        rank: index + 1,
     }));
 
     return {

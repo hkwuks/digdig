@@ -54,6 +54,9 @@ export async function runResultsAdd(options: ResultsAddOptions): Promise<number>
                 excerpt: typeof item.excerpt === 'string' ? item.excerpt : undefined,
                 origins: [origin],
                 score: typeof item.score === 'number' ? item.score : undefined,
+                fusionScore: typeof item.fusionScore === 'number' ? item.fusionScore : undefined,
+                retrievedAt: typeof item.retrievedAt === 'number' ? item.retrievedAt : undefined,
+                rank: typeof item.rank === 'number' ? item.rank : undefined,
                 publishedDate: typeof item.publishedDate === 'string' ? item.publishedDate : undefined,
             });
             continue;

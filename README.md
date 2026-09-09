@@ -1243,11 +1243,11 @@ The CLI supports multiple output formats:
 **5** results
 Total: 42
 
-### 1. [Machine Learning Tutorial](https://example.com/ml)
+### 1. [Machine Learning Tutorial](https://example.com/ml) [Source score: 1]
 
 Learn machine learning from scratch...
 
-Engine: google | Category: general | Score: 1
+Rank: 1 · Engine: google · Category: general · Retrieved: 2026-09-09T00:00:00.000Z
 
 ---
 
@@ -1256,6 +1256,11 @@ Engine: google | Category: general | Score: 1
 - deep learning tutorial
 - neural networks
 ```
+
+Result metadata keeps the source engine's `score` unchanged. It is not a
+cross-engine percentage; multi-query and session fusion uses a separate
+`fusionScore`. `publishedDate` is the source publication date when available,
+while `retrievedAt` records when sxng received the result.
 
 #### JSON Envelope Format
 

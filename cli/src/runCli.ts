@@ -61,8 +61,7 @@ function formatAsMarkdown(data: any): string {
             const r = results[i];
             let scoreIndicator = '';
             if (r.score !== undefined && r.score !== null) {
-                const normalizedScore = r.score > 1 ? r.score : r.score * 100;
-                scoreIndicator = ` [${normalizedScore.toFixed(1)}]`;
+                scoreIndicator = ` [Source score: ${r.score}]`;
             }
             lines.push(`### ${i + 1}. [${r.title || 'No Title'}](${r.url || '#'})${scoreIndicator}`);
             lines.push('');
@@ -73,9 +72,12 @@ function formatAsMarkdown(data: any): string {
             }
 
             const meta: string[] = [];
+            if (r.rank !== undefined) meta.push(`Rank: ${r.rank}`);
             meta.push(`Engine: ${r.engine || 'unknown'}`);
             if (r.category) meta.push(`Category: ${r.category}`);
             if (r.publishedDate) meta.push(`Published: ${r.publishedDate}`);
+            if (r.retrievedAt) meta.push(`Retrieved: ${new Date(r.retrievedAt).toISOString()}`);
+            if (r.fusionScore !== undefined) meta.push(`Fusion score: ${r.fusionScore}`);
             lines.push(meta.join(' · '));
             lines.push('');
         }
@@ -595,7 +597,7 @@ async function runSearch(
                 displayResults = fused
                     .map(item => {
                         const original = urlMap.get(item.id);
-                        return original ? { ...original, score: item.score } : null;
+                        return original ? { ...original, fusionScore: item.score } : null;
                     })
                     .filter(Boolean) as SearchResult[];
                 if (limit > 0) displayResults = displayResults.slice(0, limit);
@@ -733,7 +735,7 @@ async function runSearch(
             .map((item: { id: string; score: number }) => {
                 const original = urlMap.get(item.id);
                 if (!original) return null;
-                return { ...original, score: item.score };
+                return { ...original, fusionScore: item.score };
             })
             .filter(Boolean) as SearchResult[];
 

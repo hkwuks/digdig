@@ -25,8 +25,11 @@ export interface SearchResult {
     engine: string;
     category: string;
     publishedDate?: string;
+    retrievedAt?: number;
+    rank?: number;
     thumbnail?: string;
     score?: number;
+    fusionScore?: number;
 }
 
 export interface SearchResponse {
@@ -128,6 +131,7 @@ export class SearXNGService {
             const response = await this.client.get('/search', { params });
             const data = response.data;
 
+            const retrievedAt = Date.now();
             const results: SearchResult[] = (data.results || []).map((item: any) => ({
                 title: item.title || '',
                 url: item.url || '',
@@ -135,23 +139,17 @@ export class SearXNGService {
                 engine: item.engine || 'unknown',
                 category: item.category || 'general',
                 publishedDate: item.publishedDate,
+                retrievedAt,
                 thumbnail: item.thumbnail,
                 score: item.score
             }));
-
-            // Sort by score (descending), handle undefined/null scores
-            results.sort((a, b) => {
-                const scoreA = a.score ?? -Infinity;
-                const scoreB = b.score ?? -Infinity;
-                return scoreB - scoreA;
-            });
 
             // Filter out results with empty title or content
             const filtered = filterEmptyResults(results);
 
             // Deduplicate: Jaccard removes near-duplicate content,
             // URL dedup catches what SearXNG missed (e.g. trailing slash variants)
-            const deduped = dedupe(filtered);
+            const deduped = dedupe(filtered).map((result, index) => ({ ...result, rank: index + 1 }));
 
             const limitedResults = options.limit && options.limit > 0
                 ? deduped.slice(0, options.limit)
