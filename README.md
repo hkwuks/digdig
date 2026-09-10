@@ -79,11 +79,11 @@ server:
   limiter: false
 
 outgoing:
-  request_timeout: 30.0 # 全局默认超时
-  max_request_timeout: 30.0
+  request_timeout: 10.0 # 全局默认超时
+  max_request_timeout: 25.0
   pool_connections: 200
   pool_maxsize: 20
-  retries: 2
+  retries: 1
 
 search:
   safe_search: 0
