@@ -982,6 +982,7 @@ Configuration priority (highest to lowest):
 | `SEARXNG_REDUNDANCY_THRESHOLD` | Word-level Jaccard threshold for redundancy | `0.7` |
 | `SEARXNG_REDUNDANCY_BIGRAM_THRESHOLD` | Bigram-level Jaccard threshold (short queries) | `0.5` |
 | `OLLAMA_API_KEY` | [Ollama web search](https://ollama.com) API key (optional fallback backend) | *(none)* |
+| `DEEPSEEK_API_KEY` | [DeepSeek Search](https://api-docs.deepseek.com/api/search) API key (optional backend; billed per successful request) | *(none)* |
 
 ### Config File
 
