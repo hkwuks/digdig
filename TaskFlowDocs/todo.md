@@ -90,3 +90,16 @@
 - Goal: A search provider's body content never reaches the session. `makeResult` (`session.ts:200-203`) deletes `content` whenever `contentType` resolves to `'search'`, and nothing writes `excerpt` either; verified empirically — `-e 360search --session X` stores results with `has content: false, excerpt len: 0`. Consequences: `hasVerifiedContent` (requires `contentType === 'extracted'`) excludes every search result from approval and from `graph-preprocess`; and `computeContentDepth` (`quality-assess.ts:68-76`) measures only extracted bodies, returning `value: 0, pass: false` whenever none exist. DeepSeek's `summary` (measured 3171–5075 chars) is already fetched and paid for per request, then dropped. Decide whether search-time bodies should persist as `excerpt` or enter at the extracted tier, and what that means for the contentDepth threshold of 150.
 - Task: Not promoted.
 - Next action: Clarify and promote when ready.
+
+## Sync the DeepSeek provider into the sxng skill docs
+
+- ID: TF-20261017-83df6c
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: follow-up
+- Added: 2026-10-17
+- Updated: 2026-10-17
+- Goal: The `-e deepseek` provider shipped in PR #3 is absent from the skill. `skills/sxng/SKILL.md` lines 85 and 94 describe `--engines` and the `ollama` provider without `deepseek`; line 348 documents Ollama's key/env wiring as if it were the only external provider. `skills/sxng/references/pipeline.md:33` lists only the Ollama L1 backend. `skills/sxng/references/appendix.md:76` names only ollama/tavily/exa as fallback backends. Also document the new `PROVIDER_NOT_CONFIGURED` failure for `-e <provider>` without a key, which changes the L1 fallback guidance in appendix.md.
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
