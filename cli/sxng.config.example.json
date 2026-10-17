@@ -8,6 +8,7 @@
   "proxyUrl": "",
   "timeout": 30000,
   "ollamaApiKey": "",
+  "deepseekApiKey": "",
   "redundancyThreshold": 0.7,
   "redundancyBigramThreshold": 0.5
 }

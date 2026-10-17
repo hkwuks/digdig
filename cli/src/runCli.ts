@@ -13,6 +13,7 @@ import { SearXNGService, SearchOptions, SearchResult, SearchResponse } from './s
 import { createSuccessEnvelope, createErrorEnvelope } from './protocol.js';
 import { config } from './config.js';
 import { OllamaService } from './ollama-service.js';
+import { DeepSeekService } from './deepseek-service.js';
 import { initConfig } from './init.js';
 import { runExtract, ExtractOptions } from './commands/extract.js';
 import { runQueryGraph, QueryGraphOptions } from './commands/query-graph.js';
@@ -375,6 +376,97 @@ function loadSessionQueryHistory(sessionDir: string): string[] {
     return queries;
 }
 
+/**
+ * Search providers reachable through `--engines` magic words. Each is selected
+ * by placing its name in the engine list; every other name goes to SearXNG.
+ */
+const EXTERNAL_PROVIDERS = ['ollama', 'deepseek'] as const;
+type ExternalProvider = typeof EXTERNAL_PROVIDERS[number];
+
+const PROVIDER_IMPLS: Record<ExternalProvider, {
+    configured: () => boolean;
+    search: (query: string, limit: number) => Promise<SearchResponse>;
+}> = {
+    ollama: {
+        configured: () => Boolean(config.ollamaApiKey),
+        search: (query, limit) => new OllamaService({ apiKey: config.ollamaApiKey }).search({ query, limit }),
+    },
+    deepseek: {
+        configured: () => Boolean(config.deepseekApiKey),
+        search: (query, limit) => new DeepSeekService({ apiKey: config.deepseekApiKey }).search({ query, limit }),
+    },
+};
+
+interface ProviderSearchPlan {
+    /** Selected providers whose API key is present, in a stable order. */
+    usable: ExternalProvider[];
+    /** Providers named in `--engines` that the caller cannot reach. */
+    unconfigured: ExternalProvider[];
+    /** Engine names left for SearXNG once the magic words are removed. */
+    sxngEngines: string[];
+}
+
+function planProviderSearch(engines: string[]): ProviderSearchPlan {
+    const selected = EXTERNAL_PROVIDERS.filter(p => engines.includes(p));
+    return {
+        usable: selected.filter(p => PROVIDER_IMPLS[p].configured()),
+        unconfigured: selected.filter(p => !PROVIDER_IMPLS[p].configured()),
+        sxngEngines: engines.filter(e => !EXTERNAL_PROVIDERS.includes(e as ExternalProvider)),
+    };
+}
+
+/**
+ * Run every provider the plan selects for one query. SearXNG is queried unless
+ * a configured provider fully covers the request, which keeps a lone
+ * `-e ollama` from also hitting SearXNG. The SearXNG response is returned
+ * separately because it owns the envelope metadata when it participates.
+ */
+async function searchOneQuery(
+    service: SearXNGService,
+    plan: ProviderSearchPlan,
+    searchOptions: SearchOptions,
+    limit: number
+): Promise<{ providerResponses: SearchResponse[]; sxngResponse: SearchResponse | null }> {
+    const providerResponses: SearchResponse[] = [];
+    for (const provider of plan.usable) {
+        providerResponses.push(await PROVIDER_IMPLS[provider].search(searchOptions.query, limit));
+    }
+
+    let sxngResponse: SearchResponse | null = null;
+    if (plan.usable.length === 0 || plan.sxngEngines.length > 0) {
+        sxngResponse = await service.search({
+            ...searchOptions,
+            engines: plan.sxngEngines.length > 0 ? plan.sxngEngines : searchOptions.engines,
+        });
+    }
+
+    return { providerResponses, sxngResponse };
+}
+
+/** Merge provider and SearXNG responses into the single response shape callers expect. */
+function mergeResponses(
+    providerResponses: SearchResponse[],
+    sxngResponse: SearchResponse | null
+): SearchResponse {
+    if (providerResponses.length === 0 && sxngResponse) return sxngResponse;
+    if (providerResponses.length === 1 && !sxngResponse) return providerResponses[0]!;
+
+    // SearXNG's envelope carries the query suggestions and answers, so it is the
+    // base whenever it ran; provider-only searches fall back to the first provider.
+    const all = sxngResponse ? [...providerResponses, sxngResponse] : providerResponses;
+    const base = sxngResponse ?? providerResponses[0]!;
+    return {
+        ...base,
+        results: all.flatMap(r => r.results),
+        numberOfResults: all.reduce((sum, r) => sum + r.numberOfResults, 0),
+    };
+}
+
+/** Attribute a result to the tool that produced it, for session origin records. */
+function originTool(engine: string): string {
+    return EXTERNAL_PROVIDERS.includes(engine as ExternalProvider) ? engine : 'sxng';
+}
+
 async function runSearch(
     service: SearXNGService,
     options: {
@@ -414,6 +506,23 @@ async function runSearch(
                 'INVALID_ENGINES',
                 `Engines not allowed: ${invalid.join(', ')}`,
                 { hint: `Allowed engines: ${config.allowedEngines.join(', ')}` }
+            );
+            console.log(JSON.stringify(envelope, null, 2));
+            return 1;
+        }
+    }
+
+    // A selected provider without its API key cannot run. Failing loudly beats
+    // silently answering from SearXNG, which would make the provider look active.
+    if (options.engines) {
+        const unconfigured = planProviderSearch(options.engines).unconfigured;
+        if (unconfigured.length > 0) {
+            const envelope = createErrorEnvelope(
+                'PROVIDER_NOT_CONFIGURED',
+                `Provider selected but no API key configured: ${unconfigured.join(', ')}`,
+                { hint: unconfigured.map(p => p === 'ollama'
+                    ? 'Set OLLAMA_API_KEY or add "ollamaApiKey" to sxng.config.json'
+                    : 'Set DEEPSEEK_API_KEY or add "deepseekApiKey" to sxng.config.json').join('; ') }
             );
             console.log(JSON.stringify(envelope, null, 2));
             return 1;
@@ -542,35 +651,15 @@ async function runSearch(
                 timeRange: options.timeRange as any,
             };
 
-            // Split engines: 'ollama' goes to OllamaService, rest to SearXNG
-            const engines = searchOptions.engines ?? [];
-            const useOllama = engines.includes('ollama') && config.ollamaApiKey;
-            const sxngEngines = engines.filter(e => e !== 'ollama');
-
-            let results: SearchResponse;
-            if (useOllama) {
-                const ollama = new OllamaService({ apiKey: config.ollamaApiKey });
-                const ollamaResp = await ollama.search({ query: queries[0], limit });
-                if (sxngEngines.length > 0) {
-                    // Also search SearXNG with remaining engines, merge
-                    const sxngResp = await service.search({ ...searchOptions, engines: sxngEngines });
-                    results = {
-                        ...sxngResp,
-                        results: [...ollamaResp.results, ...sxngResp.results],
-                        numberOfResults: ollamaResp.results.length + sxngResp.numberOfResults,
-                    };
-                } else {
-                    results = ollamaResp;
-                }
-            } else {
-                results = await service.search(searchOptions);
-            }
+            const plan = planProviderSearch(searchOptions.engines ?? []);
+            const { providerResponses, sxngResponse } = await searchOneQuery(service, plan, searchOptions, limit);
+            const results = mergeResponses(providerResponses, sxngResponse);
 
             let sessionInfo: ReturnType<typeof appendSessionResults> | null = null;
             if (options.session) {
                 sessionInfo = appendSessionResults(options.session, results.results.map(result => ({
                     ...result,
-                    origins: [{ tool: result.engine === 'ollama' ? 'ollama' : 'sxng', engine: result.engine, query: queries[0] }],
+                    origins: [{ tool: originTool(result.engine), engine: result.engine, query: queries[0] }],
                 })));
                 injectApprovedResults(options.session, sessionInfo.approvedResults);
                 // Check pending count and warn if >= 30
@@ -630,13 +719,12 @@ async function runSearch(
 
         const allResponses: SearchResponse[] = [];
         const engines = options.engines ?? [];
-        const useOllama = engines.includes('ollama') && config.ollamaApiKey;
-        const sxngEngines = engines.filter(e => e !== 'ollama');
+        const plan = planProviderSearch(engines);
 
         for (const query of queries) {
             const searchOptions: SearchOptions = {
                 query,
-                engines: sxngEngines.length > 0 ? sxngEngines : engines,
+                engines: plan.sxngEngines.length > 0 ? plan.sxngEngines : engines,
                 categories: options.categories,
                 limit,
                 page: options.page,
@@ -644,15 +732,9 @@ async function runSearch(
                 timeRange: options.timeRange as any,
             };
 
-            if (useOllama) {
-                const ollama = new OllamaService({ apiKey: config.ollamaApiKey });
-                const ollamaResp = await ollama.search({ query, limit });
-                allResponses.push(ollamaResp);
-            }
-            if (sxngEngines.length > 0 || !useOllama) {
-                const response = await service.search(searchOptions);
-                allResponses.push(response);
-            }
+            const { providerResponses, sxngResponse } = await searchOneQuery(service, plan, searchOptions, limit);
+            allResponses.push(...providerResponses);
+            if (sxngResponse) allResponses.push(sxngResponse);
         }
 
         let rankings = allResponses.map(resp =>
@@ -750,7 +832,7 @@ async function runSearch(
                 for (const result of response.results) {
                     const key = normalizeUrl(result.url);
                     const origins = originsByUrl.get(key) || [];
-                    origins.push({ tool: result.engine === 'ollama' ? 'ollama' : 'sxng', engine: result.engine, query: response.query });
+                    origins.push({ tool: originTool(result.engine), engine: result.engine, query: response.query });
                     originsByUrl.set(key, origins);
                 }
             }
@@ -817,7 +899,7 @@ export function createProgram(): Command {
         .description('SearXNG CLI - Web Search Tool')
         .version(pkg.version)
         .argument('[query]', 'Search query')
-        .option('-e, --engines <engines>', 'Comma-separated list of search engines')
+        .option('-e, --engines <engines>', `Comma-separated list of search engines; "${EXTERNAL_PROVIDERS.join('"/"')}" route to non-SearXNG providers`)
         .option('-c, --categories <cats>', 'Comma-separated list of categories')
         .option('-l, --limit <n>', 'Maximum number of results', val => parseInt(val, 10))
         .option('-p, --page <n>', 'Page number for pagination', val => parseInt(val, 10))
@@ -1587,7 +1669,8 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
         if (opts.enginesList) {
             try {
                 const engines = await service.getEngines();
-                if (engines.length === 0 && !config.ollamaApiKey) {
+                const configuredProviders = EXTERNAL_PROVIDERS.filter(p => PROVIDER_IMPLS[p].configured());
+                if (engines.length === 0 && configuredProviders.length === 0) {
                     const envelope = createErrorEnvelope(
                         'ENGINES_FETCH_EMPTY',
                         'No engines returned from SearXNG server',
@@ -1597,7 +1680,7 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                     process.exit(1);
                     return;
                 }
-                if (config.ollamaApiKey) engines.push('ollama');
+                engines.push(...configuredProviders);
                 const envelope = createSuccessEnvelope({ engines, source: 'server' });
                 console.log(JSON.stringify(envelope, null, 2));
                 process.exit(0);
