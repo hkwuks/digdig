@@ -161,12 +161,12 @@ Fix options: bound the printed body text (which the `snippet` decision above wou
 ## SearXNG results reach the session with an empty excerpt: results.json shows cont
 
 - ID: TF-20261018-1b6064
-- Status: inbox
+- Status: cancelled
 - Priority: normal
 - Owner: Claude
 - Source: follow-up
 - Added: 2026-10-18
 - Updated: 2026-10-18
-- Goal: SearXNG results reach the session with an empty excerpt: results.json shows contentType 'search' with excerpt len 0 for -e 360search, yet service.ts maps content from item.content || item.snippet. Trace where content is lost between SearchResult and the stored SessionResult before acting on the search-time-body todo, so the two are not conflated.
+- Goal: Duplicate of the entry above (same ID, created by `hooks/task intake` when the long goal was used as the heading). The heading was then shortened by hand and re-added, leaving both copies. Cancelled rather than deleted: the merge driver's invariant is that a Todo entry is never dropped.
 - Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Next action: None — superseded by the preceding entry with the same ID.
