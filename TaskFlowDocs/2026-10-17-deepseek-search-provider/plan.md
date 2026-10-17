@@ -1,7 +1,7 @@
 # Plan — DeepSeek Search API 接入为搜索 provider
 
 > Task version: v1
-> Status: in_progress
+> Status: checking
 
 ## Spec Pointers
 
@@ -111,6 +111,8 @@
 
 ## Verification / Review
 
+- 2026-10-17 Step 3: AC1-AC7 全部通过，含真实 key 端到端实测
+
 | # | 命令 | 对应 AC | 结果 |
 | --- | --- | --- | --- |
 | V1 | `cd cli && npm run build` | AC7 | **通过** — 退出 0 |
@@ -120,18 +122,35 @@
 | V5 | `DEEPSEEK_API_KEY=sk-invalid node dist/index.js "..." -e google` | AC4 | **通过** — 返回 SearXNG 结果（`status:"ok"`），假 key 未触发任何 DeepSeek 调用 |
 | V6 | `DEEPSEEK_API_KEY=sk-fake node dist/index.js --engines-list` | — | **通过** — 列表尾部含 `ollama`、`deepseek` |
 | V7 | `git diff --stat` | — | **通过** — 仅 `README.md`、`cli/src/config.ts`、`cli/src/runCli.ts`、`cli/sxng.config.example.json`（+131/-40）；`cli/src/service.ts` 未改 |
-| V8 | `node dist/index.js "query" -e deepseek`（真实 key） | AC1, AC3 | **未验证 — 见 R-1**（本机无可用 `DEEPSEEK_API_KEY`） |
+| V8 | `node dist/index.js "query" -e deepseek`（真实 key） | AC1, AC3 | **通过** — 见下节端到端实测（用户提供的临时 key） |
+
+**端到端实测（2026-10-17，用户提供临时 key，已用于验证后撤销）**
+
+| 检查 | 结果 |
+| --- | --- |
+| `-e deepseek` 单 provider | `status:"ok"`，10 条结果，全部 `engine === 'deepseek'`，`rank` 1–10 连续 |
+| `content` 来源 | 实测长度为 3171–5075 字符，内容为页面正文/长摘要（例：`"### Yielding Control to the Runtime\n\nRecall from the …"`），确认为 `summary` 字段而非 `snippet`（snippet 为 100–200 字符，量级不符） |
+| `publishedDate` | 有日期时为 RFC 3339 字符串（如 `2026-03-03T16:00:00+00:00`），无日期时为 `undefined`（JSON 中键缺失） |
+| `-e deepseek,360search` 合并 | `totalResults:16` = deepseek 10 + 360search 6；顺序为全部 deepseek 后接全部 SearXNG；`unresponsiveEngines: []` |
+| `-l 2` 限制 | `count: 2` 生效，返回 2 条 |
+| session origin 归因 | `results.json` 中 `origin tools = {"deepseek":10,"sxng":6}`，deepseek 结果的 origin 为 `{"tool":"deepseek","engine":"deepseek","query":"rust async runtime","round":1}` |
+| 真实 401 错误路径 | 无效 key 返回 `{"code":"SEARCH_FAILED","message":"DeepSeek search failed: HTTP 401 Unauthorized"}`，未静默返回空结果 |
+| `-e deepseek,google` | `google` 在本机 SearXNG 上 `access denied`，故只返回 deepseek 10 条且 `returnedResults` 被截为 10（`limit` 默认值）。SearXNG 空结果时合并行为正常，非缺陷；改用 `360search` 验证了 AC3。 |
+
+**验证过程中发现的既有缺陷（非本任务引入，记录为 F5）**
+
+真实 401 经 `runSearch` 顶层 catch 转成 `SEARCH_FAILED` 时被标为 `retryable: true`，且 hint 为 `Check your network connection and SearXNG server status`。这两点对 DeepSeek 的 401 都是错的——认证失败不可重试，且与该 provider 无关。该 catch 对所有搜索错误一律如此标记（SearXNG 亦同），属既有行为；本任务不改，避免扩大范围。
 
 **AC 逐条结论**
 
 | AC | 结论 | 依据 |
 | --- | --- | --- |
-| AC1 DeepSeek 来源结果 | **部分验证** | provider 映射由 V3 单测覆盖；`-e deepseek` 路由由 `provider-routing.test.ts` 断言（provider 单独被调用、SearXNG 不被调用、结果 `engine === 'deepseek'`）。**真实 HTTP 调用未验证（R-1）**。 |
+| AC1 DeepSeek 来源结果 | **通过** | 端到端实测（真实 key）：10 条全部 `engine === 'deepseek'`，`rank` 连续，`content` 实测为 `summary` 量级内容，`publishedDate` 映射正确 |
 | AC2 未配 key 报错 | **通过** | V4 |
-| AC3 并列合并 | **通过** | `provider-routing.test.ts` 断言 `['deepseek','google']` 顺序与 `totalResults === 2`；V8 未做真实双源验证 |
+| AC3 并列合并 | **通过** | 端到端实测 `-e deepseek,360search` → `totalResults:16`（10+6）；`provider-routing.test.ts` 断言合并顺序与计数 |
 | AC4 未选不请求 | **通过** | V5 + `provider-routing.test.ts` 断言未选 provider 的 `search` 未被调用 |
-| AC5 `content = summary \|\| snippet` | **通过** | V3 两个用例（summary 优先、缺 summary 回退 snippet、两者皆无得空串） |
-| AC6 三类失败抛错 | **通过** | V3 三个用例（非 2xx 带状态码、传输失败、响应体无 `results`） |
+| AC5 `content = summary \|\| snippet` | **通过** | V3 三个用例 + 端到端实测确认内容为 `summary` 量级（3171–5075 字符） |
+| AC6 三类失败抛错 | **通过** | V3 三个用例 + 端到端实测真实 401 返回 `HTTP 401 Unauthorized` 而非空结果 |
 | AC7 构建与测试 | **通过** | V1、V2 |
 
 **确认项**
@@ -165,6 +184,8 @@
 - **F2** `rerank_score`（0–3）与 `authority`（0–4）接入 `quality-assess` 或 RRF 排序——DeepSeek 独有的质量信号，需先确定与现有 0–1 分数尺度的换算。
 - **F3** `/v1/tools/fetch` 作为 Jina 的替代评估——触发条件是实测撞上 Jina 的 20 RPM 上限。
 - **F4** `--deepseek-content` 开关（`need_content: true`）——触发条件是实测 `extract` 在 DeepSeek 来源结果上失败或变慢。
+- **F5** `runSearch` 顶层 catch（`runCli.ts` 末段）对所有搜索错误一律返回 `retryable: true` 与 `hint: 'Check your network connection and SearXNG server status'`。对认证失败（如 DeepSeek 401）这是错的：既不可重试，也与 SearXNG 无关。真实 401 已实测复现。属既有行为，本任务未改。修法是让 provider 错误携带可判别类型（项目已有 `SessionStateError` 这类带 `code` 的错误类先例），catch 据此分派 `retryable` 与 hint。
+- **F6** `-e deepseek,<engine>` 的合并结果按"provider 全部在前、SearXNG 全部在后"拼接，未做 RRF 融合。RRF 仅在 `--queries` 多查询路径与 `--session` 路径生效。单查询并列时的排序策略需单独决策。
 
 ## Version History
 

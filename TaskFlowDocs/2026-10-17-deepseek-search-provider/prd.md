@@ -1,7 +1,7 @@
 # DeepSeek Search API 接入为搜索 provider
 
 > Task version: v1
-> Status: in_progress
+> Status: checking
 
 ## Goal
 
@@ -82,14 +82,15 @@
 
 ## Risks / Deferred Items
 
-- **R-1 无法端到端验证。** 本机无 `DEEPSEEK_API_KEY`，且测试布局不含 HTTP mock。因此真实调用路径只能靠单元测试覆盖映射与分支逻辑（stub axios），真实接口行为需用户手动跑一次。这是本任务最大的验证缺口，必须显式声明。
-- **R-2 字段理解偏差。** `summary` 与 `snippet` 的实际长度/形态若与文档不符，映射可能需微调。影响面仅一行。
+- **R-1 端到端验证依赖用户提供 key。** 本机无 `DEEPSEEK_API_KEY`，测试布局亦不含 HTTP mock。**已解决**：用户提供临时 key 后完成端到端实测（结果见 `plan.md` 的 Verification 节），AC1/AC3/AC5/AC6 均获真实接口确认。该 key 仅用于验证，不在任何产物中留存。
+- **R-2 字段理解偏差。** `summary` 与 `snippet` 的实际长度/形态若与文档不符，映射可能需微调。**已排除**：实测 `summary` 为 3171–5075 字符的正文级内容，`snippet` 为 100–200 字符，与文档一致。
 - **R-3 `allowedEngines` 交互。** 用户 config 若设置了白名单且不含 `deepseek`，`-e deepseek` 会被 `INVALID_ENGINES` 拦下。这是既有设计，不属缺陷，但会让人误以为接入失败。
-- **R-4 计费。** 每次成功搜索 ¥0.005。sxng 的多查询与重试会累加。不属本任务处理范围，但 README 应提及。
+- **R-4 计费。** 每次成功搜索 ¥0.005。sxng 的多查询会累加（N 个查询 = N 次请求）。不属本任务处理范围，README 已注明按成功请求计费。
+- **R-5（新）认证失败的错误分类不准。** 真实 401 被 `runSearch` 顶层 catch 标为 `retryable: true` 且 hint 指向 SearXNG/网络。属既有行为，已记为 `plan.md` 的 F5。
 
 ## Open Questions
 
-- **Q1** 本机是否已有可用的 DeepSeek API key？若有，AC1/AC3 可升级为端到端验证。若无可用于测试的 key，R-1 的缺口保持，需用户手动验收。
+- **Q1 已解决（2026-10-17）**：用户提供临时 key，端到端验证完成。
 
 （无阻塞性未决问题。Q1 影响验证强度，不影响实现。）
 

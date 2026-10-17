@@ -140,4 +140,4 @@ hint: 'Set DEEPSEEK_API_KEY or add "deepseekApiKey" to sxng.config.json'
 
 ## Open Questions
 
-- **Q1** 本机是否有可用于验证的 DeepSeek API key（同 PRD Q1）。影响 AC1/AC3 能否端到端验证，不影响实现。
+- **Q1 已解决（2026-10-17）**：用户提供临时 key，端到端验证完成，见 `plan.md`。
