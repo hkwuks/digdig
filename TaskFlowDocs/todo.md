@@ -128,15 +128,15 @@ Measured with `ollama` as the provider stand-in, since no `DEEPSEEK_API_KEY` is 
 ## Search-time body content is discarded before the session sees it
 
 - ID: TF-20261017-d8f7b3
-- Status: inbox
+- Status: promoted
 - Priority: normal
 - Owner: Claude
 - Source: follow-up
 - Added: 2026-10-17
 - Updated: 2026-10-18
-- Goal: A search provider's body content survives neither into the session nor into the Agent's view. Two independent defects, plus a field-mapping decision that the measurements below reframe. **Defect 2's root cause was found on 2026-10-18 and is unrelated to search** — it is `process.exit()` truncating any piped stdout over 65,536 bytes, so it may deserve its own task rather than riding along with this one.
-- Task: Not promoted.
-- Next action: Field shape and tier are both decided (see below); not yet promoted. Promote when ready — the entry now carries enough to write a PRD/Spec/Plan.
+- Goal: A search provider's body content survives neither into the session nor into the Agent's view. Originally two defects; **Defect 2 was split out on 2026-10-18 (user decision) into `TF-20261018-282836`** because its root cause is the shared exit mechanism, not search. What remains here is one defect — content is dropped when the result enters the session — plus the field-mapping decision that the measurements below settle.
+- Task: `TaskFlowDocs/2026-10-18-search-body-excerpt/`
+- Next action: PRD/Plan 已写完并置 ready，等待用户批准 v1 后实施。
 
 ### Measured: `SearchResult.content` is a body-text sample, not a snippet
 
@@ -189,6 +189,8 @@ This is already the convention on the import path, so the change is bringing the
 Why not the extracted tier, which would light up every downstream analysis at once: `hasVerifiedContent` (`session.ts:300-309`) requires `contentType === 'extracted'` **and** a non-empty `extractor` string, so a search result could only enter that set by claiming an extractor that does not exist. And that set is not merely an analysis pool — evidence claims cite `result.content` by **character offset** and re-check the quote against it (`commands/evidence.ts:117-128` — `RESULT_NOT_APPROVED`, `OFFSET_OUT_OF_RANGE`, `QUOTE_MISMATCH`, `HASH_MISMATCH`), and `resolveApprovedContent` (`claims/deterministic-checks.ts:43-52`) resolves a claim's source the same way. Promoting a provider summary there would put a hash-verified citation on a text that is not the page it names. That is the reason `contentType` is worth keeping as a verification marker rather than redefining as provenance.
 
 ### Defect 2 — `process.exit()` truncates piped stdout at 65,536 bytes
+
+> **Split out 2026-10-18 (user decision) into `TF-20261018-282836`.** The measurements stay here as the record of how the root cause was found; that entry is the one to promote.
 
 Reading `sxng ... -e ollama --format json` through a pipe yields exactly **65,536 bytes** and invalid JSON; redirecting to a file yields the full output. `--format md` truncates at the same threshold.
 
@@ -267,3 +269,34 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Goal: Duplicate of the entry above (same ID, created by `hooks/task intake` when the long goal was used as the heading). The heading was then shortened by hand and re-added, leaving both copies. Both copies are now `cancelled` — the underlying question turned out to be a probe artifact and is recorded in `TF-20261017-d8f7b3`. Cancelled rather than deleted: the merge driver's invariant is that a Todo entry is never dropped.
 - Task: Not promoted.
 - Next action: None — see `TF-20261017-d8f7b3`.
+
+## Stop `process.exit()` from truncating piped stdout
+
+- ID: TF-20261018-282836
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: follow-up
+- Added: 2026-10-18
+- Updated: 2026-10-18
+- Goal: No command's piped stdout is silently truncated. `process.exit()` terminates the process before Node flushes the stdout write buffer, so when stdout is a pipe the kernel keeps only what fits — 65,536 bytes on this machine — and a piping Agent receives cut-off, unparseable JSON. **Split out of `TF-20261017-d8f7b3` on 2026-10-18** (user decision): it was recorded there as that entry's "Defect 2", but its root cause is the shared exit mechanism, not search, and none of the field-mapping work touches it.
+- Task: Not promoted.
+- Next action: Promote when ready. Measurements, the minimal reproduction and the fix are recorded in `TF-20261017-d8f7b3` → `### Defect 2`; copy that section into this task's PRD when it is promoted.
+
+### Verified facts carried over from `TF-20261017-d8f7b3`
+
+Minimal reproduction, with no sxng code involved:
+
+```
+console.log('x'.repeat(200000)) + process.exit(0) | pipe   → 65536   (truncated)
+console.log('x'.repeat(200000)) + natural exit    | pipe   → 200001  (intact)
+console.log('x'.repeat(200000)) + process.exit(0) > file   → 200001  (intact)
+```
+
+Identical through `wc -c`, `cat > file`, and a Node reader, so the consumer is not the variable; 65,536 was this machine's pipe capacity (`fcntl.F_GETPIPE_SZ`). `sxng` calls `process.exit` 46 times — 45 in `cli/src/runCli.ts` (23 of them the `process.exit(code)` ending a subcommand, including right after `runSearch` returns at `:1748`) and 1 in `cli/src/index.ts`'s `main()`.
+
+Be precise about the reach: **no subcommand was observed truncating.** `session-report` on a small session measures 2,647 bytes both ways, and the search path is the only place an oversized payload was reproduced. "Every subcommand has it" is an inference from the shared exit mechanism, not a measurement, and should be confirmed per-command before being relied on.
+
+**Fix**: stop calling `process.exit()` to end a command — set `process.exitCode` and let the event loop drain. This is also what the project rule already requires ("do not use any method which may block the running code to achieve the function of outputting logs"). Bounding the output is a separate, still-worthwhile change, not the fix for this.
+
+**Interaction with the sibling task**: after this lands, `--format md` on an Ollama search (`content` 835–25,804 chars) stops being truncated at 65,536 — the full body reaches the pipe. Lengthening the md output must not be done in the same change as the exit fix, or the two effects cannot be told apart when verifying.
