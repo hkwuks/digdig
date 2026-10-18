@@ -1,7 +1,7 @@
 # Plan — 搜索期的正文不再被丢弃：`snippet` 显示位 + 正文落入 `excerpt`
 
 > Task version: v2
-> Status: ready
+> Status: checking
 
 No spec required — small, self-contained task（4 个文件、两条已定位的写入链）。
 
@@ -38,8 +38,8 @@ No spec required — small, self-contained task（4 个文件、两条已定位�
 
 - Status: approved
 - Approved by: user
-- Approved at: 2026-10-18 20:35 +0800
-- Approved version: v1
+- Approved at: 2026-10-18 21:00 +0800
+- Approved version: v2
 - Approved scope: PRD / Plan
 
 ## Steps
@@ -144,6 +144,7 @@ No spec required — small, self-contained task（4 个文件、两条已定位�
 - 2026-10-18 v1 — 由 `TF-20261017-d8f7b3` 提升并拆出 `TF-20261018-282836`，形成初始 v1；affects `prd.md`、`plan.md`、`TaskFlowDocs/todo.md`。
 - 2026-10-18 v1（工作修订）— 用户批准 v1（20:35 +0800）；实施 Step 1–3 并跑通聚焦测试；affects `cli/src/service.ts`、`cli/src/deepseek-service.ts`、`cli/src/deep/session.ts`、`cli/src/runCli.ts` 及三个测试文件。
 - 2026-10-18 v2（Task 版本实质变更）— 实施中发现 v1 对代码的两处错误假设：pending 列表要求 `hasVerifiedContent`、不接受搜索正文（原 R4 第二写入方与 AC5 作废）；`excerpt` 取值须正文优先、更新分支须限定在搜索条目之间。另将 `snippet` 在 `SessionResultInput` 上显式声明，并把 AC4 的逐字节比较改为行多重集比较。v1 文档归档到 `old/v1/`，任务回到 `ready` 待重新批准；affects `prd.md`、`plan.md`、`cli/src/deep/session.ts`、`cli/src/runCli.ts`、`cli/test/`。
+- 2026-10-18 v2（工作修订）— 用户批准 v2 后按评审意见收紧两处代码，行为不变：`displayText` 的注释改为说明它**不**用于 pending 列表（原先"两个显示位"的措辞与 v2 撤回后的事实不符）；`makeResult` 改为仅在 `content || snippet` 非空时才赋值 `excerpt`，避免写出一个值为 `undefined` 的键（`JSON.stringify` 本就会丢弃它，故落盘结果与之前相同）。build 与 495 tests 复跑通过；affects `cli/src/runCli.ts`、`cli/src/deep/session.ts`。
 
 ## Follow-ups
 

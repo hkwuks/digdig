@@ -213,7 +213,10 @@ function makeResult(input: SessionResultInput, round?: number): SessionResult {
         // reserved for a verified extraction, so a provider body cannot stay
         // there without claiming an extractor that does not exist.
         if (result.excerpt === undefined) {
-            result.excerpt = input.content || input.snippet || undefined;
+            const body = input.content || input.snippet;
+            // Assigned only when non-empty: `x = undefined` would still create the
+            // key, and the point is that a bodyless result carries no excerpt at all.
+            if (body) result.excerpt = body;
         }
     } else {
         result.content = input.content ?? '';

@@ -128,7 +128,7 @@ Measured with `ollama` as the provider stand-in, since no `DEEPSEEK_API_KEY` is 
 ## Search-time body content is discarded before the session sees it
 
 - ID: TF-20261017-d8f7b3
-- Status: promoted
+- Status: in_progress
 - Priority: normal
 - Owner: Claude
 - Source: follow-up

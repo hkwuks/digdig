@@ -53,7 +53,9 @@ import { writeFileSync, existsSync } from 'fs';
  * `snippet` is what the provider offered as a display blurb, `excerpt` is the
  * same slot after the result entered a session, and `content` is the fallback:
  * a search body when no shorter text exists, and the extracted body otherwise.
- * One expression so the two display sites cannot drift apart.
+ * `||` rather than `??` — an empty string and a missing field are the same thing
+ * to a display layer. This is not used for the `--quality` pending list, which
+ * reviews extracted bodies and must read `content` itself.
  */
 function displayText(result: { snippet?: string; excerpt?: string; content?: string }): string {
     return result.snippet || result.excerpt || result.content || '';
