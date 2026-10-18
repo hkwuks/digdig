@@ -1,7 +1,7 @@
 # 搜索期的正文不再被丢弃：`snippet` 显示位 + 正文落入 `excerpt`
 
 > Task version: v2
-> Status: checking
+> Status: completed
 
 ## Goal
 

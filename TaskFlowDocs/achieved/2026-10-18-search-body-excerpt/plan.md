@@ -1,7 +1,7 @@
 # Plan — 搜索期的正文不再被丢弃：`snippet` 显示位 + 正文落入 `excerpt`
 
 > Task version: v2
-> Status: checking
+> Status: completed
 
 No spec required — small, self-contained task（4 个文件、两条已定位的写入链）。
 
@@ -32,7 +32,7 @@ No spec required — small, self-contained task（4 个文件、两条已定位�
 - [x] 已读 `TaskFlowDocs/repository-docs/index.md` 并按相位取源：本任务为 code + commit/PR 相位。该索引中 `CONTRIBUTING.md`、`CODE_STYLE.md`、`.github/pull_request_template.md` 均为 `missing`，`LICENSE`（MIT）为 `ready`。**结论：仓库未提供代码风格、提交规范或 PR 模板，因此不存在可冲突的仓库规则**；`prd.md` 的 In Scope 不含治理文档的创建（那属 `TF-20261017-bfc96d`）。个人规则 `personal.md` 在本 clone 中**不存在**。
 - [x] 无远程/fork/PR 目标待定：本仓库 `origin` = `https://github.com/hkwuks/sxng-cli`，base = `main`，任务分支 `feat/search-body-excerpt` 自 `main`（`2f8085f`）切出。PR 模板不存在，故无必填字段映射可做——这一点在 PR 创建时按 `SKILL.md` 的"缺失必填项即阻塞"规则复核。
 - [x] 无缺失治理草案待批：本任务不创建任何仓库级治理文档。
-- [ ] 用户批准 v1 后方可实施（`ready` 不等于批准）。
+- [x] 用户批准后方可实施（`ready` 不等于批准）：v1 于 20:35 +0800 批准并实施；v2 修订后重新批准，实施继续。
 
 ## Approval
 

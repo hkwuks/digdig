@@ -128,15 +128,15 @@ Measured with `ollama` as the provider stand-in, since no `DEEPSEEK_API_KEY` is 
 ## Search-time body content is discarded before the session sees it
 
 - ID: TF-20261017-d8f7b3
-- Status: in_progress
+- Status: done
 - Priority: normal
 - Owner: Claude
 - Source: follow-up
 - Added: 2026-10-17
 - Updated: 2026-10-18
 - Goal: A search provider's body content survives neither into the session nor into the Agent's view. Originally two defects; **Defect 2 was split out on 2026-10-18 (user decision) into `TF-20261018-282836`** because its root cause is the shared exit mechanism, not search. What remains here is one defect — content is dropped when the result enters the session — plus the field-mapping decision that the measurements below settle.
-- Task: `TaskFlowDocs/2026-10-18-search-body-excerpt/`
-- Next action: PRD/Plan 已写完并置 ready，等待用户批准 v1 后实施。
+- Task: `TaskFlowDocs/achieved/2026-10-18-search-body-excerpt/`
+- Next action: None — completed and archived.
 
 ### Measured: `SearchResult.content` is a body-text sample, not a snippet
 
