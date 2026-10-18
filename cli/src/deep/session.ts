@@ -61,6 +61,13 @@ export interface SessionResultInput {
     contentType?: ResultContentType;
     excerpt?: string;
     content?: string;
+    /**
+     * The search layer's display blurb, accepted only so `appendSessionResults`
+     * can fold it into `excerpt` at the one place the two layers meet. It is not
+     * stored: `SessionResult` has no such field, and a search body that kept both
+     * names would be one thing described twice.
+     */
+    snippet?: string;
     extractor?: string;
     extractedAt?: number;
     origins?: ResultOrigin[];
@@ -201,11 +208,21 @@ function makeResult(input: SessionResultInput, round?: number): SessionResult {
         delete result.content;
         delete result.extractor;
         delete result.extractedAt;
+        // The body is not deleted with them: it moves to `excerpt`, which is this
+        // layer's name for it and what the display layer reads back. `content` is
+        // reserved for a verified extraction, so a provider body cannot stay
+        // there without claiming an extractor that does not exist.
+        if (result.excerpt === undefined) {
+            result.excerpt = input.content || input.snippet || undefined;
+        }
     } else {
         result.content = input.content ?? '';
         result.extractor = input.extractor || 'default';
         result.extractedAt = input.extractedAt ?? now;
     }
+    // `snippet` is the search layer's name for the display slot; at this layer it
+    // is `excerpt`, and carrying both would be one thing with two names.
+    delete result.snippet;
     mergeOrigins(result, input.origins ?? [], round);
     return result;
 }
@@ -420,6 +437,18 @@ export function appendSessionResults(
             if (input.excerpt !== undefined && input.excerpt !== existing.excerpt) {
                 existing.excerpt = input.excerpt;
                 changed = true;
+            } else if (input.excerpt === undefined
+                && inferredContentType(input) === 'search'
+                && existing.contentType === 'search') {
+                // A search result carries its body in `content` and its short blurb
+                // in `snippet`; both are `excerpt` at this layer. Only for a
+                // search result: an extracted entry's excerpt is the page
+                // description a provider body has no business replacing.
+                const body = input.content || input.snippet;
+                if (body && body !== existing.excerpt) {
+                    existing.excerpt = body;
+                    changed = true;
+                }
             }
             for (const field of ['score', 'fusionScore', 'retrievedAt', 'rank', 'publishedDate'] as const) {
                 if (input[field] !== undefined && input[field] !== existing[field]) {

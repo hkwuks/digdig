@@ -1,6 +1,6 @@
 # Plan — 搜索期的正文不再被丢弃：`snippet` 显示位 + 正文落入 `excerpt`
 
-> Task version: v1
+> Task version: v2
 > Status: ready
 
 No spec required — small, self-contained task（4 个文件、两条已定位的写入链）。
@@ -36,13 +36,15 @@ No spec required — small, self-contained task（4 个文件、两条已定位�
 
 ## Approval
 
-- Status: requested
-- Approved by: pending
-- Approved at: pending
-- Approved version: pending
-- Approved scope: pending
+- Status: approved
+- Approved by: user
+- Approved at: 2026-10-18 20:35 +0800
+- Approved version: v1
+- Approved scope: PRD / Plan
 
 ## Steps
+
+> **v2 说明**：以下为 v2 内容。`## Approval` 块记录的是 v1 的批准，**不覆盖 v2**；实施已在 v2 文档写完时停止，待重新批准后再继续。v1 期间完成的代码改动保留在工作树中——其结论在 v2 下不变，只有 pending 预览那一处被撤回。
 
 ### Step 1 — 搜索层契约：`SearchResult.snippet` 与 DeepSeek 映射
 
@@ -50,14 +52,14 @@ No spec required — small, self-contained task（4 个文件、两条已定位�
 - Dependencies: 无
 - Files: `cli/src/service.ts`、`cli/src/deepseek-service.ts`、`cli/test/unit/deepseek-service.test.ts`
 - Implementation checklist:
-  - [ ] `SearchResult` 增加 `snippet?: string`（放在 `content` 之后，注释说明它是显示位、`content` 是分析位）。
-  - [ ] `DeepSeekService` 映射：`snippet: item.snippet`、`content: item.summary || item.snippet || ''`；`DeepSeekSearchItem` 若已含 `snippet` 则复用其类型。
-  - [ ] 确认 `SearXNGService`（`service.ts:138`）与 `OllamaService` 的映射零改动——不写 `snippet`。
-  - [ ] 更新/新增单元测试：`summary` 有值时 `snippet === 接口 snippet` 且 `content === summary`；`summary` 为空串时 `content === snippet`；`snippet` 缺失时为 `undefined`、`content` 回退为空串。
+  - [x] `SearchResult` 增加 `snippet?: string`（放在 `content` 之后，注释说明它是显示位、`content` 是分析位）。
+  - [x] `DeepSeekService` 映射：`snippet: item.snippet || undefined`、`content: item.summary || item.snippet || ''`；复用已有的 `DeepSeekSearchItem.snippet`。
+  - [x] 确认 `SearXNGService`（`service.ts:138`）与 `OllamaService` 的映射零改动——不写 `snippet`（`git diff` 显示两者均未被触碰）。
+  - [x] 单元测试：`summary` 有值时 `snippet === 接口 snippet` 且 `content === summary`；`summary` 为空串时 `content === snippet`；`snippet` 缺失时为 `undefined`、`content` 回退为空串。
 - Acceptance: AC1、AC2
-- Verification: `cd cli && npx vitest run test/unit/deepseek-service.test.ts`
+- Verification: `cd cli && npx vitest run test/unit/deepseek-service.test.ts` → 14 passed
 - Rollback: 还原三个文件；`snippet` 为可选字段，无落盘影响，回滚无数据迁移。
-- Status: pending
+- Status: done
 
 ### Step 2 — Session 层：正文落 `excerpt`，`snippet` 不留存
 
@@ -65,14 +67,16 @@ No spec required — small, self-contained task（4 个文件、两条已定位�
 - Dependencies: Step 1（`snippet` 必须先存在于输入契约，Step 2 才有"要删"的东西）
 - Files: `cli/src/deep/session.ts`、`cli/test/integration/session.test.ts`
 - Implementation checklist:
-  - [ ] `makeResult` 创建分支：`search` 类型仍删 `content`/`extractor`/`extractedAt`，同时删除 `snippet`，并让 `excerpt` 从输入的 `snippet ?? content` 取值（`content` 即 provider 正文）。
-  - [ ] `appendSessionResults` 更新分支：`session.ts:420-421` 现有 `excerpt` 写入处同时接收 `snippet ?? content`，并删除 `snippet`；保证 `changed` 判定正确（值变化才 `touch`）。
-  - [ ] 不改 `hasVerifiedContent`（`session.ts:300-309`）、不改 `contentType` 推断（`session.ts:182-185`）。
-  - [ ] 测试：`appendSessionResults` 一条带 `content`+`snippet` 的搜索输入后，落盘对象 `contentType === 'search'`、`content === undefined`、`excerpt === content 原值`、无 `snippet` 键；同 URL 二次追加仍然只更新、不新增。
+  - [x] `SessionResultInput` 显式声明 `snippet?: string`。该类型有 `[key: string]: unknown`，不声明也能传进来，但 `tsc` 需要它才允许 `delete result.snippet`——否则报 `{} | undefined` 不可赋给 `string | undefined`。
+  - [x] `makeResult` 创建分支：`search` 类型仍删 `content`/`extractor`/`extractedAt`，同时删除 `snippet`，并让 `excerpt` 从输入的 **`content || snippet`** 取值——正文优先，正文缺失时才退到显示短文本。**顺序不可颠倒**：`excerpt` 在这一层的语义是"这条结果的正文"。
+  - [x] `appendSessionResults` 更新分支：在既有 `excerpt` 写入之后补一条 `else if`，条件为 `input.excerpt === undefined && inferredContentType(input) === 'search' && existing.contentType === 'search'`，填入 `input.content || input.snippet`，并删除 `snippet`。两个 `search` 判定都必要：前者排除"这次输入是提取结果"，后者排除"既有条目是提取结果"——提取条目的 `excerpt` 是页面 description。
+  - [x] 落点在 `session.ts` 内部，不在调用方：`runCli.ts` 两个搜索路径、`local-doc/searcher.ts`、`results-add` 都经由 `appendSessionResults`；`results-add --kind search` 既不发 `content` 也不发 `snippet`，其显式 `excerpt` 行为不受影响。
+  - [x] 不改 `hasVerifiedContent`（`session.ts:302-312`）、不改 `contentType` 推断（`session.ts:182-185`）。
+  - [x] 测试：创建分支、正文缺失时的回退、显式 `excerpt` 优先、更新分支刷新、提取条目豁免、提取条目上的游离 `snippet` 被清除。
 - Acceptance: AC3、AC6
-- Verification: `cd cli && npx vitest run test/integration/session.test.ts`
+- Verification: `cd cli && npx vitest run test/integration/session.test.ts` → 16 passed
 - Rollback: 还原两个文件。已落盘的旧 session 不受影响（本次不写迁移）。
-- Status: pending
+- Status: done
 
 ### Step 3 — 显示层：`snippet ?? excerpt ?? content` 回退链
 
@@ -80,44 +84,66 @@ No spec required — small, self-contained task（4 个文件、两条已定位�
 - Dependencies: Step 1、Step 2（读取方要能拿到 `snippet`，也要能拿到 `excerpt`）
 - Files: `cli/src/runCli.ts`、`cli/test/unit/cli.test.ts`
 - Implementation checklist:
-  - [ ] 加一个模块内 helper（如 `displayText(r)`）返回 `r.snippet ?? r.excerpt ?? r.content`，`formatAsMarkdown`（`runCli.ts:70`）与 pending 预览（`runCli.ts:1644`）都用它；不得各写一份表达式。
-  - [ ] pending 预览的 `contentLength` 若继续基于 `r.content?.length`，需确认它不因本次改动而撒谎（预览文本与长度须来自同一个字段）。
-  - [ ] 不截断任何正文（用户决策：不改变现有长度）。
-  - [ ] 测试：有 `snippet` 时 md 输出显示 `snippet`；只有 `excerpt` 时显示 `excerpt`；都没有时显示 `content`。
+  - [x] 模块内 helper `displayText(r)` 返回 `r.snippet || r.excerpt || r.content || ''`。用 `||` 而非 `??`：provider 给的空串与缺字段，对显示层是同一件事。
+  - [x] 只用于 `formatAsMarkdown`（`runCli.ts:82-83`）。
+  - [x] **pending 预览（`runCli.ts:1656,1670`）不改**，并在原处加注释说明它审阅的是 `content`。理由：该列表由 `getPendingResults`（`session.ts:479-483`）供给，要求 `hasVerifiedContent(result)`，**全部是提取结果**；套显示回退不会让搜索正文变得可见（它根本不进这个列表），只会让页面 description 顶替正在被审阅的正文。见 `prd.md` R4/AC5 的 v2 修订。
+  - [x] 不截断任何正文（用户决策：不改变现有长度）。
+  - [x] 测试：有 `snippet` 时 md 显示 `snippet` 且不显示 `content`；无 `snippet` 时回退到 `content`；session 经 RRF 合并进来的搜索结果显示其 `excerpt`。
 - Acceptance: AC4、AC5
-- Verification: `cd cli && npx vitest run test/unit/cli.test.ts`
+- Verification: `cd cli && npx vitest run test/unit/cli.test.ts` → 18 passed
 - Rollback: 还原两个文件，输出回到改动前。
-- Status: pending
+- Status: done
 
 ### Step 4 — 全量验证与验收记录
 
-- Goal: AC1–AC7 逐条有证据，且证明 SearXNG/Ollama 输出未变。
+- Goal: AC1–AC7 逐条有证据，且证明 SearXNG/Ollama 输出形状未变。
 - Dependencies: Step 1、2、3
 - Files: `TaskFlowDocs/2026-10-18-search-body-excerpt/plan.md`
 - Implementation checklist:
-  - [ ] `cd cli && npm run build` 通过。
-  - [ ] `cd cli && npm test` 全量通过。
-  - [ ] 对真实 SearXNG 跑一次 `--session`（本机已有配置），核对 AC3 的落盘对象。
-  - [ ] 用固定响应夹具覆盖 AC1 的接口侧（真实 DeepSeek 需 key，用户上一次的临时 key 已注销——见 `prd.md` R-4）。
-  - [ ] 与改动前的 md 输出逐字节对比 SearXNG/Ollama（AC4 的"零变化"半句）。
-  - [ ] 把结果写入本节的 Verification / Review。
+  - [x] `cd cli && npm run build` 通过。
+  - [x] `cd cli && npm test` 全量通过 → 35 files / 495 tests（改动前 487）。
+  - [x] 对真实 SearXNG 跑 `--session`，核对 AC3 的落盘对象。
+  - [x] 用单元测试覆盖 AC1 的接口侧（真实 DeepSeek 需 key，见 `prd.md` R-4）。
+  - [x] 对比改动前后的 md 输出形状（AC4 的"零变化"半句）；按 v2 修订改用行多重集比较，理由见 `## Verification / Review`。
+  - [x] 结果写入 `## Verification / Review`。
 - Acceptance: AC1–AC7
-- Verification: 上述命令输出，逐条贴入 Verification / Review
+- Verification: 上述命令输出，见 `## Verification / Review`
 - Rollback: 分支整体丢弃即可；无迁移、无外部副作用。
-- Status: pending
+- Status: done
 
 ## Checkpoints
 
 - 每步结束后运行该步的聚焦测试；三步全绿后再进 Step 4 的全量验证。
-- Step 3 结束时对照 `prd.md` R-2 复核：本次改动**不得**包含任何限制输出长度或改动 `process.exit` 的内容。
+- Step 3 结束时对照 `prd.md` R-2 复核：本次改动**不含**任何限制输出长度或改动 `process.exit` 的内容（已核对 `git diff`：`process.exit` 一处未动）。
 
 ## Verification / Review
 
-（Step 4 完成后填写。）
+全部命令在任务工作树 `.worktrees/search-body-excerpt/cli` 下执行。
+
+| AC | 证据 | 结论 |
+| --- | --- | --- |
+| AC1 | `npx vitest run test/unit/deepseek-service.test.ts` 14 passed：`summary`→`content`、`snippet`→`snippet`、`summary` 空时 `content` 回退到 `snippet`、两者皆无时 `content === ''` 且 `snippet === undefined` | 通过（夹具） |
+| AC2 | 真实 SearXNG 一次 `--session` 运行：5 条结果**无一条**带 `snippet` 键；`git diff` 确认 `service.ts:138` 与 `ollama-service.ts` 的映射未改 | 通过 |
+| AC3 | 同一运行读 `/tmp/sess-ac5/results.json`：5 条全部 `contentType: "search"`、`"content" in r === false`、`"snippet" in r === false`、`excerpt` 等于该条 provider `content`（首条 183 字符） | 通过 |
+| AC4 | `--format md` 下 DeepSeek 结果走 `snippet`（单元测试断言显示 `short blurb` 且不显示长正文）；SearXNG/Ollama 的 md 形状对比见下 | 通过 |
+| AC5 | pending 预览保持读 `content`；`getPendingResults` 只返回 `hasVerifiedContent` 结果，搜索正文按设计不进该列表 | 通过（修订后） |
+| AC6 | `hasVerifiedContent` 未改动；`cli.test.ts` 既有的 `RESULT_NOT_VERIFIED` 用例仍通过 | 通过 |
+| AC7 | `npm run build` 无错；`npm test` 35 files / 495 tests 全通过 | 通过 |
+
+**AC4 的"零变化"是怎么验的，以及为什么原方法不成立。** 先试了逐字节比较，两点原因都已实测：
+
+1. 同一份构建连跑两次的输出本身就不同——Ollama 返回的是实时页面正文，`- Total downloads:`、`- Dependents:`、features 列表每次都变。以同一构建自比为噪声基线，得到 75 行差异，即噪声大于信号。
+2. 两条流都在 **65,536 字节处被截断**（`wc -c` 均为 65536），正是 `TF-20261018-282836` 记录的既有缺陷。对已被截断的输出做逐字节比较没有意义。
+
+改用**行多重集比较**：两次运行各自输出后按行排序再比。结论是差异只出现在正文内容行（下载量数字、features 列表顺序、版本表数字），md 结构全部一致——`## Search:` 头、结果条数、每条标题行、`Rank: … Engine: …` 元数据行均相同。即输出**形状**未变，变的只是 provider 每次给的正文本身。
+
+副作用已知且已记录：本任务**没有**改变任何输出的长度上限，`process.exit` 一处未动，因此管道截断行为与改动前一致。`prd.md` R-2 要求两个改动分次验收，本次遵守。
 
 ## Change Log
 
 - 2026-10-18 v1 — 由 `TF-20261017-d8f7b3` 提升并拆出 `TF-20261018-282836`，形成初始 v1；affects `prd.md`、`plan.md`、`TaskFlowDocs/todo.md`。
+- 2026-10-18 v1（工作修订）— 用户批准 v1（20:35 +0800）；实施 Step 1–3 并跑通聚焦测试；affects `cli/src/service.ts`、`cli/src/deepseek-service.ts`、`cli/src/deep/session.ts`、`cli/src/runCli.ts` 及三个测试文件。
+- 2026-10-18 v2（Task 版本实质变更）— 实施中发现 v1 对代码的两处错误假设：pending 列表要求 `hasVerifiedContent`、不接受搜索正文（原 R4 第二写入方与 AC5 作废）；`excerpt` 取值须正文优先、更新分支须限定在搜索条目之间。另将 `snippet` 在 `SessionResultInput` 上显式声明，并把 AC4 的逐字节比较改为行多重集比较。v1 文档归档到 `old/v1/`，任务回到 `ready` 待重新批准；affects `prd.md`、`plan.md`、`cli/src/deep/session.ts`、`cli/src/runCli.ts`、`cli/test/`。
 
 ## Follow-ups
 
@@ -128,3 +154,4 @@ No spec required — small, self-contained task（4 个文件、两条已定位�
 ## Version History
 
 - v1 — 初始版本；planning。
+- v2 — 实施中修正对代码的两处错误假设，见 Change Log；v1 归档于 `old/v1/`。

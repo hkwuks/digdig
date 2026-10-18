@@ -47,6 +47,18 @@ import { readSessionJsonInput } from './commands/json-input.js';
 import { DirectedGraph } from 'graphology';
 import { writeFileSync, existsSync } from 'fs';
 
+/**
+ * The text a human or Agent should see for one result.
+ *
+ * `snippet` is what the provider offered as a display blurb, `excerpt` is the
+ * same slot after the result entered a session, and `content` is the fallback:
+ * a search body when no shorter text exists, and the extracted body otherwise.
+ * One expression so the two display sites cannot drift apart.
+ */
+function displayText(result: { snippet?: string; excerpt?: string; content?: string }): string {
+    return result.snippet || result.excerpt || result.content || '';
+}
+
 function formatAsMarkdown(data: any): string {
     const lines: string[] = [];
 
@@ -67,8 +79,8 @@ function formatAsMarkdown(data: any): string {
             lines.push(`### ${i + 1}. [${r.title || 'No Title'}](${r.url || '#'})${scoreIndicator}`);
             lines.push('');
 
-            if (r.content) {
-                lines.push(r.content);
+            if (displayText(r)) {
+                lines.push(displayText(r));
                 lines.push('');
             }
 
@@ -1641,6 +1653,10 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                         url: r.url,
                         source: r.source || 'sxng',
                         status: r.status,
+                        // The body under review, deliberately not the display fallback:
+                        // this list exists so the Agent can read the extracted text
+                        // before approving it, and `excerpt` here is the page
+                        // description — the wrong text to judge an extraction by.
                         contentPreview: r.content ? r.content.slice(0, 300) : undefined,
                         contentLength: r.content?.length ?? 0,
                         domain: (() => { try { return new URL(r.url).hostname; } catch { return ''; } })(),
@@ -1655,6 +1671,9 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                 for (let i = 0; i < pending.length; i++) {
                     const r = pending[i];
                     console.log(`${i}. [${r.title || 'No Title'}](${r.url}) [${r.source || 'sxng'}]`);
+                    // These are extracted results awaiting approval, so the text to
+                    // review is `content` — the body that will be cited — and not the
+                    // display fallback, which would surface the page description.
                     if (r.content) {
                         const preview = r.content.slice(0, 300).replace(/\s+/g, ' ');
                         console.log(`   Preview: ${preview}${r.content.length > 300 ? '...' : ''}`);

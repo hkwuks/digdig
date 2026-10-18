@@ -49,7 +49,7 @@ describe('DeepSeekService', () => {
         vi.restoreAllMocks();
     });
 
-    it('maps summary into content and preserves rank order', async () => {
+    it('maps summary into content, snippet into snippet, and preserves rank order', async () => {
         const post = mockPost({
             results: [
                 { title: 'A', url: 'https://a.test', summary: 'long A', snippet: 'short A', date: '2026-06-01T00:00:00+00:00' },
@@ -63,7 +63,10 @@ describe('DeepSeekService', () => {
         expect(response.results[0]).toMatchObject({
             title: 'A',
             url: 'https://a.test',
+            // The two slots are distinct on purpose: `content` is the body-text
+            // sample the analysis layer reads, `snippet` only the display blurb.
             content: 'long A',
+            snippet: 'short A',
             engine: 'deepseek',
             category: 'general',
             rank: 1,
@@ -90,7 +93,11 @@ describe('DeepSeekService', () => {
         const response = await new DeepSeekService({ apiKey: 'k' }).search({ query: 'q' });
 
         expect(response.results[0]!.content).toBe('short A');
+        expect(response.results[0]!.snippet).toBe('short A');
         expect(response.results[1]!.content).toBe('');
+        // No snippet is `undefined`, not the empty string: the display layer's
+        // fallback chain tests for presence, and '' would win the `??` race.
+        expect(response.results[1]!.snippet).toBeUndefined();
     });
 
     it('normalizes a null date to undefined', async () => {

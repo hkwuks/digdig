@@ -44,6 +44,87 @@ describe('session result contract', () => {
     expect(getPendingResults(sessionDir)).toHaveLength(0);
   });
 
+  it('keeps a search result body as excerpt and never stores the search layer\'s snippet name', () => {
+    appendSessionResults(sessionDir, [{
+      url: 'https://example.com/article', title: 'Article',
+      content: 'The provider body text.', snippet: 'short blurb',
+      origins: [{ tool: 'sxng', engine: 'google', query: 'example query' }],
+    }]);
+
+    const [result] = loadSessionResults(sessionDir);
+    expect(result.contentType).toBe('search');
+    // The body survives, in this layer's slot for it — not deleted, and not left
+    // under the search layer's `content`, which is reserved for a verified extraction.
+    expect(result.excerpt).toBe('The provider body text.');
+    expect(result.content).toBeUndefined();
+    // One slot, one name: `snippet` is the search layer's word for `excerpt`.
+    expect(result.snippet).toBeUndefined();
+    expect('snippet' in result).toBe(false);
+  });
+
+  it('falls back to snippet for a search result that has no body, and keeps an explicit excerpt', () => {
+    appendSessionResults(sessionDir, [{
+      url: 'https://example.com/no-body', title: 'No body', snippet: 'only a blurb',
+      origins: [{ tool: 'deepseek', query: 'q' }],
+    }]);
+    appendSessionResults(sessionDir, [{
+      url: 'https://example.com/explicit', title: 'Explicit', excerpt: 'given excerpt', content: 'a body',
+      origins: [{ tool: 'sxng', query: 'q' }],
+    }]);
+
+    const byUrl = new Map(loadSessionResults(sessionDir).map(r => [r.url, r]));
+    expect(byUrl.get('https://example.com/no-body')!.excerpt).toBe('only a blurb');
+    // An explicit `excerpt` wins over the body: it is the caller's own decision.
+    expect(byUrl.get('https://example.com/explicit')!.excerpt).toBe('given excerpt');
+  });
+
+  it('refreshes excerpt from the latest search body on the update path', () => {
+    appendSessionResults(sessionDir, [{
+      url: 'https://example.com/article', title: 'Article', content: 'First body',
+      origins: [{ tool: 'sxng', query: 'q' }],
+    }]);
+    // Same URL, a longer body: the entry exists, so this is the update branch.
+    appendSessionResults(sessionDir, [{
+      url: 'https://example.com/article', title: 'Article', content: 'Second, longer body',
+      origins: [{ tool: 'sxng', query: 'q' }],
+    }]);
+
+    const [result] = loadSessionResults(sessionDir);
+    // A later search for the same URL is fresher text, and nothing verified has
+    // replaced it, so it wins. An extracted entry is exempt: its excerpt is the
+    // page description, and the branch above requires a search-type input.
+    expect(result.excerpt).toBe('Second, longer body');
+    expect(loadSessionResults(sessionDir)).toHaveLength(1);
+  });
+
+  it('leaves an extracted entry\'s excerpt alone when a search result carries the same URL', () => {
+    appendSessionResults(sessionDir, [{
+      url: 'https://example.com/article', title: 'Article', contentType: 'extracted',
+      content: 'Verified body.', extractor: 'defuddle', extractedAt: 1, excerpt: 'page description',
+      origins: [{ tool: 'sxng', query: 'q' }],
+    }]);
+    appendSessionResults(sessionDir, [{
+      url: 'https://example.com/article', title: 'Article', content: 'provider body',
+      origins: [{ tool: 'sxng', query: 'q' }],
+    }]);
+
+    const [result] = loadSessionResults(sessionDir);
+    expect(result).toMatchObject({ contentType: 'extracted', content: 'Verified body.' });
+    expect(result.excerpt).toBe('page description');
+  });
+
+  it('drops a stray snippet from an extracted result without touching its body', () => {
+    appendSessionResults(sessionDir, [{
+      url: 'https://example.com/article', title: 'Article', contentType: 'extracted',
+      content: 'Verified body.', extractor: 'defuddle', extractedAt: 1, snippet: 'blurb',
+      origins: [{ tool: 'sxng', query: 'q' }],
+    }]);
+
+    const [result] = loadSessionResults(sessionDir);
+    expect(result).toMatchObject({ contentType: 'extracted', content: 'Verified body.', extractor: 'defuddle' });
+    expect('snippet' in result).toBe(false);
+  });
+
   it('approves only an extracted result with the matching id and revision', () => {
     appendSessionResults(sessionDir, [{
       url: 'https://example.com/article', title: 'Article', contentType: 'extracted',

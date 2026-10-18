@@ -21,7 +21,16 @@ export interface SearchOptions {
 export interface SearchResult {
     title: string;
     url: string;
+    /** The longest body text this provider can give; what the analysis layer reads. */
     content: string;
+    /**
+     * The provider's own short, display-oriented blurb, when it has one. Optional
+     * because only DeepSeek returns a dedicated field for it; for the others the
+     * display layer falls back to `content`, whose scale already differs by two
+     * orders of magnitude between providers (SearXNG 101-180 chars, Ollama tens
+     * of thousands).
+     */
+    snippet?: string;
     engine: string;
     category: string;
     publishedDate?: string;

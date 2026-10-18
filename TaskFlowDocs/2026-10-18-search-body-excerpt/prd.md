@@ -1,6 +1,6 @@
 # 搜索期的正文不再被丢弃：`snippet` 显示位 + 正文落入 `excerpt`
 
-> Task version: v1
+> Task version: v2
 > Status: ready
 
 ## Goal
@@ -64,9 +64,13 @@ DeepSeek 的 `snippet` **不得**映射进 `content`：那会白白扔掉免费�
 
 **R3** `SearXNGService` 与 `OllamaService` 的映射**不变**：两者都不写 `snippet`，`content` 语义不动。
 
-**R4** 显示层读 `snippet ?? excerpt ?? content`。两处写入方都要改：`formatAsMarkdown`（`runCli.ts:70`）与 pending 列表预览（`runCli.ts:1644`）。回退链必须是同一个表达式/同一个 helper，不得各写一份。
+**R4** 显示层读 `snippet ?? excerpt ?? content`，且**在同一处实现**：`formatAsMarkdown`（`runCli.ts:70`）。它必须是一个 helper，不得散成两份表达式。
 
-**R5** 搜索结果的正文在进入 session 时落进 `excerpt`，而不是被删除。落点在两层唯一的交界处 `appendSessionResults`：创建分支（`makeResult`）与更新分支（`session.ts:420-421` 现有 `excerpt` 写入处）都要覆盖，因为两条路径都会遇到 `snippet`。
+> **v2 修订（2026-10-18）**：v1 的 R4 把 pending 列表预览（`runCli.ts:1644`）也列为回退链的写入方。实施时发现该列表由 `getPendingResults`（`session.ts:479-483`）供给，它要求 `hasVerifiedContent(result)` —— **全部是提取结果，不含搜索正文**。在那里套回退链不会让搜索正文变得可见，只会把提取结果的页面 description（`excerpt`）替换掉它正在被审阅的正文 `content`。故 v2 撤回这一处：R4 只有一个写入方，pending 预览改为在代码中注明它审阅的是 `content` 而非显示回退。
+
+**R5** 搜索结果的正文在进入 session 时落进 `excerpt`，而不是被删除。落点是两层唯一的交界处 `appendSessionResults` 的创建分支（`makeResult`）与更新分支（`session.ts:430-433` 附近的 `excerpt` 写入处），因为两条路径都会遇到它。
+
+> **v2 修订（2026-10-18）**：明确了两个细节。其一，取值为 **`content || snippet`**（正文优先，正文缺失才退到短文本），不是 v1 写的 `snippet ?? content`——`excerpt` 在这一层的语义是"这条结果的正文"，颠倒顺序会把显示短文本存成正文。其二，更新分支仅在**该输入推断为 `search`、且既有条目也是 `search`** 时填入：提取条目的 `excerpt` 是页面 description，provider 正文没有理由替换它。
 
 **R6** `makeResult` 对 `search` 类型仍删除 `content`/`extractor`/`extractedAt`，且**不得**把 `snippet` 留在落盘的 `SessionResult` 上——session 层这一位字段的名字是 `excerpt`，两个名字同时存在就是同一件事两个名。
 
@@ -82,15 +86,17 @@ DeepSeek 的 `snippet` **不得**映射进 `content`：那会白白扔掉免费�
 - **AC2** 未配 key 或未选 deepseek 时，任何 provider 的结果都不带 `snippet` 键（SearXNG/Ollama 行为零变化的证据）。
 - **AC3** `sxng "<query>" --session <name> --format json` 之后，每条搜索结果的落盘对象 `contentType === 'search'`、`content === undefined`、`excerpt` 为非空字符串且等于 provider 给该条的 `content`；对象上**没有** `snippet` 键。
 - **AC4** DeepSeek 结果在 `--format md` 下显示的是短 `snippet`，不是 3,171–5,075 字符的 `summary`；SearXNG/Ollama 的 md 输出与本改动前逐字节相同（它们没有 `snippet`，回退到 `content`）。
-- **AC5** `--quality` 的 pending 预览对搜索结果显示该正文（此前为空），且 `verified: false`。
+- **AC5（v2 修订）** pending 列表**只**含提取结果，其预览继续显示被审阅的 `content`，不因本改动而改变；搜索正文出现在 `--format md` 的搜索结果里（AC4 已覆盖），不出现在 pending 列表里。
+
+> **v2 修订**：v1 的 AC5 要求"pending 预览对搜索结果显示该正文"。实施时确认 `getPendingResults` 只返回 `hasVerifiedContent` 的结果（`session.ts:479-483`），该要求无法成立——见 R4 的 v2 修订。原 AC5 作废。
 - **AC6** 搜索结果仍进不了 evidence 引用：`hasVerifiedContent` 为 false，approve/引用路径抛既有错误码。
 - **AC7** `cd cli && npm run build` 通过；`cd cli && npm test` 通过（含新增/更新的单元测试）。
 
 ## In Scope
 
 - `SearchResult.snippet` 字段与三个 provider 的映射（DeepSeek 改，SearXNG/Ollama 明确不改）。
-- `session.ts` 内 `makeResult` 与更新分支的 `excerpt` 落点。
-- 显示层回退链的两处写入方（`runCli.ts:70`、`runCli.ts:1644`）。
+- `session.ts` 内 `makeResult` 与更新分支的 `excerpt` 落点；`SessionResultInput.snippet` 的显式声明。
+- 显示层回退链的写入方：`formatAsMarkdown`（`runCli.ts:70`）。
 - 对应的单元/集成测试。
 - 本任务的三份核心文档。
 
@@ -110,7 +116,9 @@ DeepSeek 的 `snippet` **不得**映射进 `content`：那会白白扔掉免费�
 - **R-2 与 `TF-20261018-282836` 的观测互相掩盖。** 本任务会加长 md 输出（Ollama 的 835–25,804 字符今日在 65,536 处被截断，改后完整输出），而那项任务也会改变同一段输出。两者必须分两次改动、分两次验收，否则无法判断是哪一个造成了输出变化。
 - **R-3 回退链引入 `snippet` 后 md 输出变化。** DeepSeek 的 md 正文会从 3,171–5,075 字符降到 100–200 字符。这是本任务的目的，但属可观测行为变更，应在 PR 描述中写明。
 - **R-4 真实 DeepSeek 接口验证依赖 key。** 上次的临时 key 已由用户注销。AC1 的接口侧验证因此以固定响应夹具为准；若要真实端到端，需要用户再次提供 key。
-- **R-5 `SessionResultInput` 的索引签名。** 该类有 `[key: string]: unknown`，`snippet` 不经显式声明也能传进来。R6 要求显式删除，否则会静默落盘。
+- **R-5 `SessionResultInput` 的索引签名。** 该类有 `[key: string]: unknown`，`snippet` 不经显式声明也能传进来。v2 已显式声明该字段并在 `makeResult` 与更新分支删除它，否则会静默落盘。
+- **R-6（v2 新增）显示层只改一处，pending 预览不动。** 这条改为本任务的一个有意取舍而非遗漏：`--quality` 的 pending 列表全部是提取结果，其预览审阅的是 `content`；在那里套显示回退只会让提取结果改用页面 description 接受审阅。见 R4 与 AC5 的 v2 修订。
+- **R-7（v2 新增）AC4 的"逐字节相同"半句不可直接执行。** 实测发现同一命令连跑两次的输出本身就不同（Ollama 返回的是实时页面正文，Rust 下载量与 features 列表每次都在变），且两条源流都在 **65,536 字节处被 `process.exit` 截断**，所以逐字节比较会被截断影响。已改为：把两份输出都按行排序后比较**行多重集**，差异只应来自正文内容本身，不应来自 md 结构、字数或排序。零变化需要证明的是输出**形状**不变，而不是文本相同。
 
 ## Open Questions
 
@@ -119,3 +127,4 @@ DeepSeek 的 `snippet` **不得**映射进 `content`：那会白白扔掉免费�
 ## Version History
 
 - v1 — 初始版本。由 `TF-20261017-d8f7b3` 提升而来；Defect 2 已拆出为 `TF-20261018-282836`。
+- v2（2026-10-18）— 实施中修正两处对代码的错误假设：pending 列表不接受搜索正文（原 R4 第二写入方与 AC5 作废）；`excerpt` 取值顺序改为正文优先，且更新分支限定在搜索条目之间。`snippet` 在 `SessionResultInput` 上显式声明。v1 已归档到 `old/v1/`。
