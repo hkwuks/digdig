@@ -1,7 +1,7 @@
 # DeepSeek Search API 接入为搜索 provider
 
 > Task version: v1
-> Status: checking
+> Status: completed
 
 ## Goal
 
