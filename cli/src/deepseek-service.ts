@@ -72,9 +72,14 @@ export class DeepSeekService {
       title: item.title || '',
       url: item.url || '',
       // `summary` is the model-facing long abstract; `snippet` is the UI-facing
-      // short one. `content` stays unmapped because it requires need_content and
+      // short one. Each goes to the slot that matches its role: `content` is the
+      // body-text sample the analysis layer reads, `snippet` is the display blurb.
+      // `snippet` is never folded into `content` — that would discard the free
+      // body text and make DeepSeek noisier than SearXNG rather than better.
+      // DeepSeek's own `content` stays unmapped: it requires need_content and
       // duplicates what the extract pipeline fetches on demand.
       content: item.summary || item.snippet || '',
+      snippet: item.snippet || undefined,
       engine: 'deepseek',
       category: 'general',
       publishedDate: item.date ?? undefined,

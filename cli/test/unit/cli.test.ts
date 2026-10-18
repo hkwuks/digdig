@@ -139,6 +139,87 @@ describe('CLI program (commander)', () => {
         }
     });
 
+    it('shows the provider snippet in md output, not the long body behind it', async () => {
+        const output = vi.spyOn(console, 'log').mockImplementation(() => {});
+        vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+
+        await runCli(['snippet query', '--format', 'md'], {
+            search: vi.fn().mockResolvedValue({
+                query: 'snippet query', numberOfResults: 1,
+                results: [{
+                    url: 'https://example.com/snippet', title: 'Snippet', content: 'A three-thousand character abstract.',
+                    snippet: 'short blurb', engine: 'deepseek', category: 'general',
+                }],
+                suggestions: [], answers: [], corrections: [], infoboxes: [], unresponsiveEngines: [],
+            }),
+        } as any);
+
+        const md = output.mock.calls.at(-1)![0] as string;
+        expect(md).toContain('short blurb');
+        expect(md).not.toContain('A three-thousand character abstract.');
+    });
+
+    it('falls back through excerpt to content when no snippet exists', async () => {
+        const sessionDir = mkdtempSync(join(tmpdir(), 'sxng-cli-display-test-'));
+        // A search result: no `content` is stored, so the fallback must reach `excerpt`.
+        appendSessionResults(sessionDir, [{
+            url: 'https://example.com/body', title: 'Body', content: 'provider body text',
+            origins: [{ tool: 'sxng', query: 'q' }],
+        }]);
+        const output = vi.spyOn(console, 'log').mockImplementation(() => {});
+        vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+
+        try {
+            await runCli([sessionDir, '--session', sessionDir, '--format', 'md'], {
+                search: vi.fn().mockResolvedValue({
+                    query: sessionDir, numberOfResults: 1,
+                    results: [{
+                        url: 'https://example.com/plain', title: 'Plain', content: 'plain body',
+                        engine: 'test', category: 'general',
+                    }],
+                    suggestions: [], answers: [], corrections: [], infoboxes: [], unresponsiveEngines: [],
+                }),
+            } as any);
+
+            const md = output.mock.calls.at(-1)![0] as string;
+            expect(md).toContain('plain body');
+        } finally {
+            rmSync(sessionDir, { recursive: true, force: true });
+        }
+    });
+
+    it('shows a stored search result body from excerpt when the session is merged into the display', async () => {
+        const sessionDir = mkdtempSync(join(tmpdir(), 'sxng-cli-excerpt-display-test-'));
+        // A stored search result: its body lives in `excerpt`, not `content`.
+        appendSessionResults(sessionDir, [{
+            url: 'https://example.com/stored', title: 'Stored', content: 'the stored search body',
+            origins: [{ tool: 'sxng', query: 'q' }],
+        }]);
+        expect(loadSessionResults(sessionDir)[0].excerpt).toBe('the stored search body');
+        const output = vi.spyOn(console, 'log').mockImplementation(() => {});
+        vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+
+        try {
+            // A fresh search for an unrelated URL; the stored one enters the display
+            // only through the session's RRF merge, where it is a SessionResult.
+            await runCli(['fresh query', '--session', sessionDir, '--format', 'md'], {
+                search: vi.fn().mockResolvedValue({
+                    query: 'fresh query', numberOfResults: 1,
+                    results: [{
+                        url: 'https://example.com/fresh', title: 'Fresh', content: 'fresh body',
+                        engine: 'test', category: 'general',
+                    }],
+                    suggestions: [], answers: [], corrections: [], infoboxes: [], unresponsiveEngines: [],
+                }),
+            } as any);
+
+            const md = output.mock.calls.at(-1)![0] as string;
+            expect(md).toContain('the stored search body');
+        } finally {
+            rmSync(sessionDir, { recursive: true, force: true });
+        }
+    });
+
     it('keeps the source score unchanged and persists retrieval time', async () => {
         const sessionDir = mkdtempSync(join(tmpdir(), 'sxng-cli-score-test-'));
         const output = vi.spyOn(console, 'log').mockImplementation(() => {});
