@@ -89,7 +89,7 @@
 - Updated: 2026-10-18
 - Goal: A search provider's body content survives neither into the session nor into the Agent's view. Two independent defects, plus a field-mapping decision that the measurements below reframe.
 - Task: Not promoted.
-- Next action: Field shape is decided (see below). Remaining before promotion: settle Defect 1's `excerpt`-vs-`extracted`-tier question and `TF-20261018-1b6064`, then promote.
+- Next action: Field shape and tier are both decided (see below); not yet promoted. Promote when ready — the entry now carries enough to write a PRD/Spec/Plan.
 
 ### Measured: `SearchResult.content` is a body-text sample, not a snippet
 
@@ -110,7 +110,9 @@ Consumers split into two incompatible groups:
 | short, display-oriented text | `formatAsMarkdown` (`runCli.ts:70`), preview (`runCli.ts:1644`) |
 | long text for analysis | `tfidf.ts:71`, `co-occurrence.ts:42,109`, novelty (`quality-assess.ts:106`), `dedupe.ts:91` |
 
-Direction settled 2026-10-18 (user 同意 to the report carrying this proposal); **not implemented and not yet promoted** — this entry is the promotion candidate, and the tier question below still has to be answered first. Add an optional `snippet?: string` to `SearchResult` (additive, non-breaking per the `api-and-interface-design` skill) for the display slot, and let `content` stay the long analysis sample. DeepSeek then maps `snippet` → `snippet` and `summary` → `content`; SearXNG and Ollama keep filling only `content` and let the display layer truncate. Do **not** map DeepSeek's `snippet` into `content`: that discards free body text and makes DeepSeek noisier than SearXNG rather than better.
+Direction settled 2026-10-18 by user decision; **not implemented and not yet promoted** — this entry is the promotion candidate. Add an optional `snippet?: string` to `SearchResult` (additive, non-breaking per the `api-and-interface-design` skill) for the display slot, and let `content` stay the long analysis sample. DeepSeek then maps `snippet` → `snippet` and `summary` → `content`; SearXNG and Ollama keep filling only `content` and let the display layer truncate. Do **not** map DeepSeek's `snippet` into `content`: that discards free body text and makes DeepSeek noisier than SearXNG rather than better.
+
+Two names, deliberately: `snippet` on `SearchResult` (search-layer semantics — it is what the provider gave) and the existing `excerpt` on `SessionResult`/`SessionResultInput`. The rename happens at the one place the two layers meet, `appendSessionResults`. Reusing `excerpt` in both layers was rejected as the lesser evil — it costs nothing to spread, but puts a session-layer word into the search-layer output.
 
 The mapping, per provider — the display slot falls back rather than being a hard requirement, so only DeepSeek has to fill it:
 
@@ -133,14 +135,11 @@ Verified 2026-10-18 against a live SearXNG: `node dist/index.js "rust async runt
 
 Consequences, all verified in `src/`: `graphPreprocess` takes its bodies from `results.filter(hasVerifiedContent)` (`graph-preprocess.ts:38`), so everything that feeds `computeTfIdf` / `buildCoOccurrence` / `computeCrossResultFrequency` — plus `tfidf.ts:71` and `co-occurrence.ts:42,109`'s own `filter(r => r.content)` — sees only extracted results, and an `extract` pass is mandatory before a search result can influence the graph at all. `hasVerifiedContent` (`session.ts:300-309`) requires `contentType === 'extracted'` **and** a non-empty `extractor` string, so a search result that keeps its body cannot enter that set without also claiming an extractor. And `computeContentDepth` (`quality-assess.ts:68-76`) likewise measures only `r.content` present, returning `value: 0, pass: false` whenever none exist, which makes the threshold of 150 vacuous on a search-only session.
 
-So the tier choice is not cosmetic — the two options differ in what they assert:
+The tier decision (settled 2026-10-18, user decision): **search-time bodies persist as `excerpt`, not at the extracted tier.** `hasVerifiedContent` is left alone, so a provider body stays visibly unverified and cannot become citation-grade. This does mean `excerpt` needs its missing consumer built in the same change — a search body landing somewhere nothing reads would just be the current discard, renamed.
 
-- **`excerpt`**: avoids touching `hasVerifiedContent`, so a search body stays visibly unverified; but `excerpt` has no reader and no output path would show it, so this needs a consumer built too.
-- **`extracted` tier**: every downstream analysis works immediately, but it means telling the graph that a provider snippet is verified content with a real extractor behind it, which it is not.
+This is already the convention on the import path, so the change is bringing the native path in line rather than inventing a slot: `results-add --kind search` writes `excerpt` from the imported item (`commands/results-add.ts:54`) while deliberately keeping the body out of `content`, and `extractor.ts` fills `excerpt` from the page description for extracted results (`extractor.ts:158,172`).
 
-There is a third consumer that raises the stakes on the second option: evidence claims cite `result.content` by **character offset** and re-check the quote against it (`commands/evidence.ts:117-128` — `RESULT_NOT_APPROVED`, `OFFSET_OUT_OF_RANGE`, `QUOTE_MISMATCH`, `HASH_MISMATCH`), and `resolveApprovedContent` (`claims/deterministic-checks.ts:43-52`) resolves a claim's source the same way. Promoting a provider summary into the verified tier would put a hash-verified citation on a text that is not the page it names. That argues for `excerpt`, or for a third tier, over reusing `extracted`.
-
-Decide which, and with it whether `contentType` is marking provenance or verification.
+Why not the extracted tier, which would light up every downstream analysis at once: `hasVerifiedContent` (`session.ts:300-309`) requires `contentType === 'extracted'` **and** a non-empty `extractor` string, so a search result could only enter that set by claiming an extractor that does not exist. And that set is not merely an analysis pool — evidence claims cite `result.content` by **character offset** and re-check the quote against it (`commands/evidence.ts:117-128` — `RESULT_NOT_APPROVED`, `OFFSET_OUT_OF_RANGE`, `QUOTE_MISMATCH`, `HASH_MISMATCH`), and `resolveApprovedContent` (`claims/deterministic-checks.ts:43-52`) resolves a claim's source the same way. Promoting a provider summary there would put a hash-verified citation on a text that is not the page it names. That is the reason `contentType` is worth keeping as a verification marker rather than redefining as provenance.
 
 ### Defect 2 — stdout is truncated at 65536 bytes, so output is silently lost
 
