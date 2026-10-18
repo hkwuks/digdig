@@ -138,6 +138,8 @@ So the tier choice is not cosmetic — the two options differ in what they asser
 - **`excerpt`**: avoids touching `hasVerifiedContent`, so a search body stays visibly unverified; but `excerpt` has no reader and no output path would show it, so this needs a consumer built too.
 - **`extracted` tier**: every downstream analysis works immediately, but it means telling the graph that a provider snippet is verified content with a real extractor behind it, which it is not.
 
+There is a third consumer that raises the stakes on the second option: evidence claims cite `result.content` by **character offset** and re-check the quote against it (`commands/evidence.ts:117-128` — `RESULT_NOT_APPROVED`, `OFFSET_OUT_OF_RANGE`, `QUOTE_MISMATCH`, `HASH_MISMATCH`), and `resolveApprovedContent` (`claims/deterministic-checks.ts:43-52`) resolves a claim's source the same way. Promoting a provider summary into the verified tier would put a hash-verified citation on a text that is not the page it names. That argues for `excerpt`, or for a third tier, over reusing `extracted`.
+
 Decide which, and with it whether `contentType` is marking provenance or verification.
 
 ### Defect 2 — stdout is truncated at 65536 bytes, so output is silently lost
