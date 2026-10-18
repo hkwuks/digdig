@@ -89,7 +89,7 @@
 - Updated: 2026-10-18
 - Goal: A search provider's body content survives neither into the session nor into the Agent's view. Two independent defects, plus a field-mapping decision that the measurements below reframe.
 - Task: Not promoted.
-- Next action: Decide the `SearchResult` field shape (whether to add `snippet`), then fix the session-tier loss and the display tier.
+- Next action: Field shape is decided (see below). Remaining before promotion: settle Defect 1's `excerpt`-vs-`extracted`-tier question and `TF-20261018-1b6064`, then promote.
 
 ### Measured: `SearchResult.content` is a body-text sample, not a snippet
 
@@ -110,19 +110,35 @@ Consumers split into two incompatible groups:
 | short, display-oriented text | `formatAsMarkdown` (`runCli.ts:70`), preview (`runCli.ts:1644`) |
 | long text for analysis | `tfidf.ts:71`, `co-occurrence.ts:42,109`, novelty (`quality-assess.ts:106`), `dedupe.ts:91` |
 
-Candidate resolution: add an optional `snippet?: string` to `SearchResult` (additive, non-breaking per the `api-and-interface-design` skill) for the display slot, and let `content` stay the long analysis sample. DeepSeek then maps `snippet` → `snippet` and `summary` → `content`; SearXNG and Ollama keep filling only `content` and let the display layer truncate. Do **not** map DeepSeek's `snippet` into `content`: that discards free body text and makes DeepSeek noisier than SearXNG rather than better.
+Resolved (2026-10-18, user approved): add an optional `snippet?: string` to `SearchResult` (additive, non-breaking per the `api-and-interface-design` skill) for the display slot, and let `content` stay the long analysis sample. DeepSeek then maps `snippet` → `snippet` and `summary` → `content`; SearXNG and Ollama keep filling only `content` and let the display layer truncate. Do **not** map DeepSeek's `snippet` into `content`: that discards free body text and makes DeepSeek noisier than SearXNG rather than better.
+
+The mapping, per provider — the display slot falls back rather than being a hard requirement, so only DeepSeek has to fill it:
+
+| sxng field | role | DeepSeek | SearXNG | Ollama |
+| --- | --- | --- | --- | --- |
+| `snippet?` (new, optional) | display: one short query-relative blurb | `snippet` | `content` (already 101–180) | `content` (truncated by the display layer) |
+| `content` | analysis: the longest body text available | `summary` | `content` (same value) | `content` |
+| `publishedDate` | | `date` | `publishedDate` | — |
+| `score` (0–1) | | not mapped | `score` | — |
+
+Display layer reads `snippet ?? truncate(content)`. Both writers must change: `formatAsMarkdown` (`runCli.ts:70`) and the pending-list preview (`runCli.ts:1644`).
 
 Unmapped DeepSeek fields deliberately left out: `rerank_score` (0–3) and `authority` (0–4) — different scale from the existing 0–1 `score`; `site_name`, `site_icon`.
 
 ### Defect 1 — content is dropped when the result enters the session
 
-`inferredContentType` (`session.ts:182-185`) resolves to `'extracted'` only when `content` is a string **and** `extractedAt` is a number; a search provider result has neither, so it resolves to `'search'`, and `makeResult` (`session.ts:200-203`) then `delete`s `content`. `excerpt` is a field on `SessionResultInput` that `makeResult` does not delete, but **no code anywhere reads `excerpt`** — writing it without a consumer would just move the discard.
+`inferredContentType` (`session.ts:182-185`) resolves to `'extracted'` only when `content` is a string **and** `extractedAt` is a number; a search provider result has neither, so it resolves to `'search'`, and `makeResult` (`session.ts:200-203`) then `delete`s `content`, `extractor` and `extractedAt`. `excerpt` is a field on `SessionResultInput` that `makeResult` does not delete, but nothing writes it for a search result either — and **no code anywhere reads `excerpt`** (verified: every `excerpt` reference in `src/` is a declaration or a write — `results-add.ts:54,75`, `session.ts:420-421,599`, `extractor.ts`; neither `runCli.ts` nor any output path touches it). Writing it without a consumer would just move the discard.
 
-Verified: `-e 360search --session X` stores results as `contentType: search | has content: false | excerpt len: 0`.
+Verified 2026-10-18 against a live SearXNG: `node dist/index.js "rust async runtime tokio" -e 360search --session /tmp/sess-probe` stored 5 results, each `contentType: search`, `content` and `excerpt` both **absent (not empty)**, and the stray `excerpt len: 0` in the earlier record was my probe printing `(r.excerpt || '').length` on a field that does not exist. `content` is genuinely non-empty at the provider (101–180 chars) and is dropped by `makeResult`.
 
-Consequences: `hasVerifiedContent` (requires `contentType === 'extracted'`) excludes every search result from approval and from `graph-preprocess`, so an `extract` pass is mandatory before a search result can be used; and `computeContentDepth` (`quality-assess.ts:68-76`) measures only extracted bodies, returning `value: 0, pass: false` whenever none exist, which makes the threshold of 150 vacuous on a search-only session.
+Consequences, all verified in `src/`: `graphPreprocess` takes its bodies from `results.filter(hasVerifiedContent)` (`graph-preprocess.ts:38`), so everything that feeds `computeTfIdf` / `buildCoOccurrence` / `computeCrossResultFrequency` — plus `tfidf.ts:71` and `co-occurrence.ts:42,109`'s own `filter(r => r.content)` — sees only extracted results, and an `extract` pass is mandatory before a search result can influence the graph at all. `hasVerifiedContent` (`session.ts:300-309`) requires `contentType === 'extracted'` **and** a non-empty `extractor` string, so a search result that keeps its body cannot enter that set without also claiming an extractor. And `computeContentDepth` (`quality-assess.ts:68-76`) likewise measures only `r.content` present, returning `value: 0, pass: false` whenever none exist, which makes the threshold of 150 vacuous on a search-only session.
 
-Decide whether search-time bodies persist as `excerpt` (and give `excerpt` a consumer), or enter at the extracted tier (and reconsider what `contentType` is actually marking — provenance or verification).
+So the tier choice is not cosmetic — the two options differ in what they assert:
+
+- **`excerpt`**: avoids touching `hasVerifiedContent`, so a search body stays visibly unverified; but `excerpt` has no reader and no output path would show it, so this needs a consumer built too.
+- **`extracted` tier**: every downstream analysis works immediately, but it means telling the graph that a provider snippet is verified content with a real extractor behind it, which it is not.
+
+Decide which, and with it whether `contentType` is marking provenance or verification.
 
 ### Defect 2 — stdout is truncated at 65536 bytes, so output is silently lost
 
@@ -132,18 +148,18 @@ Impact is provider-dependent: SearXNG search (~5,596 bytes with `-l 2`) and Deep
 
 Fix options: bound the printed body text (which the `snippet` decision above would do naturally), or stop emitting the full body in the default output and point the caller at the session copy. Routing alone (stream vs file) is not a fix, since the CLI cannot control how its caller captures stdout. Note the observed threshold depends on the reader's buffer size, not on anything `sxng` sets — 65,536 is what this session's reader uses; a different caller may cut at a different point, or not at all. The defect to fix is therefore "the default output can exceed what a caller can capture", not the specific number.
 
-## SearXNG results reach the session with an empty excerpt
+## SearXNG results reach the session with an empty excerpt (resolved — probe artifact)
 
 - ID: TF-20261018-1b6064
-- Status: inbox
+- Status: cancelled
 - Priority: normal
 - Owner: Claude
 - Source: follow-up
 - Added: 2026-10-18
 - Updated: 2026-10-18
-- Goal: `-e 360search --session X` stores results as `contentType: 'search'` with `excerpt` length 0, yet `SearXNGService` maps `content` from `item.content || item.snippet` (`service.ts:138`) and the provider did return non-empty content (101–180 chars). Trace where the text is lost between `SearchResult` and the stored `SessionResult` before acting on `TF-20261017-d8f7b3`, so that fix does not silently assume a value is already there.
+- Goal: Resolved 2026-10-18 — not a separate defect. Nothing is lost between `SearchResult` and the stored `SessionResult` beyond what `TF-20261017-d8f7b3` already records: `makeResult` deletes `content` for `contentType: 'search'` and nothing writes `excerpt`. The "excerpt len 0" that motivated this entry came from a probe printing `(r.excerpt || '').length` on a field that does not exist on a search result; a re-run on a live SearXNG shows both `content` and `excerpt` absent. Folded into `TF-20261017-d8f7b3` rather than deleted.
 - Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Next action: None — superseded by `TF-20261017-d8f7b3`.
 
 ## Sync the DeepSeek provider into the sxng skill docs
 
@@ -167,6 +183,6 @@ Fix options: bound the printed body text (which the `snippet` decision above wou
 - Source: follow-up
 - Added: 2026-10-18
 - Updated: 2026-10-18
-- Goal: Duplicate of the entry above (same ID, created by `hooks/task intake` when the long goal was used as the heading). The heading was then shortened by hand and re-added, leaving both copies. Cancelled rather than deleted: the merge driver's invariant is that a Todo entry is never dropped.
+- Goal: Duplicate of the entry above (same ID, created by `hooks/task intake` when the long goal was used as the heading). The heading was then shortened by hand and re-added, leaving both copies. Both copies are now `cancelled` — the underlying question turned out to be a probe artifact and is recorded in `TF-20261017-d8f7b3`. Cancelled rather than deleted: the merge driver's invariant is that a Todo entry is never dropped.
 - Task: Not promoted.
-- Next action: None — superseded by the preceding entry with the same ID.
+- Next action: None — see `TF-20261017-d8f7b3`.
