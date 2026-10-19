@@ -2,7 +2,7 @@
  * doc-index subcommand — Index local documents for BM25 search.
  *
  * Scans a directory for text files, chunks them, and builds an
- * Orama BM25 index persisted to .sxng/docs/<path-hash>/.
+ * Orama BM25 index persisted to .digdig/docs/<path-hash>/.
  */
 
 import { resolve } from 'path';

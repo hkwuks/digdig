@@ -1,4 +1,4 @@
-# 🔍 SXNG CLI
+# 🔍 digdig
 
 <p align="center">
   <b>SearXNG 的命令行工具</b><br>
@@ -6,11 +6,11 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/sxng-cli">
-    <img src="https://img.shields.io/npm/v/sxng-cli?style=flat-square&color=cb3837" alt="npm version">
+  <a href="https://www.npmjs.com/package/digdig">
+    <img src="https://img.shields.io/npm/v/digdig?style=flat-square&color=cb3837" alt="npm version">
   </a>
-  <a href="https://www.npmjs.com/package/sxng-cli">
-    <img src="https://img.shields.io/npm/dm/sxng-cli?style=flat-square&color=cb3837" alt="npm downloads">
+  <a href="https://www.npmjs.com/package/digdig">
+    <img src="https://img.shields.io/npm/dm/digdig?style=flat-square&color=cb3837" alt="npm downloads">
   </a>
   <a href="https://github.com/hkwuks/sxng-cli/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/hkwuks/sxng-cli?style=flat-square&color=green" alt="license">
@@ -672,7 +672,7 @@ services:
 docker compose up -d
 ```
 
-这会在后台启动 SearXNG（端口 `8080`）和 Valkey。使用 `docker compose ps` 或 `sxng --health` 验证服务是否正常运行。
+这会在后台启动 SearXNG（端口 `8080`）和 Valkey。使用 `docker compose ps` 或 `digdig --health` 验证服务是否正常运行。
 
 **Python venv 方式（无 Docker）**
 
@@ -712,23 +712,27 @@ EOF
 SEARXNG_SETTINGS_PATH=~/.config/searxng/settings.yml \
   ~/searxng-src/.venv/bin/python -m searx.webapp
 
-# 5) 验证 + 接入 sxng-cli
+# 5) 验证 + 接入 digdig
 curl -s http://localhost:8888/healthz   # 返回 OK
-sxng init                               # baseUrl = http://localhost:8888
-sxng --health && sxng "hello world"
+digdig init                               # baseUrl = http://localhost:8888
+digdig --health && digdig "hello world"
 ```
 
 ### 通过 npm 安装（推荐）
 
 ```bash
-npm install -g sxng-cli
+npm install -g digdig
 ```
+
+> ⚠️ **从 `sxng-cli` 升级上来的用户注意**：`digdig` 接替 `sxng-cli`，版本号重新起算，所以 `digdig@0.0.2` **比** `sxng-cli@1.3.2` **新**，尽管数字更小。请先卸载旧包（`npm uninstall -g sxng-cli`），因为两份副本各用一个会话目录，互相看不见对方的会话。
+>
+> 过渡期共 5 个版本（到 `0.5.0` 为止），旧名一律继续可用：`sxng` 命令、`.sxng/` 会话、`sxng.config.json`、`SEARXNG_*` 环境变量。用到时会在 stderr 打一行 `[deprecation]`（可用 `DIGDIG_NO_DEPRECATION=1` 静默），`0.5.0` 起失效。迁移方式：`.sxng` → `.digdig`、`sxng.config.json` → `digdig.config.json`、`SEARXNG_*` → `DIGDIG_*`。
 
 ```bash
 npx skills add hkwuks/sxng-cli
 ```
 
-> ⚠️ **Skill 同步**：更新 `sxng-cli` 后，请同步更新 `sxng` skill 以保持功能一致：
+> ⚠️ **Skill 同步**：更新 `digdig` 后，请同步更新 `digdig` skill 以保持功能一致：
 >
 > ```bash
 > npx skills update hkwuks/sxng-cli
@@ -753,7 +757,7 @@ npm link
 如果你想交给 LLM 智能体来安装和配置，请让它访问本仓库，并给出以下提示词：
 
 > ```text
-> 你可以访问一台 WSL/Linux 机器。请端到端安装 sxng-cli 并配置它的搜索后端：
+> 你可以访问一台 WSL/Linux 机器。请端到端安装 digdig 并配置它的搜索后端：
 >
 > 1. **SearXNG 后端**（推荐，自托管、隐私友好）— 两种方式，优先 Docker：
 >    - **方式 A — Docker（首选）**：**先**根据本 README 中的示例创建 `./searxng/settings.yml`（启用 `formats: html, json`，这样 CLI 才能读取 JSON）。该文件必须在容器启动前存在，否则 SearXNG 不会读取你的配置。再使用本仓库示例 `docker-compose.yml` 运行 `docker compose up -d`（SearXNG 映射到宿主机端口 8080 + Valkey）。等待 `curl -s http://localhost:8080/healthz` 返回 OK。
@@ -795,17 +799,17 @@ npm link
 >      此时第 4 步的 `baseUrl` 使用 `http://localhost:8888`。
 > 2. **Ollama 网页搜索**（可选，免费 API key）：
 >    - 向用户索取 Ollama API key（在 https://ollama.com 获取），若没有则跳过。
-> 3. **安装 CLI**：`npm install -g sxng-cli`。
-> 4. **配置**：运行 `sxng init`，填写 `baseUrl`（Docker 用 `http://localhost:8080`，venv 用 `http://localhost:8888`）、超时时间，以及用户提供的 Ollama API key。
-> 5. **验证**：运行 `sxng --health` 和 `sxng "hello world"`，报告结果。
+> 3. **安装 CLI**：`npm install -g digdig`。
+> 4. **配置**：运行 `digdig init`，填写 `baseUrl`（Docker 用 `http://localhost:8080`，venv 用 `http://localhost:8888`）、超时时间，以及用户提供的 Ollama API key。
+> 5. **验证**：运行 `digdig --health` 和 `digdig "hello world"`，报告结果。
 > ```
 
-LLM 在宣布成功前应执行这些检查：`docker compose ps`（SearXNG + Valkey 均运行中）、`sxng --health`（healthy）、以及一次返回非空结果的真实搜索。
+LLM 在宣布成功前应执行这些检查：`docker compose ps`（SearXNG + Valkey 均运行中）、`digdig --health`（healthy）、以及一次返回非空结果的真实搜索。
 
 
 ### Obscura（可选 — 用于 JS 密集页面）
 
-[sxng extract](#-使用指南) 默认使用 **Defuddle + linkedom** 进行轻量级内容提取。当页面需要 JavaScript 渲染（SPA、动态内容）时，可启用 [Obscura](https://github.com/h4ckf0r0day/obscura) 作为回退。使用 `--obscura` 且本机缺少二进制文件时，sxng 会从官方 GitHub HTTPS 下载入口自动下载对应平台的发布包：
+[digdig extract](#-使用指南) 默认使用 **Defuddle + linkedom** 进行轻量级内容提取。当页面需要 JavaScript 渲染（SPA、动态内容）时，可启用 [Obscura](https://github.com/h4ckf0r0day/obscura) 作为回退。使用 `--obscura` 且本机缺少二进制文件时，digdig 会从官方 GitHub HTTPS 下载入口自动下载对应平台的发布包：
 
 ```bash
 # Linux x86_64
@@ -833,12 +837,12 @@ obscura --version
 
 1. **安装 CLI：**
    ```bash
-   npm install -g sxng-cli
+   npm install -g digdig
    ```
 
 2. **配置 CLI：**
    ```bash
-   sxng init
+   digdig init
    ```
    或设置环境变量：
    ```bash
@@ -847,7 +851,7 @@ obscura --version
 
 3. **执行搜索：**
    ```bash
-   sxng "TypeScript tutorial"
+   digdig "TypeScript tutorial"
    ```
 
 ---
@@ -858,44 +862,44 @@ obscura --version
 
 | 命令 | 说明 |
 |------|------|
-| `sxng init` | 交互式配置设置 |
-| `sxng <query>` | 执行网页搜索 |
-| `sxng --queries "q1,q2"` | 多查询搜索（RRF 融合排序） |
-| `sxng extract --urls <urls>` | 提取网页内容 |
-| `sxng extract --session <name>` | 提取会话结果并合并内容 |
-| `sxng extract --obscura` | JS 渲染回退（用于 SPA 页面） |
-| `sxng extract --urls <url> --jina` | Agent 为显式指定 URL 选择 Jina Reader 提取 |
-| `sxng --session new` | 创建深度搜索会话 |
-| `sxng --session <name> --quality` | 评估结果质量，列出待审结果 |
-| `sxng --session <name> --quality --approve-file <path>` | 从 `{id, revision}` JSON 文件审批已验证的待审结果 |
-| `sxng suggest-queries <session>` | 获取查询建议数据（供 Agent 使用） |
-| `sxng strategy-info <session>` | 查看当前搜索阶段 |
-| `sxng recovery-analysis <session>` | 获取低质量恢复策略 |
-| `sxng session-report <session>` | 完整会话分析报告 |
-| `sxng session-list` | 列出所有会话 |
-| `sxng session-delete <session-name>` | 删除指定会话 |
-| `sxng graph-preprocess <session>` | TF-IDF + 共现分析 + 结果来源轮次 |
-| `sxng graph-add <session> --data-file <path>` | 从 UTF-8 JSON 添加由已审批结果 ID 支撑的语义实体/边 |
-| `sxng graph-search <session>` | 按关键词发现实体 |
-| `sxng graph-explore <session>` | 查看实体关系 |
-| `sxng graph-drill <session>` | 追踪特定关系 |
-| `sxng graph-traverse <session>` | 遍历推理路径 |
-| `sxng graph-obfuscate <session>` | 列出混淆候选 |
-| `sxng results-add <session> --kind <search|extracted> --data-file <path>` | 从会话专属 UTF-8 JSON 导入外部搜索或已提取正文 |
-| `sxng doc-index <path>` | 索引本地文档（用于 BM25 搜索） |
-| `sxng doc-search <session> <query> --path <path>` | 搜索已索引文档并将结果注入会话 |
-| `sxng claim-add <session> --claims-file <path>` | 从 UTF-8 JSON 文件提交原子化陈述（支持单条或批量，自动证据搜索） |
-| `sxng claim-list <session>` | 列出陈述 |
-| `sxng evidence-search <session> --claim-id <id>` | 搜索候选证据（只读） |
-| `sxng evidence-verify <session> --claim-id <id> --evidence-file <path>` | 从 UTF-8 JSON 文件确认证据 + 提交立场（可选自动策略聚合） |
-| `sxng evidence-list <session> --claim-id <id>` | 列出某条陈述的证据 |
-| `sxng verdict-list <session> --claim-id <id>` | 列出某条陈述的判断结果 |
-| `sxng policy-aggregate <session>` | 手动执行策略聚合 |
-| `sxng review-list <session>` | 列出审核结论 |
-| `sxng --health` | 检查 SearXNG 服务器健康状态 |
-| `sxng --engines-list` | 列出可用搜索引擎 |
-| `sxng --categories-list` | 列出可用分类 |
-| `sxng --help` | 显示帮助信息 |
+| `digdig init` | 交互式配置设置 |
+| `digdig <query>` | 执行网页搜索 |
+| `digdig --queries "q1,q2"` | 多查询搜索（RRF 融合排序） |
+| `digdig extract --urls <urls>` | 提取网页内容 |
+| `digdig extract --session <name>` | 提取会话结果并合并内容 |
+| `digdig extract --obscura` | JS 渲染回退（用于 SPA 页面） |
+| `digdig extract --urls <url> --jina` | Agent 为显式指定 URL 选择 Jina Reader 提取 |
+| `digdig --session new` | 创建深度搜索会话 |
+| `digdig --session <name> --quality` | 评估结果质量，列出待审结果 |
+| `digdig --session <name> --quality --approve-file <path>` | 从 `{id, revision}` JSON 文件审批已验证的待审结果 |
+| `digdig suggest-queries <session>` | 获取查询建议数据（供 Agent 使用） |
+| `digdig strategy-info <session>` | 查看当前搜索阶段 |
+| `digdig recovery-analysis <session>` | 获取低质量恢复策略 |
+| `digdig session-report <session>` | 完整会话分析报告 |
+| `digdig session-list` | 列出所有会话 |
+| `digdig session-delete <session-name>` | 删除指定会话 |
+| `digdig graph-preprocess <session>` | TF-IDF + 共现分析 + 结果来源轮次 |
+| `digdig graph-add <session> --data-file <path>` | 从 UTF-8 JSON 添加由已审批结果 ID 支撑的语义实体/边 |
+| `digdig graph-search <session>` | 按关键词发现实体 |
+| `digdig graph-explore <session>` | 查看实体关系 |
+| `digdig graph-drill <session>` | 追踪特定关系 |
+| `digdig graph-traverse <session>` | 遍历推理路径 |
+| `digdig graph-obfuscate <session>` | 列出混淆候选 |
+| `digdig results-add <session> --kind <search|extracted> --data-file <path>` | 从会话专属 UTF-8 JSON 导入外部搜索或已提取正文 |
+| `digdig doc-index <path>` | 索引本地文档（用于 BM25 搜索） |
+| `digdig doc-search <session> <query> --path <path>` | 搜索已索引文档并将结果注入会话 |
+| `digdig claim-add <session> --claims-file <path>` | 从 UTF-8 JSON 文件提交原子化陈述（支持单条或批量，自动证据搜索） |
+| `digdig claim-list <session>` | 列出陈述 |
+| `digdig evidence-search <session> --claim-id <id>` | 搜索候选证据（只读） |
+| `digdig evidence-verify <session> --claim-id <id> --evidence-file <path>` | 从 UTF-8 JSON 文件确认证据 + 提交立场（可选自动策略聚合） |
+| `digdig evidence-list <session> --claim-id <id>` | 列出某条陈述的证据 |
+| `digdig verdict-list <session> --claim-id <id>` | 列出某条陈述的判断结果 |
+| `digdig policy-aggregate <session>` | 手动执行策略聚合 |
+| `digdig review-list <session>` | 列出审核结论 |
+| `digdig --health` | 检查 SearXNG 服务器健康状态 |
+| `digdig --engines-list` | 列出可用搜索引擎 |
+| `digdig --categories-list` | 列出可用分类 |
+| `digdig --help` | 显示帮助信息 |
 
 ### 搜索选项
 
@@ -923,28 +927,28 @@ obscura --version
 
 ```bash
 # 基本搜索（默认 Markdown 输出）
-sxng "machine learning"
+digdig "machine learning"
 
 # JSON 输出
-sxng --format json "machine learning"
+digdig --format json "machine learning"
 
 # 指定引擎搜索
-sxng --engines google,duckduckgo "privacy tools"
+digdig --engines google,duckduckgo "privacy tools"
 
 # 搜索 IT 和科学分类
-sxng --categories it,science "kubernetes tutorial"
+digdig --categories it,science "kubernetes tutorial"
 
 # 限制结果数并按时间过滤
-sxng --limit 5 --time week "latest AI news"
+digdig --limit 5 --time week "latest AI news"
 
 # 多查询 RRF 融合搜索
-sxng --queries "tokio tutorial,rust async basics,async-std guide"
+digdig --queries "tokio tutorial,rust async basics,async-std guide"
 
 # 列出可用引擎（从服务器获取）
-sxng --engines-list
+digdig --engines-list
 
 # 列出可用分类（从服务器获取）
-sxng --categories-list
+digdig --categories-list
 ```
 
 ---
@@ -953,8 +957,8 @@ sxng --categories-list
 
 配置优先级（从高到低）：
 1. 环境变量
-2. 本地配置文件（`./sxng.config.json`）
-3. 全局配置文件（`~/sxng-cli/sxng.config.json`）
+2. 本地配置文件（`./digdig.config.json`）
+3. 全局配置文件（`~/digdig/digdig.config.json`）
 4. 默认值
 
 ### 环境变量
@@ -977,10 +981,10 @@ sxng --categories-list
 
 配置文件搜索顺序（先找到的优先）：
 
-1. **本地配置** - `./sxng.config.json`（当前工作目录，用于项目级设置）
-2. **全局配置** - `~/sxng-cli/sxng.config.json`（用户主目录，用于全局默认值）
+1. **本地配置** - `./digdig.config.json`（当前工作目录，用于项目级设置）
+2. **全局配置** - `~/digdig/digdig.config.json`（用户主目录，用于全局默认值）
 
-创建 `sxng.config.json`：
+创建 `digdig.config.json`：
 
 ```json
 {
@@ -1016,29 +1020,29 @@ sxng --categories-list
 
 ```bash
 # 1. 创建会话并搜索
-sxng --session new --owner "agent-1" --desc "Rust async study" "rust async ecosystem"
-# 已创建会话：.sxng/sessions/<session-name>
+digdig --session new --owner "agent-1" --desc "Rust async study" "rust async ecosystem"
+# 已创建会话：.digdig/sessions/<session-name>
 
 # 2. 从结果中提取内容
-sxng extract --session <session-name>
+digdig extract --session <session-name>
 
 # 3. 检查提取输出：stats.success 和 session.updated 标识已取得正文的结果；失败 URL 保持待审。
 
 # 4. 评估质量并查看每条结果的 verified 状态
-sxng --session <session-name> --quality
+digdig --session <session-name> --quality
 
 # 5. 将质量输出中选中的 {id, revision} 写入
-#    .sxng/sessions/<session-name>/agent-inputs/approve.json，再审批。
-sxng --session <session-name> --quality --approve-file .\.sxng\sessions\<session-name>\agent-inputs\approve.json
+#    .digdig/sessions/<session-name>/agent-inputs/approve.json，再审批。
+digdig --session <session-name> --quality --approve-file .\.digdig\sessions\<session-name>\agent-inputs\approve.json
 
 # 6. 预处理会话内容，发现实体并取得来源轮次
-sxng graph-preprocess <session-name>
+digdig graph-preprocess <session-name>
 
 # 7. 将图谱 JSON 写入该会话的 Agent 临时目录，再添加语义边
-sxng graph-add <session-name> --data-file .\.sxng\sessions\<session-name>\agent-inputs\graph-data.json
+digdig graph-add <session-name> --data-file .\.digdig\sessions\<session-name>\agent-inputs\graph-data.json
 
 # 8. 继续研究（带冗余检查）
-sxng --session <session-name> --queries "tokio vs async-std,benchmark 2026" --redundancy warn
+digdig --session <session-name> --queries "tokio vs async-std,benchmark 2026" --redundancy warn
 ```
 
 ### 质量与证据语义
@@ -1052,21 +1056,21 @@ sxng --session <session-name> --queries "tokio vs async-std,benchmark 2026" --re
 
 | 命令 | 说明 |
 |------|------|
-| `sxng --session new` | 创建自动命名的会话 |
-| `sxng --session <session-name>` | 按名称使用会话（自动解析为 `.sxng/sessions/<session-name>`） |
-| `sxng --session <path>` | 按完整路径使用会话 |
-| `sxng session-list` | 列出所有会话及统计信息 |
-| `sxng session-delete <session-name>` | 删除指定会话 |
-| `sxng session-delete --older <hours>` | 删除超过指定小时的旧会话 |
+| `digdig --session new` | 创建自动命名的会话 |
+| `digdig --session <session-name>` | 按名称使用会话（自动解析为 `.digdig/sessions/<session-name>`） |
+| `digdig --session <path>` | 按完整路径使用会话 |
+| `digdig session-list` | 列出所有会话及统计信息 |
+| `digdig session-delete <session-name>` | 删除指定会话 |
+| `digdig session-delete --older <hours>` | 删除超过指定小时的旧会话 |
 
 **会话路径解析：**
-- 纯名称（如 `my-session`）→ `.sxng/sessions/my-session`
+- 纯名称（如 `my-session`）→ `.digdig/sessions/my-session`
 - 完整路径（如 `/custom/path/session`）→ 直接使用
-- `new` → 在 `.sxng/sessions/` 下自动生成唯一名称
+- `new` → 在 `.digdig/sessions/` 下自动生成唯一名称
 
 ### 会话数据结构
 
-每个会话在 `.sxng/sessions/<session-name>/` 下存储状态和 Agent 输入文件：
+每个会话在 `.digdig/sessions/<session-name>/` 下存储状态和 Agent 输入文件：
 
 - **`results.json`** — 累积的搜索结果（URL 去重，多轮搜索）
 - **`graph.json`** — 知识图谱（结构层 + 语义层）
@@ -1096,19 +1100,19 @@ sxng --session <session-name> --queries "tokio vs async-std,benchmark 2026" --re
 
 ### 外部搜索结果注入
 
-来自其他搜索工具（Tavily、Exa 等）的结果可通过 `results-add` 注入到任何活跃会话中。它们和原生 sxng 结果走相同的管道：
+来自其他搜索工具（Tavily、Exa 等）的结果可通过 `results-add` 注入到任何活跃会话中。它们和原生 digdig 结果走相同的管道：
 
 ```powershell
 # 导入搜索发现；摘要仍然只是摘要，后续需要提取。
-sxng results-add <session-name> --kind search --tool exa --query "async runtime" `
-  --data-file .\.sxng\sessions\<session-name>\agent-inputs\exa-search.json
+digdig results-add <session-name> --kind search --tool exa --query "async runtime" `
+  --data-file .\.digdig\sessions\<session-name>\agent-inputs\exa-search.json
 ```
 
 搜索导入后结果标记为 `pending`，必须执行 `extract --session`；检查 `stats.success`、`stats.failed` 和 `session.updated`，只审批质量输出中 `verified: true` 的结果。如果外部工具已返回正文，必须使用 `--kind extracted` 并提供非空 `content` 和 `extractor`，它会直接等待审批而不再重复提取。提取失败的结果保持待审，不能进入图谱。`tool` 与 `query` 记录发现来源。
 
 ### 结构化 JSON 输入
 
-所有结构化写入都必须使用 `.sxng/sessions/<session-name>/agent-inputs/` 下的 UTF-8 JSON 文件。这样可避免 PowerShell 转义和 Windows 命令行长度限制，隔离并发会话，并为每次写入留下可检查的输入。CLI 会拒绝内联 JSON 及会话外文件。
+所有结构化写入都必须使用 `.digdig/sessions/<session-name>/agent-inputs/` 下的 UTF-8 JSON 文件。这样可避免 PowerShell 转义和 Windows 命令行长度限制，隔离并发会话，并为每次写入留下可检查的输入。CLI 会拒绝内联 JSON 及会话外文件。
 
 | 用途 | 必需的文件选项 |
 |---|---|
@@ -1125,9 +1129,9 @@ sxng results-add <session-name> --kind search --tool exa --query "async runtime"
 陈述和证据也应使用同一目录，例如：
 
 ```powershell
-sxng claim-add my-session --claims-file .\.sxng\sessions\my-session\agent-inputs\claims.json
-sxng evidence-verify my-session --claim-id "cl_001" `
-  --evidence-file .\.sxng\sessions\my-session\agent-inputs\evidence.json `
+digdig claim-add my-session --claims-file .\.digdig\sessions\my-session\agent-inputs\claims.json
+digdig evidence-verify my-session --claim-id "cl_001" `
+  --evidence-file .\.digdig\sessions\my-session\agent-inputs\evidence.json `
   --stance support --reason "官方文档确认" --complete
 ```
 
@@ -1137,10 +1141,10 @@ sxng evidence-verify my-session --claim-id "cl_001" `
 
 ```bash
 # 索引文档（doc-search 会自动触发索引，无需单独执行此步骤）
-sxng doc-index ./docs
+digdig doc-index ./docs
 
 # 搜索并将结果注入会话
-sxng doc-search <session-name> "关键词" --path ./docs
+digdig doc-search <session-name> "关键词" --path ./docs
 ```
 
 **工作原理：**
@@ -1187,7 +1191,7 @@ sxng doc-search <session-name> "关键词" --path ./docs
 
 ### 内容提取
 
-`sxng extract` 使用多层提取策略：
+`digdig extract` 使用多层提取策略：
 
 1. **Defuddle + linkedom**（默认，轻量）— 使用 linkedom 解析原始 HTML，通过 Defuddle 提取可读内容。速度快，无需浏览器。
 2. **Obscura**（JS 渲染回退）— 当 Defuddle 提取内容过少（< 50 字符）时，Obscura 使用 V8 JS 引擎渲染页面并重新提取。使用 `--obscura` 启用。
@@ -1195,13 +1199,13 @@ sxng doc-search <session-name> "关键词" --path ./docs
 
 ```bash
 # 默认：仅 Defuddle（快速）
-sxng extract --urls "https://example.com"
+digdig extract --urls "https://example.com"
 
 # 为 JS 密集页面启用 Obscura 回退
-sxng extract --urls "https://spa-site.com" --obscura
+digdig extract --urls "https://spa-site.com" --obscura
 
 # 检查默认提取结果后，仅对需要的指定 URL 使用 Jina Reader，并合并回会话
-sxng extract --urls "https://complex-page.com" --session <session-name> --jina
+digdig extract --urls "https://complex-page.com" --session <session-name> --jina
 ```
 
 提取选项：
@@ -1221,7 +1225,7 @@ sxng extract --urls "https://complex-page.com" --session <session-name> --jina
 - 确保与任何 SearXNG 实例配置兼容
 - 向 SearXNG 实例添加新引擎会自动在 CLI 中生效
 
-使用 `sxng --engines-list` 和 `sxng --categories-list` 查看服务器可用项。
+使用 `digdig --engines-list` 和 `digdig --categories-list` 查看服务器可用项。
 
 ### 输出格式
 
@@ -1257,7 +1261,7 @@ Rank: 1 · Engine: google · Category: general · Retrieved: 2026-09-09T00:00:00
 
 结果元数据中的 `score` 保留搜索引擎原始值，不表示跨引擎统一百分比；多查询和
 Session 融合时使用独立的 `fusionScore`。`publishedDate` 是来源发布时间（如引擎提供），
-`retrievedAt` 是 sxng 收到结果的时间。
+`retrievedAt` 是 digdig 收到结果的时间。
 
 #### JSON 信封格式
 
@@ -1274,11 +1278,11 @@ Session 融合时使用独立的 `fusionScore`。`publishedDate` 是来源发布
 
 ---
 
-## 💡 使用 SXNG CLI 的项目
+## 💡 使用 digdig 的项目
 
-SXNG CLI 的深度搜索工作流（会话积累、质量评估、知识图谱、声明-证据-审核）已被需要持久化、多轮研究能力的项目采用：
+digdig 的深度搜索工作流（会话积累、质量评估、知识图谱、声明-证据-审核）已被需要持久化、多轮研究能力的项目采用：
 
-- **[1052 OS](https://github.com/1052666/1052-OS)** — 个人 AI 操作系统。其 `search-pack` 集成了持久化研究会话、质量评估、内容提取和声明-证据-审核流程，这些功能均由与 SXNG CLI 相同的深度搜索理念驱动。
+- **[1052 OS](https://github.com/1052666/1052-OS)** — 个人 AI 操作系统。其 `search-pack` 集成了持久化研究会话、质量评估、内容提取和声明-证据-审核流程，这些功能均由与 digdig 相同的深度搜索理念驱动。
 
 > 欢迎提交 PR 添加你的项目。
 

@@ -41,7 +41,7 @@ export interface GraphNodeAttrs {
     url?: string;
     rank?: number;
     title?: string;
-    source?: string; // "sxng" | "tavily" | "exa" | "open-web-search" | ... — which tool produced this result
+    source?: string; // "digdig" | "tavily" | "exa" | "open-web-search" | ... — which tool produced this result
     origins?: Array<{ tool: string; engine?: string; query: string; round?: number }>;
     // Query-specific
     query?: string;

@@ -2,7 +2,7 @@
 
 > **Proactive Deep Search**: When the user asks a question that requires multi-angle comparison, research, cross-validation, or any topic where simple search might not suffice, go straight to `--session` deep search. Do not start with simple search and "upgrade" later; creating a session from the first round costs nothing and gives you quality assessment, redundancy checks, and knowledge graph from the start. When uncertain between L1 and L2, choose L2.
 >
-> **Before using this SOP**: Read `skills/sxng/references/pipeline.md` first; it explains the data flow (single pending pool, batch approval, graph injection order). This SOP assumes you understand that pipeline.
+> **Before using this SOP**: Read `skills/digdig/references/pipeline.md` first; it explains the data flow (single pending pool, batch approval, graph injection order). This SOP assumes you understand that pipeline.
 
 > Standard Operating Procedure for multi-round deep research (Session + Knowledge Graph + Quality Assessment + Recovery)
 
@@ -58,10 +58,10 @@ Choose tool sequences based on problem complexity:
 
 ```bash
 # Step 1: Single search
-sxng "FastAPI latest version" -l 5
+digdig "FastAPI latest version" -l 5
 
 # Step 2 (optional): Extract official page for verification
-sxng extract --urls "https://pypi.org/project/fastapi/"
+digdig extract --urls "https://pypi.org/project/fastapi/"
 ```
 
 **Stop Conditions**:
@@ -83,30 +83,30 @@ sxng extract --urls "https://pypi.org/project/fastapi/"
 
 ```bash
 # Step 1: Create Session
-sxng --session new --owner "agent-1" --desc "Vector DB comparison" "vector database 2026 Pinecone Weaviate Qdrant comparison"
+digdig --session new --owner "agent-1" --desc "Vector DB comparison" "vector database 2026 Pinecone Weaviate Qdrant comparison"
 
 # Step 2: Extract, then preprocess the extracted content
-sxng extract --session <session>
-sxng graph-preprocess <session> --format json
+digdig extract --session <session>
+digdig graph-preprocess <session> --format json
 # For a JS-heavy page, select the concrete session URL and use Obscura:
-# sxng extract --session <session> --urls "https://example.com/page" --obscura
+# digdig extract --session <session> --urls "https://example.com/page" --obscura
 
 # Step 3: Quality assessment + approve selected {id, revision} objects into the structural graph
-sxng --session <session> --quality
-sxng --session <session> --quality --approve-file .\.sxng\sessions\<session>\agent-inputs\approve.json
+digdig --session <session> --quality
+digdig --session <session> --quality --approve-file .\.digdig\sessions\<session>\agent-inputs\approve.json
 
 # Step 4: Agent writes graph.json with approved sourceResultIds, then builds the semantic graph.
-sxng graph-add <session> --data-file .\.sxng\sessions\<session>\agent-inputs\graph.json
+digdig graph-add <session> --data-file .\.digdig\sessions\<session>\agent-inputs\graph.json
 
 # Step 5: If a Query Plan gap remains, get suggestions + supplementary search
-sxng suggest-queries <session> --format json
-sxng --session <session> --queries "Pinecone pricing 2026,Weaviate vs Qdrant benchmark" --redundancy warn
+digdig suggest-queries <session> --format json
+digdig --session <session> --queries "Pinecone pricing 2026,Weaviate vs Qdrant benchmark" --redundancy warn
 
 # Return to Steps 2-4 for every new result batch: extract, preprocess,
 # approve, then add any needed entities or edges.
 
 # Step 6: Explore graph to verify coverage
-sxng graph-explore <session> --seed "Pinecone" --format json
+digdig graph-explore <session> --seed "Pinecone" --format json
 ```
 
 **Stop Conditions**:
@@ -128,7 +128,7 @@ sxng graph-explore <session> --seed "Pinecone" --format json
 
 #### Phase 1: Intent Analysis & Initial Search
 
-Sessions are stored under `.sxng/sessions/` by default.
+Sessions are stored under `.digdig/sessions/` by default.
 
 **Output**:
 - Core question in one sentence
@@ -142,17 +142,17 @@ Before searching, create this plan in the Agent's working notes. It is not persi
 | `<question>` | official / independent / counter-evidence / current source | unsearched | `<query only when a gap exists>` |
 
 ```bash
-sxng --session new --owner "researcher" --desc "RAG Vector DB deep research" --queries "vector database 2026 ranking,vector DB for RAG comparison"
+digdig --session new --owner "researcher" --desc "RAG Vector DB deep research" --queries "vector database 2026 ranking,vector DB for RAG comparison"
 ```
 
 #### Phase 2: Preprocessing & Entity Discovery
 
 ```bash
 # Extract key page content
-sxng extract --session <session>
+digdig extract --session <session>
 
 # Get TF-IDF terms, co-occurrence pairs, existing entities from extracted content
-sxng graph-preprocess <session> --format json
+digdig graph-preprocess <session> --format json
 ```
 
 **Agent Decision Logic**:
@@ -165,8 +165,8 @@ sxng graph-preprocess <session> --format json
 Approve the extracted results before adding semantic entities or edges. This creates the structural result nodes that later edges can reference.
 
 ```bash
-sxng --session <session> --quality
-sxng --session <session> --quality --approve-file .\.sxng\sessions\<session>\agent-inputs\approve.json
+digdig --session <session> --quality
+digdig --session <session> --quality --approve-file .\.digdig\sessions\<session>\agent-inputs\approve.json
 ```
 
 #### Phase 4: Build Knowledge Graph
@@ -174,7 +174,7 @@ sxng --session <session> --quality --approve-file .\.sxng\sessions\<session>\age
 > **Before Phase 4**: Approved results must already exist in the graph via `--quality --approve-file`. `graph-add` only accepts entities and edges; results go through the pending pipeline first.
 
 ```bash
-sxng graph-add <session> --data-file .\.sxng\sessions\<session>\agent-inputs\graph.json
+digdig graph-add <session> --data-file .\.digdig\sessions\<session>\agent-inputs\graph.json
 ```
 
 The knowledge graph has two layers:
@@ -193,22 +193,22 @@ When adding edges, `source`/`target` must reference existing node IDs. Run `grap
 
 References to non-existent nodes are skipped and reported in `skippedEdges`.
 
-**External Search Results Integration**: When you use other search tools (tavily, exa, open-web-search, etc.) during a deep search session, use `results-add` to inject results. They go through the same pipeline as sxng-native results: **pending -> quality assessment -> approval -> graph injection**. Use `graph-add` only for entities/edges after approval.
+**External Search Results Integration**: When you use other search tools (tavily, exa, open-web-search, etc.) during a deep search session, use `results-add` to inject results. They go through the same pipeline as digdig-native results: **pending -> quality assessment -> approval -> graph injection**. Use `graph-add` only for entities/edges after approval.
 
 ```bash
 # Step 1: Save external discovery JSON under the session, then import it (becomes pending).
-sxng results-add <session> --kind search --tool exa --query "external source query" --data-file .\.sxng\sessions\<session>\agent-inputs\external-search.json
+digdig results-add <session> --kind search --tool exa --query "external source query" --data-file .\.digdig\sessions\<session>\agent-inputs\external-search.json
 
 # Step 2: Extract, then run quality assessment and approve (injects into graph)
-sxng extract --session <session>
-sxng --session <session> --quality
-sxng --session <session> --quality --approve-file .\.sxng\sessions\<session>\agent-inputs\approve.json
+digdig extract --session <session>
+digdig --session <session> --quality
+digdig --session <session> --quality --approve-file .\.digdig\sessions\<session>\agent-inputs\approve.json
 
 # Step 3: Save entities and edges with approved sourceResultIds, then add them.
-sxng graph-add <session> --data-file .\.sxng\sessions\<session>\agent-inputs\graph.json
+digdig graph-add <session> --data-file .\.digdig\sessions\<session>\agent-inputs\graph.json
 ```
 
-The origin `tool` (`"sxng"` | `"tavily"` | `"exa"` | `"open-web-search"` | ...) records which tool produced each result. sxng-native results default to `"sxng"`. External results participate equally in quality assessment, path discovery, and domain diversity; the graph treats them identically regardless of source.
+The origin `tool` (`"digdig"` | `"tavily"` | `"exa"` | `"open-web-search"` | ...) records which tool produced each result. digdig-native results default to `"digdig"`. External results participate equally in quality assessment, path discovery, and domain diversity; the graph treats them identically regardless of source.
 
 > **Note**: `results-add --kind search` marks discoveries as `pending` and they require extraction. `--kind extracted` accepts an external body with `content` and `extractor`, then it awaits approval. Neither kind enters the graph until Agent approval via `--quality --approve-file`.
 
@@ -244,7 +244,7 @@ The origin `tool` (`"sxng"` | `"tavily"` | `"exa"` | `"open-web-search"` | ...) 
 #### Phase 5: Query Suggestions
 
 ```bash
-sxng suggest-queries <session> --format json
+digdig suggest-queries <session> --format json
 ```
 
 **Agent Decision Logic**:
@@ -257,7 +257,7 @@ sxng suggest-queries <session> --format json
 #### Phase 6: Continue Search (with Redundancy Check)
 
 ```bash
-sxng "follow-up query" --session <session> --redundancy warn
+digdig "follow-up query" --session <session> --redundancy warn
 ```
 
 Before this command, update the Query Plan and state which row and evidence gap the query addresses. Then return to Phase 2. Stop when all core rows are `covered`, the round budget is exhausted, or remaining core rows are explicitly `blocked` and will be disclosed.
@@ -265,7 +265,7 @@ Before this command, update the Query Plan and state which row and evidence gap 
 #### Phase 7: Recovery Analysis (when consecutive poor quality)
 
 ```bash
-sxng recovery-analysis <session> --format json
+digdig recovery-analysis <session> --format json
 ```
 
 | Strategy | Applicable Scenario | Agent Action |
@@ -283,7 +283,7 @@ results into the current session with `results-add`.
 Also check search stage suggestions:
 
 ```bash
-sxng strategy-info <session> --format json
+digdig strategy-info <session> --format json
 ```
 
 - `broad_exploration`: First 2-3 rounds, use general engines
@@ -298,7 +298,7 @@ sxng strategy-info <session> --format json
 1. **Switch backends, not sessions.** Use alternative search tools (tavily, exa, open-web-search, web search MCP tools) to get results.
 2. **Inject all results into the current session** via `results-add`, retaining the query that produced them:
    ```bash
-    sxng results-add <session> --kind search --tool <tool> --query "failed-backend query" --data-file .sxng/sessions/<session>/agent-inputs/fallback-search.json
+    digdig results-add <session> --kind search --tool <tool> --query "failed-backend query" --data-file .digdig/sessions/<session>/agent-inputs/fallback-search.json
    ```
 3. **Continue the normal pipeline**: extract -> `--quality` -> `--approve-file` -> graph-preprocess -> `graph-add`.
 
@@ -317,16 +317,16 @@ sxng strategy-info <session> --format json
 
 ```bash
 # Discover entities
-sxng graph-search <session> --keyword <term> --format json
+digdig graph-search <session> --keyword <term> --format json
 
 # View entity relations
-sxng graph-explore <session> --seed <entity> --format json
+digdig graph-explore <session> --seed <entity> --format json
 
 # Drill into specific relations
-sxng graph-drill <session> --seed <entity> --relations <list> --format json
+digdig graph-drill <session> --seed <entity> --relations <list> --format json
 
 # Traverse reasoning paths
-sxng graph-traverse <session> --path <path-id> --format json
+digdig graph-traverse <session> --path <path-id> --format json
 ```
 
 **Agent Decision Logic**:
@@ -339,7 +339,7 @@ sxng graph-traverse <session> --path <path-id> --format json
 #### View Full Session Report
 
 ```bash
-sxng session-report <session> --format json
+digdig session-report <session> --format json
 ```
 
 ---
@@ -425,7 +425,7 @@ Before outputting final answer, verify:
 - [ ] Every factual conclusion has `[Title](URL)` citation
 - [ ] Single-source conclusions are marked **Confidence: Low** (see [Cross-Validation](evidence-standards.md#2-cross-validation))
 - [ ] Source disagreements show evidence from both sides (see [Conflict Resolution](evidence-standards.md#3-conflict-resolution))
-- [ ] Used `sxng extract` to extract key page content
+- [ ] Used `digdig extract` to extract key page content
 - [ ] L2/L3 levels used `--session` and knowledge graph
 - [ ] L3 level used `--quality` assessment and decided next steps accordingly
 - [ ] **L2/L3: ran Claim-Evidence-Review pipeline** (`claim-add` -> `evidence-verify` -> review)

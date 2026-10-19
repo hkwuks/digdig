@@ -24,7 +24,7 @@ export async function runGraphTraverse(options: GraphTraverseOptions): Promise<n
     });
     if (pathCount === 0) {
         const envelope = createErrorEnvelope('NO_PATHS', '当前图谱尚无推理路径。请先通过 graph-preprocess 和 graph-add 构建语义层。', {
-            hint: 'Run: sxng graph-preprocess <session> then sxng graph-add <session> --data \'...\'',
+            hint: 'Run: digdig graph-preprocess <session> then digdig graph-add <session> --data \'...\'',
         });
         console.log(JSON.stringify(envelope, null, 2));
         return 1;

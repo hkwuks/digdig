@@ -1,11 +1,12 @@
 /**
- * SearXNG CLI - Interactive Configuration Setup
+ * digdig - Interactive Configuration Setup
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { resolve } from 'path';
 import { homedir } from 'os';
 import readline from 'readline';
+import { resolveConfigPath } from './legacy.js';
 
 export interface SearXNGConfig {
     baseUrl: string;
@@ -72,21 +73,24 @@ class ConfiguratorInterface {
 }
 
 export async function initConfig(): Promise<number> {
-    const configDir = resolve(homedir(), 'sxng-cli');
-    const configPath = resolve(configDir, 'sxng.config.json');
+    // Only the new location is written. An existing config under the old name is
+    // still read (via `resolveConfigPath`), but `init` never creates `~/sxng-cli/`.
+    const configDir = resolve(homedir(), 'digdig');
+    const configPath = resolve(configDir, 'digdig.config.json');
     const configurator = new ConfiguratorInterface();
 
-    console.log('\n📝 SearXNG CLI Configuration Setup\n');
+    console.log('\n📝 digdig Configuration Setup\n');
     console.log('This will guide you through setting up your SearXNG configuration.\n');
 
     let config: SearXNGConfig = { ...DEFAULT_CONFIG };
 
     // Load existing config if available
-    if (existsSync(configPath)) {
-        const useExisting = await configurator.confirm('Found existing config. Use it as base');
+    const existingPath = existsSync(configPath) ? configPath : resolveConfigPath();
+    if (existingPath) {
+        const useExisting = await configurator.confirm(`Found existing config (${existingPath}). Use it as base`);
         if (useExisting) {
             try {
-                const existing = JSON.parse(readFileSync(configPath, 'utf-8'));
+                const existing = JSON.parse(readFileSync(existingPath, 'utf-8'));
                 config = { ...DEFAULT_CONFIG, ...existing };
                 console.log('✓ Loaded existing configuration\n');
             } catch (error) {
@@ -148,7 +152,7 @@ export async function initConfig(): Promise<number> {
 
     // Configure Ollama (fallback search)
     console.log('\n--- Ollama (Fallback Search) ---');
-    console.log('Optional: when SearXNG is unavailable, sxng falls back to Ollama web search.');
+    console.log('Optional: when SearXNG is unavailable, digdig falls back to Ollama web search.');
     config.ollamaApiKey = await configurator.question(
         'Ollama API key (leave blank to skip)',
         config.ollamaApiKey
@@ -169,9 +173,9 @@ export async function initConfig(): Promise<number> {
             }
             writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
             console.log(`\n✓ Configuration saved to ${configPath}`);
-            console.log('\n✨ Setup complete! You can now use sxng to search.\n');
+            console.log('\n✨ Setup complete! You can now use digdig to search.\n');
             console.log('Try it out:');
-            console.log('  sxng "TypeScript tutorial"\n');
+            console.log('  digdig "TypeScript tutorial"\n');
             return 0;
         } catch (error) {
             console.error(`\n✗ Failed to save configuration: ${error instanceof Error ? error.message : String(error)}`);

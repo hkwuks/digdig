@@ -144,7 +144,7 @@ describe('provider routing', () => {
         const tools = loadSessionResults(sessionDir)
             .flatMap(result => result.origins.map(origin => origin.tool))
             .sort();
-        expect(tools).toEqual(['deepseek', 'sxng']);
+        expect(tools).toEqual(['deepseek', 'digdig']);
     });
 
     it('reports unconfigured providers before any search is attempted', async () => {

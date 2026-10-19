@@ -8,48 +8,48 @@
 
 ```bash
 # Phase 1: Create Session
-sxng --session new --owner "researcher" --desc "Vector DB deep research 2026" --queries "vector database 2026 ranking,vector DB for RAG comparison"
+digdig --session new --owner "researcher" --desc "Vector DB deep research 2026" --queries "vector database 2026 ranking,vector DB for RAG comparison"
 # Use the session name printed by the previous command as <session>.
 
 # Phase 2: Extract + preprocess
-sxng extract --session <session>
-sxng graph-preprocess <session> --format json
+digdig extract --session <session>
+digdig graph-preprocess <session> --format json
 
 # Phase 3: Quality assessment + approve selected {id, revision} objects into the structural graph
-sxng --session <session> --quality
+digdig --session <session> --quality
 # Save selected objects from quality output to approve.json, then approve and inject into graph:
-sxng --session <session> --quality --approve-file ./.sxng/sessions/<session>/agent-inputs/approve.json
+digdig --session <session> --quality --approve-file ./.digdig/sessions/<session>/agent-inputs/approve.json
 
 # Phase 4: Save semantic entities and edges with approved sourceResultIds from
 # graph-preprocess in graph.json, then add them after result nodes exist.
-sxng graph-add <session> --data-file ./.sxng/sessions/<session>/agent-inputs/graph.json
+digdig graph-add <session> --data-file ./.digdig/sessions/<session>/agent-inputs/graph.json
 
 # Phase 5-6: If quality not met, supplementary search
-sxng suggest-queries <session> --format json
-sxng --session <session> --queries "Qdrant rust implementation,HNSW vs IVF performance" --redundancy warn
+digdig suggest-queries <session> --format json
+digdig --session <session> --queries "Qdrant rust implementation,HNSW vs IVF performance" --redundancy warn
 
 # Re-extract + assess + approve + preprocess + add entities
-sxng extract --session <session>
-sxng --session <session> --quality
-sxng --session <session> --quality --approve-file ./.sxng/sessions/<session>/agent-inputs/approve-round-2.json
-sxng graph-preprocess <session> --format json
-sxng graph-add <session> --data-file ./.sxng/sessions/<session>/agent-inputs/graph-round-2.json
+digdig extract --session <session>
+digdig --session <session> --quality
+digdig --session <session> --quality --approve-file ./.digdig/sessions/<session>/agent-inputs/approve-round-2.json
+digdig graph-preprocess <session> --format json
+digdig graph-add <session> --data-file ./.digdig/sessions/<session>/agent-inputs/graph-round-2.json
 
 # Phase 7: Recovery when consecutive poor rounds
-sxng recovery-analysis <session> --format json
-sxng strategy-info <session> --format json
+digdig recovery-analysis <session> --format json
+digdig strategy-info <session> --format json
 
 # Phase 8: Graph exploration
-sxng graph-search <session> --keyword "vector"
-sxng graph-explore <session> --seed "Pinecone" --format json
-sxng graph-drill <session> --seed "Pinecone" --relations "uses,competitor" --format json
+digdig graph-search <session> --keyword "vector"
+digdig graph-explore <session> --seed "Pinecone" --format json
+digdig graph-drill <session> --seed "Pinecone" --relations "uses,competitor" --format json
 
 # Phase 9: Claim-Evidence-Review (after draft, before output).
 # Save claims and each {resultId, quote, charStart, charEnd} evidence object under agent-inputs.
-sxng claim-add <session> --claims-file ./.sxng/sessions/<session>/agent-inputs/claims.json
-sxng evidence-verify <session> --claim-id "cl_001" --evidence-file ./.sxng/sessions/<session>/agent-inputs/evidence-cl_001.json --stance support --reason "Official site confirms" --complete
-sxng evidence-verify <session> --claim-id "cl_002" --evidence-file ./.sxng/sessions/<session>/agent-inputs/evidence-cl_002.json --stance support --reason "..." --complete
-sxng evidence-verify <session> --claim-id "cl_003" --evidence-file ./.sxng/sessions/<session>/agent-inputs/evidence-cl_003.json --stance insufficient --reason "No benchmark data found" --complete
+digdig claim-add <session> --claims-file ./.digdig/sessions/<session>/agent-inputs/claims.json
+digdig evidence-verify <session> --claim-id "cl_001" --evidence-file ./.digdig/sessions/<session>/agent-inputs/evidence-cl_001.json --stance support --reason "Official site confirms" --complete
+digdig evidence-verify <session> --claim-id "cl_002" --evidence-file ./.digdig/sessions/<session>/agent-inputs/evidence-cl_002.json --stance support --reason "..." --complete
+digdig evidence-verify <session> --claim-id "cl_003" --evidence-file ./.digdig/sessions/<session>/agent-inputs/evidence-cl_003.json --stance insufficient --reason "No benchmark data found" --complete
 
 # Phase 10: Agent adjusts output based on review results
 # cl_001: approved (cite), cl_002: approved (cite), cl_003: needsReview (do not cite or mark uncertain)
@@ -75,7 +75,7 @@ sxng evidence-verify <session> --claim-id "cl_003" --evidence-file ./.sxng/sessi
 | Using `query-graph` | Deprecated, use `graph-explore` + `graph-drill` |
 | Search backend fails -> abandon session | Switch backend (ollama/tavily/exa), inject via `results-add`, keep session |
 | SearXNG returns 0 results -> create new session | The session is decoupled from any backend; use `results-add` instead |
-| Inline JSON or a project-root temp file | Put UTF-8 JSON in `.sxng/sessions/<session>/agent-inputs/` and use `--*-file` |
+| Inline JSON or a project-root temp file | Put UTF-8 JSON in `.digdig/sessions/<session>/agent-inputs/` and use `--*-file` |
 | Treating a search excerpt as a body | Import it with `--kind search`, then extract; use `--kind extracted` only for actual external bodies |
 
 ---

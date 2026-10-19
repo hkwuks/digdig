@@ -200,7 +200,7 @@ describe('local-doc indexer', () => {
         expect(result.meta.chunks).toBe(2); // 2 sections
         expect(result.meta.rootPath).toBe(testDir);
         expect(result.meta.indexedAt).toBeGreaterThan(0);
-        expect(result.indexPath).toContain(join('.sxng', 'docs'));
+        expect(result.indexPath).toContain(join('.digdig', 'docs'));
     });
 
     it('searches Chinese words after persisting and loading an index', async () => {

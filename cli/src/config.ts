@@ -1,16 +1,18 @@
 /**
- * SearXNG CLI - Configuration
+ * Configuration
  *
  * Configuration priority (highest to lowest):
- * 1. Environment variables
- * 2. Local config file (./sxng.config.json)
- * 3. Global config file (~/sxng-cli/sxng.config.json)
+ * 1. Environment variables (`DIGDIG_*`, falling back to `SEARXNG_*` until 0.5.0)
+ * 2. Local config file (./digdig.config.json, falling back to ./sxng.config.json)
+ * 3. Global config file (~/digdig/digdig.config.json, falling back to ~/sxng-cli/)
  * 4. Default values
+ *
+ * Which file gets read, and which prefix an environment variable carries, is
+ * `legacy.ts`'s decision. This file keeps deciding what a value means.
  */
 
-import { readFileSync, existsSync } from 'fs';
-import { homedir } from 'os';
-import { resolve } from 'path';
+import { readFileSync } from 'fs';
+import { envRaw, resolveConfigPath } from './legacy.js';
 
 export interface SearXNGConfig {
     baseUrl: string;
@@ -42,45 +44,38 @@ const DEFAULT_CONFIG: SearXNGConfig = {
     redundancyBigramThreshold: 0.5,
 };
 
+/**
+ * A bare name (`TIMEOUT`) is read under either prefix; the `SEARXNG_`/`DIGDIG_`
+ * choice and its deprecation notice belong to `legacy.ts`, so the value
+ * semantics below stay exactly what they were before the rename.
+ */
 function readOptionalEnv(name: string, defaultValue?: string): string | undefined {
-    const value = process.env[name]?.trim();
+    const value = envRaw(name)?.trim();
     return value ? value : defaultValue;
 }
 
 function readIntEnv(name: string, defaultValue: number): number {
-    const value = process.env[name];
+    const value = envRaw(name);
     if (!value) return defaultValue;
     const parsed = parseInt(value, 10);
     return Number.isFinite(parsed) ? parsed : defaultValue;
 }
 
 function readBoolEnv(name: string, defaultValue: boolean): boolean {
-    const value = process.env[name];
+    const value = envRaw(name);
     if (value === undefined) return defaultValue;
     return value === 'true' || value === '1';
 }
 
 function readFloatEnv(name: string, defaultValue: number): number {
-    const value = process.env[name];
+    const value = envRaw(name);
     if (!value) return defaultValue;
     const parsed = parseFloat(value);
     return Number.isFinite(parsed) ? parsed : defaultValue;
 }
 
 function findConfigFile(): string | null {
-    // Check local config first (for project-specific overrides)
-    const localConfig = './sxng.config.json';
-    if (existsSync(localConfig)) {
-        return localConfig;
-    }
-
-    // Check global config in ~/sxng-cli/
-    const globalConfig = resolve(homedir(), 'sxng-cli', 'sxng.config.json');
-    if (existsSync(globalConfig)) {
-        return globalConfig;
-    }
-
-    return null;
+    return resolveConfigPath();
 }
 
 function loadConfigFile(): Partial<SearXNGConfig> {
@@ -115,48 +110,48 @@ function mergeConfig(): SearXNGConfig {
     if (fileConfig.ollamaApiKey !== undefined) config.ollamaApiKey = fileConfig.ollamaApiKey;
     if (fileConfig.deepseekApiKey !== undefined) config.deepseekApiKey = fileConfig.deepseekApiKey;
 
-    const envBaseUrl = readOptionalEnv('SEARXNG_BASE_URL');
+    const envBaseUrl = readOptionalEnv('BASE_URL');
     if (envBaseUrl) config.baseUrl = envBaseUrl;
 
-    const envDefaultEngine = readOptionalEnv('SEARXNG_DEFAULT_ENGINE');
+    const envDefaultEngine = readOptionalEnv('DEFAULT_ENGINE');
     if (envDefaultEngine !== undefined) config.defaultEngine = envDefaultEngine;
 
-    const envAllowedEngines = process.env.SEARXNG_ALLOWED_ENGINES;
+    const envAllowedEngines = envRaw('ALLOWED_ENGINES');
     if (envAllowedEngines !== undefined) {
         config.allowedEngines = envAllowedEngines.split(',').map(e => e.trim()).filter(Boolean);
     }
 
-    const envDefaultLimit = process.env.SEARXNG_DEFAULT_LIMIT;
+    const envDefaultLimit = envRaw('DEFAULT_LIMIT');
     if (envDefaultLimit !== undefined) {
-        config.defaultLimit = readIntEnv('SEARXNG_DEFAULT_LIMIT', config.defaultLimit);
+        config.defaultLimit = readIntEnv('DEFAULT_LIMIT', config.defaultLimit);
     }
 
-    const envDefaultFormat = process.env.SEARXNG_DEFAULT_FORMAT;
+    const envDefaultFormat = envRaw('DEFAULT_FORMAT');
     if (envDefaultFormat !== undefined && ['json', 'md'].includes(envDefaultFormat)) {
         config.defaultFormat = envDefaultFormat as SearXNGConfig['defaultFormat'];
     }
 
-    const envUseProxy = process.env.SEARXNG_USE_PROXY;
+    const envUseProxy = envRaw('USE_PROXY');
     if (envUseProxy !== undefined) {
-        config.useProxy = readBoolEnv('SEARXNG_USE_PROXY', config.useProxy);
+        config.useProxy = readBoolEnv('USE_PROXY', config.useProxy);
     }
 
-    const envProxyUrl = readOptionalEnv('SEARXNG_PROXY_URL');
+    const envProxyUrl = readOptionalEnv('PROXY_URL');
     if (envProxyUrl) config.proxyUrl = envProxyUrl;
 
-    const envTimeout = process.env.SEARXNG_TIMEOUT;
+    const envTimeout = envRaw('TIMEOUT');
     if (envTimeout !== undefined) {
-        config.timeout = readIntEnv('SEARXNG_TIMEOUT', config.timeout);
+        config.timeout = readIntEnv('TIMEOUT', config.timeout);
     }
 
-    const envRedundancyThreshold = process.env.SEARXNG_REDUNDANCY_THRESHOLD;
+    const envRedundancyThreshold = envRaw('REDUNDANCY_THRESHOLD');
     if (envRedundancyThreshold !== undefined) {
-        config.redundancyThreshold = readFloatEnv('SEARXNG_REDUNDANCY_THRESHOLD', config.redundancyThreshold);
+        config.redundancyThreshold = readFloatEnv('REDUNDANCY_THRESHOLD', config.redundancyThreshold);
     }
 
-    const envRedundancyBigramThreshold = process.env.SEARXNG_REDUNDANCY_BIGRAM_THRESHOLD;
+    const envRedundancyBigramThreshold = envRaw('REDUNDANCY_BIGRAM_THRESHOLD');
     if (envRedundancyBigramThreshold !== undefined) {
-        config.redundancyBigramThreshold = readFloatEnv('SEARXNG_REDUNDANCY_BIGRAM_THRESHOLD', config.redundancyBigramThreshold);
+        config.redundancyBigramThreshold = readFloatEnv('REDUNDANCY_BIGRAM_THRESHOLD', config.redundancyBigramThreshold);
     }
 
     const envOllamaApiKey = readOptionalEnv('OLLAMA_API_KEY');
