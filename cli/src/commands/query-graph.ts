@@ -59,7 +59,7 @@ export async function runQueryGraph(options: QueryGraphOptions): Promise<number>
         const envelope = createErrorEnvelope(
             'MISSING_GRAPH_FILE',
             'No graph file specified',
-            { hint: 'Use: sxng query-graph graph.json --seeds "seed1,seed2" --depth 2' }
+            { hint: 'Use: digdig query-graph graph.json --seeds "seed1,seed2" --depth 2' }
         );
         console.log(JSON.stringify(envelope, null, 2));
         return 1;
@@ -79,7 +79,7 @@ export async function runQueryGraph(options: QueryGraphOptions): Promise<number>
             const envelope = createErrorEnvelope(
                 'INVALID_GRAPH_FORMAT',
                 'Graph file does not contain valid graphology data',
-                { hint: 'Ensure the file was produced by sxng build-graph' }
+                { hint: 'Ensure the file was produced by digdig build-graph' }
             );
             console.log(JSON.stringify(envelope, null, 2));
             return 1;

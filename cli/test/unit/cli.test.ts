@@ -25,7 +25,7 @@ describe('CLI program (commander)', () => {
     const program = createProgram();
 
     it('has correct name and version', () => {
-        expect(program.name()).toBe('sxng');
+        expect(program.name()).toBe('digdig');
         expect(program.version()).toBe(pkgVersion);
     });
 
@@ -281,7 +281,7 @@ describe('CLI program (commander)', () => {
                 }),
             } as any);
 
-            expect(loadSessionResults(sessionDir)[0].origins).toEqual([{ tool: 'sxng', engine: 'test', query: 'origin query', round: 1 }]);
+            expect(loadSessionResults(sessionDir)[0].origins).toEqual([{ tool: 'digdig', engine: 'test', query: 'origin query', round: 1 }]);
         } finally {
             rmSync(sessionDir, { recursive: true, force: true });
         }
@@ -307,8 +307,8 @@ describe('CLI program (commander)', () => {
             await runCli(['--queries', 'first query,second query', '--session', sessionDir, '--format', 'json'], { search } as any);
 
             expect(loadSessionResults(sessionDir).map(result => result.origins)).toEqual([
-                [{ tool: 'sxng', engine: 'test', query: 'first query', round: 1 }],
-                [{ tool: 'sxng', engine: 'test', query: 'second query', round: 1 }],
+                [{ tool: 'digdig', engine: 'test', query: 'first query', round: 1 }],
+                [{ tool: 'digdig', engine: 'test', query: 'second query', round: 1 }],
             ]);
         } finally {
             rmSync(sessionDir, { recursive: true, force: true });

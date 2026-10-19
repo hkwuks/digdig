@@ -300,3 +300,16 @@ Be precise about the reach: **no subcommand was observed truncating.** `session-
 **Fix**: stop calling `process.exit()` to end a command — set `process.exitCode` and let the event loop drain. This is also what the project rule already requires ("do not use any method which may block the running code to achieve the function of outputting logs"). Bounding the output is a separate, still-worthwhile change, not the fix for this.
 
 **Interaction with the sibling task**: after this lands, `--format md` on an Ollama search (`content` 835–25,804 chars) stops being truncated at 65,536 — the full body reaches the pipe. Lengthening the md output must not be done in the same change as the exit fix, or the two effects cannot be told apart when verifying.
+
+## Rename sxng-cli to digdig. Publish under the npm package digdig (already reserve
+
+- ID: TF-20261019-091828
+- Status: done
+- Priority: normal
+- Owner: Claude
+- Source: user-request
+- Added: 2026-10-19
+- Updated: 2026-10-19
+- Goal: Rename sxng-cli to digdig. Publish under the npm package digdig (already reserved at https://www.npmjs.com/package/digdig, version 0.0.1, owned by hkwuks). Scope per user decision 2026-10-19: rename the identity layer (package name, bin, program.name(), README/README.zh-CN/cli/README/CLAUDE.md/skills references, skill directory name, repository/homepage/bugs URLs, plus the placeholder in npm-reserve-digdig/) AND the runtime artifacts (.sxng/ state directory, sxng.config.json, SEARXNG_* env vars, origins[].tool value) with migration code that keeps the old names working. Transition window: 5 versions. Old command name sxng and old names keep working through it with a one-line stderr deprecation notice; the old package sxng-cli is deprecated pointing at the new one. Migration code and the sxng bin alias are removed at the cut. Version line per user decision 2026-10-19: the new package starts at 0.0.2 and the cut lands at 0.5.0. Publishing to npm, deprecating sxng-cli on the registry, and renaming the GitHub repository are explicitly NOT this task: file changes only, no publish.
+- Task: `TaskFlowDocs/achieved/2026-10-19-rename-digdig/`
+- Next action: None — completed and archived.

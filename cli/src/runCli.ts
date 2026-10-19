@@ -371,7 +371,7 @@ function formatSessionReportAsMarkdown(data: any): string {
 
     // Recovery hint
     if (q.verdict !== 'good') {
-        lines.push(`> Recovery: ${data.recovery.availableStrategies.length} strategies available. Use \`sxng recovery-analysis <session>\` for details.`);
+        lines.push(`> Recovery: ${data.recovery.availableStrategies.length} strategies available. Use \`digdig recovery-analysis <session>\` for details.`);
         lines.push('');
     }
 
@@ -478,7 +478,7 @@ function mergeResponses(
 
 /** Attribute a result to the tool that produced it, for session origin records. */
 function originTool(engine: string): string {
-    return EXTERNAL_PROVIDERS.includes(engine as ExternalProvider) ? engine : 'sxng';
+    return EXTERNAL_PROVIDERS.includes(engine as ExternalProvider) ? engine : 'digdig';
 }
 
 async function runSearch(
@@ -507,7 +507,7 @@ async function runSearch(
         const envelope = createErrorEnvelope(
             'MISSING_QUERY',
             'No search query provided',
-            { hint: 'Use: sxng "your search query" or sxng --queries "q1,q2,q3"' }
+            { hint: 'Use: digdig "your search query" or digdig --queries "q1,q2,q3"' }
         );
         console.log(JSON.stringify(envelope, null, 2));
         return 1;
@@ -535,8 +535,8 @@ async function runSearch(
                 'PROVIDER_NOT_CONFIGURED',
                 `Provider selected but no API key configured: ${unconfigured.join(', ')}`,
                 { hint: unconfigured.map(p => p === 'ollama'
-                    ? 'Set OLLAMA_API_KEY or add "ollamaApiKey" to sxng.config.json'
-                    : 'Set DEEPSEEK_API_KEY or add "deepseekApiKey" to sxng.config.json').join('; ') }
+                    ? 'Set OLLAMA_API_KEY or add "ollamaApiKey" to digdig.config.json'
+                    : 'Set DEEPSEEK_API_KEY or add "deepseekApiKey" to digdig.config.json').join('; ') }
             );
             console.log(JSON.stringify(envelope, null, 2));
             return 1;
@@ -909,8 +909,8 @@ export function createProgram(): Command {
     const program = new Command();
 
     program
-        .name('sxng')
-        .description('SearXNG CLI - Web Search Tool')
+        .name('digdig')
+        .description('digdig - Web Search Tool (SearXNG, Ollama, DeepSeek)')
         .version(pkg.version)
         .argument('[query]', 'Search query')
         .option('-e, --engines <engines>', `Comma-separated list of search engines; "${EXTERNAL_PROVIDERS.join('"/"')}" route to non-SearXNG providers`)
@@ -1015,7 +1015,7 @@ export function createProgram(): Command {
         .option('--tool <tool>', 'Origin tool (may instead be supplied per item)')
         .addHelpText('after', `
 Examples:
-  sxng results-add my-session --kind search --tool exa --query "async runtime" --data-file .sxng/sessions/my-session/agent-inputs/results.json
+  digdig results-add my-session --kind search --tool exa --query "async runtime" --data-file .digdig/sessions/my-session/agent-inputs/results.json
 
 Search imports await extraction; extracted imports await approval.`)
         .action(async (session, opts) => {
@@ -1036,8 +1036,8 @@ Search imports await extraction; extracted imports await approval.`)
         .option('-t, --type <exts>', 'File extensions (comma-separated)', 'md,txt')
         .addHelpText('after', `
 Examples:
-  sxng doc-index ./docs
-  sxng doc-index --type md,txt ~/notes`)
+  digdig doc-index ./docs
+  digdig doc-index --type md,txt ~/notes`)
         .action(async (path, opts) => {
             const code = await runDocIndex({
                 path,
@@ -1056,8 +1056,8 @@ Examples:
         .option('--boost <field:w,...>', 'Field weights (e.g. title:3,headings:2,content:1)', 'title:3,headings:2,content:1')
         .addHelpText('after', `
 Examples:
-  sxng doc-search my-session "async" --path ./docs
-  sxng doc-search my-session -k 5 "deploy" --path ~/notes`)
+  digdig doc-search my-session "async" --path ./docs
+  digdig doc-search my-session -k 5 "deploy" --path ~/notes`)
         .action(async (session, query, opts) => {
             const code = await runDocSearch({
                 session,
@@ -1097,8 +1097,8 @@ Examples:
         .option('-f, --format <fmt>', 'Output format: json (default), md')
         .addHelpText('after', `
 Examples:
-  sxng graph-obfuscate my-session --list
-  sxng graph-obfuscate my-session --fallback-rules --format md
+  digdig graph-obfuscate my-session --list
+  digdig graph-obfuscate my-session --fallback-rules --format md
 
 Note: --fallback-rules is experimental and may produce low-quality obfuscation labels.
 Recommended workflow: use --list to get candidates, then have an LLM generate obfuscated labels,
@@ -1124,8 +1124,8 @@ and write them back via graph-add.`)
         .option('-f, --format <fmt>', 'Output format: json (default), md')
         .addHelpText('after', `
 Examples:
-  sxng graph-preprocess my-session
-  sxng graph-preprocess my-session --top 50 --format md`)
+  digdig graph-preprocess my-session
+  digdig graph-preprocess my-session --top 50 --format md`)
         .action(async (session, opts) => {
             const sessionDir = resolveSessionPath(session);
             const result = graphPreprocess(sessionDir, {
@@ -1148,8 +1148,8 @@ Examples:
         .option('-f, --format <fmt>', 'Output format: json (default), md')
         .addHelpText('after', `
 Examples:
-  sxng suggest-queries my-session
-  sxng suggest-queries my-session --format md`)
+  digdig suggest-queries my-session
+  digdig suggest-queries my-session --format md`)
         .action(async (session, opts) => {
             const sessionDir = resolveSessionPath(session);
             const graph = loadSessionGraph(sessionDir);
@@ -1176,8 +1176,8 @@ Examples:
         .option('-f, --format <fmt>', 'Output format: json (default), md')
         .addHelpText('after', `
 Examples:
-  sxng strategy-info my-session
-  sxng strategy-info my-session --format md`)
+  digdig strategy-info my-session
+  digdig strategy-info my-session --format md`)
         .action(async (session, opts) => {
             const sessionDir = resolveSessionPath(session);
             const graph = loadSessionGraph(sessionDir);
@@ -1202,8 +1202,8 @@ Examples:
         .option('-f, --format <fmt>', 'Output format: json (default), md')
         .addHelpText('after', `
 Examples:
-  sxng recovery-analysis my-session
-  sxng recovery-analysis my-session --format md`)
+  digdig recovery-analysis my-session
+  digdig recovery-analysis my-session --format md`)
         .action(async (session, opts) => {
             const sessionDir = resolveSessionPath(session);
             const graph = loadSessionGraph(sessionDir);
@@ -1227,8 +1227,8 @@ Examples:
         .option('-f, --format <fmt>', 'Output format: json (default), md')
         .addHelpText('after', `
 Examples:
-  sxng session-report my-session
-  sxng session-report my-session --format md`)
+  digdig session-report my-session
+  digdig session-report my-session --format md`)
         .action(async (session, opts) => {
             const sessionDir = resolveSessionPath(session);
             const graph = loadSessionGraph(sessionDir);
@@ -1252,8 +1252,8 @@ Examples:
         .option('-f, --format <fmt>', 'Output format: md (default), json')
         .addHelpText('after', `
 Examples:
-  sxng graph-explore my-session --seed "tokio"
-  sxng graph-explore my-session --seed "tokio" --format json
+  digdig graph-explore my-session --seed "tokio"
+  digdig graph-explore my-session --seed "tokio" --format json
 
 See also: graph-drill, graph-search`)
         .action(async (session, opts) => {
@@ -1274,8 +1274,8 @@ See also: graph-drill, graph-search`)
         .option('-f, --format <fmt>', 'Output format: md (default), json')
         .addHelpText('after', `
 Examples:
-  sxng graph-drill my-session --seed "tokio" --relations "alternative_to"
-  sxng graph-drill my-session --seed "tokio" --relations "alternative_to,depends_on" --format json
+  digdig graph-drill my-session --seed "tokio" --relations "alternative_to"
+  digdig graph-drill my-session --seed "tokio" --relations "alternative_to,depends_on" --format json
 
 See also: graph-explore`)
         .action(async (session, opts) => {
@@ -1296,8 +1296,8 @@ See also: graph-explore`)
         .option('-f, --format <fmt>', 'Output format: md (default), json')
         .addHelpText('after', `
 Examples:
-  sxng graph-traverse my-session --path "p:chain_001"
-  sxng graph-traverse my-session --path "p:chain_001" --format json
+  digdig graph-traverse my-session --path "p:chain_001"
+  digdig graph-traverse my-session --path "p:chain_001" --format json
 
 Note: Path nodes are created by graph-preprocess. If no paths exist,
 the command will list available path node IDs.`)
@@ -1319,8 +1319,8 @@ the command will list available path node IDs.`)
         .option('-f, --format <fmt>', 'Output format: md (default), json')
         .addHelpText('after', `
 Examples:
-  sxng graph-search my-session --keyword "async"
-  sxng graph-search my-session --keyword "tokio" --limit 5 --format json
+  digdig graph-search my-session --keyword "async"
+  digdig graph-search my-session --keyword "tokio" --limit 5 --format json
 
 See also: graph-explore (for viewing relations of a known entity)`)
         .action(async (session, opts) => {
@@ -1344,8 +1344,8 @@ See also: graph-explore (for viewing relations of a known entity)`)
         .option('-f, --format <fmt>', 'Output format: json (default), md')
         .addHelpText('after', `
 Examples:
-  sxng claim-add my-session --claim-file .sxng/sessions/my-session/agent-inputs/claim.json
-  sxng claim-add my-session --claims-file .sxng/sessions/my-session/agent-inputs/claims.json`)
+  digdig claim-add my-session --claim-file .digdig/sessions/my-session/agent-inputs/claim.json
+  digdig claim-add my-session --claims-file .digdig/sessions/my-session/agent-inputs/claims.json`)
         .action(async (session, opts) => {
             const code = await runClaimAdd(session, {
                 claimFile: opts.claimFile,
@@ -1499,7 +1499,7 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                 const envelope = createErrorEnvelope(
                     'QUALITY_NO_SESSION',
                     '--quality requires --session',
-                    { hint: 'Use: sxng --session <name> --quality' }
+                    { hint: 'Use: digdig --session <name> --quality' }
                 );
                 console.log(JSON.stringify(envelope, null, 2));
                 process.exit(1);
@@ -1576,7 +1576,7 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                 id: result.id,
                 revision: result.revision,
                 url: result.url,
-                source: result.source || 'sxng',
+                source: result.source || 'digdig',
                 contentLength: result.content?.length ?? 0,
                 extractedAt: result.extractedAt,
                 verified: hasVerifiedContent(result),
@@ -1601,7 +1601,7 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                         approval.error.message,
                         {
                             details: { quality, selectedResults, error: approval.error },
-                            hint: 'Run sxng extract --session <session> for unverified results, then review and approve again.',
+                            hint: 'Run digdig extract --session <session> for unverified results, then review and approve again.',
                         }
                     ), null, 2));
                     process.exit(1);
@@ -1653,7 +1653,7 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                         revision: r.revision,
                         title: r.title,
                         url: r.url,
-                        source: r.source || 'sxng',
+                        source: r.source || 'digdig',
                         status: r.status,
                         // The body under review, deliberately not the display fallback:
                         // this list exists so the Agent can read the extracted text
@@ -1672,7 +1672,7 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                 console.log('\n## Pending Results (awaiting Agent approval)\n');
                 for (let i = 0; i < pending.length; i++) {
                     const r = pending[i];
-                    console.log(`${i}. [${r.title || 'No Title'}](${r.url}) [${r.source || 'sxng'}]`);
+                    console.log(`${i}. [${r.title || 'No Title'}](${r.url}) [${r.source || 'digdig'}]`);
                     // These are extracted results awaiting approval, so the text to
                     // review is `content` — the body that will be cited — and not the
                     // display fallback, which would surface the page description.

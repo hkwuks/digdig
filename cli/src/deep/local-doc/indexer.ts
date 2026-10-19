@@ -2,7 +2,7 @@
  * Indexer — Orama index creation, persistence, and loading.
  *
  * Builds BM25 full-text indexes for document chunks, persists them
- * as JSON files under .sxng/docs/<path-hash>/, and restores them
+ * as JSON files under .digdig/docs/<path-hash>/, and restores them
  * on subsequent searches.
  */
 
@@ -23,6 +23,7 @@ import {
   ScannedFile,
 } from './types.js';
 import { scanFiles } from './scanner.js';
+import { resolveStateRoot } from '../../legacy.js';
 
 const BATCH_SIZE = 500;
 const MAX_INDEX_MEMORY_BYTES = 256 * 1024 * 1024;
@@ -49,9 +50,9 @@ export function getIndexMemoryBudget(): number {
 
 // ── Path utilities ────────────────────────────────────────────────────
 
-/** Get .sxng root directory (cwd-based) */
+/** Get the state root directory (cwd-based), whichever name is in effect. */
 function getSxngRoot(): string {
-  return join(process.cwd(), '.sxng');
+  return resolveStateRoot();
 }
 
 /** Get docs index directory */

@@ -10,6 +10,7 @@ import { homedir, arch, platform } from 'os';
 import { join } from 'path';
 import { mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'fs';
 import { mkdir, chmod, writeFile, rm } from 'fs/promises';
+import { resolveStateRoot } from '../legacy.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -240,7 +241,9 @@ interface JinaSlotResult {
 }
 
 function jinaAcquireSlot(): JinaSlotResult {
-    const dir = join(process.cwd(), '.sxng');
+    // Same root as sessions on purpose: a second rate-limit slot under the other
+    // name would double the 20 RPM budget instead of sharing it.
+    const dir = resolveStateRoot();
     const file = join(dir, 'jina-rate-limit.json');
     const lock = join(dir, '.jina-rate-limit.lock');
     mkdirSync(dir, { recursive: true });

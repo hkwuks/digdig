@@ -1,4 +1,4 @@
-# 🔍 SXNG CLI
+# 🔍 digdig
 
 > 📖 **完整文档请访问 GitHub**: https://github.com/hkwuks/sxng-cli#readme
 > 
@@ -10,11 +10,11 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/sxng-cli">
-    <img src="https://img.shields.io/npm/v/sxng-cli?style=flat-square&color=cb3837" alt="npm version">
+  <a href="https://www.npmjs.com/package/digdig">
+    <img src="https://img.shields.io/npm/v/digdig?style=flat-square&color=cb3837" alt="npm version">
   </a>
-  <a href="https://www.npmjs.com/package/sxng-cli">
-    <img src="https://img.shields.io/npm/dm/sxng-cli?style=flat-square&color=cb3837" alt="npm downloads">
+  <a href="https://www.npmjs.com/package/digdig">
+    <img src="https://img.shields.io/npm/dm/digdig?style=flat-square&color=cb3837" alt="npm downloads">
   </a>
   <a href="https://github.com/hkwuks/sxng-cli/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/hkwuks/sxng-cli?style=flat-square&color=green" alt="license">
@@ -45,14 +45,16 @@
 > 包含 SearXNG 自托管配置、Docker 部署、30+ 搜索引擎 settings.yml 配置等。
 
 ```bash
-npm install -g sxng-cli
+npm install -g digdig
 ```
+
+> ⚠️ **Upgrading from `sxng-cli`?** The new package is `digdig`; version numbers restart, so `digdig@0.0.2` is newer than `sxng-cli@1.3.2`. Uninstall the old package first. The `sxng` command, `.sxng/` sessions, `sxng.config.json`, and `SEARXNG_*` variables keep working (with a `[deprecation]` line on stderr) until `0.5.0`.
 
 ```bash
 npx skills add hkwuks/sxng-cli
 ```
 
-> ⚠️ **Skill 同步**：更新 `sxng-cli` 后，请同步更新 `sxng` skill 以保持功能一致：
+> ⚠️ **Skill 同步**：更新 `digdig` 后，请同步更新 `digdig` skill 以保持功能一致：
 >
 > ```bash
 > npx skills update hkwuks/sxng-cli
@@ -70,7 +72,7 @@ npm link
 
 ### Obscura (Optional — for JS-heavy pages)
 
-Content extraction uses **Defuddle + linkedom** by default. For JS-rendered pages (SPAs), enable [Obscura](https://github.com/h4ckf0r0day/obscura). When `--obscura` is used and the binary is absent, sxng automatically downloads the matching release asset from the official GitHub HTTPS download endpoint.
+Content extraction uses **Defuddle + linkedom** by default. For JS-rendered pages (SPAs), enable [Obscura](https://github.com/h4ckf0r0day/obscura). When `--obscura` is used and the binary is absent, digdig automatically downloads the matching release asset from the official GitHub HTTPS download endpoint.
 
 ```bash
 # Linux x86_64
@@ -86,7 +88,7 @@ obscura --version
 
 1. **Configure the CLI:**
    ```bash
-   sxng init
+   digdig init
    ```
    Or set environment variable:
    ```bash
@@ -95,7 +97,7 @@ obscura --version
 
 2. **Perform a search:**
    ```bash
-   sxng "TypeScript tutorial"
+   digdig "TypeScript tutorial"
    ```
 
 ## 📖 Usage
@@ -104,43 +106,43 @@ obscura --version
 
 | Command | Description |
 |---------|-------------|
-| `sxng init` | Interactive configuration setup |
-| `sxng <query>` | Perform a web search |
-| `sxng --queries "q1,q2"` | Multi-query search with RRF fusion |
-| `sxng extract --urls <urls>` | Extract content from web pages |
-| `sxng extract --session <name>` | Extract session results and merge content |
-| `sxng extract --obscura` | JS-rendering fallback for SPA pages |
-| `sxng extract --urls <url> --session <name> --jina` | Agent-selected Jina Reader extraction for explicit URLs, merged into a session |
-| `sxng --session new` | Create deep search session |
-| `sxng --session <name> --quality` | Assess result quality, list pending results |
-| `sxng --session <name> --quality --approve-file <path>` | Approve verified pending results selected by `{id, revision}` JSON |
-| `sxng suggest-queries <session>` | Get query suggestion data for Agent |
-| `sxng strategy-info <session>` | Check current search stage |
-| `sxng recovery-analysis <session>` | Get recovery strategies for poor quality |
-| `sxng session-report <session>` | Full session analysis report |
-| `sxng session-list` | List all sessions |
-| `sxng session-delete <name>` | Delete a session |
-| `sxng graph-preprocess <session>` | TF-IDF + co-occurrence + result provenance analysis |
-| `sxng graph-add <session> --data-file <path>` | Add semantic entities/edges backed by approved result IDs |
-| `sxng graph-search <session>` | Discover entities by keyword |
-| `sxng graph-explore <session>` | View entity relations |
-| `sxng graph-drill <session>` | Follow specific relations |
-| `sxng graph-traverse <session>` | Traverse reasoning paths |
-| `sxng graph-obfuscate <session>` | List obfuscation candidates |
-| `sxng results-add <session> --kind <search|extracted> --data-file <path>` | Import external discovery or extracted bodies from session-scoped UTF-8 JSON |
-| `sxng doc-index <path>` | Index local documents for BM25 search |
-| `sxng doc-search <session> <query> --path <path>` | Search indexed docs and inject results into session |
-| `sxng claim-add <session> --claims-file <path>` | Submit atomic claims from UTF-8 JSON (single or batch, auto evidence-search) |
-| `sxng claim-list <session>` | List claims |
-| `sxng evidence-search <session> --claim-id <id>` | Search candidate evidence (read-only) |
-| `sxng evidence-verify <session> --claim-id <id> --evidence-file <path>` | Confirm UTF-8 JSON evidence + submit stance (+ optional auto-policy) |
-| `sxng evidence-list <session> --claim-id <id>` | List evidence for a claim |
-| `sxng verdict-list <session> --claim-id <id>` | List verdicts for a claim |
-| `sxng policy-aggregate <session>` | Run policy aggregation manually |
-| `sxng review-list <session>` | List reviews |
-| `sxng --health` | Check SearXNG server health |
-| `sxng --engines-list` | List available search engines (includes `ollama` if configured) |
-| `sxng --categories-list` | List available categories |
+| `digdig init` | Interactive configuration setup |
+| `digdig <query>` | Perform a web search |
+| `digdig --queries "q1,q2"` | Multi-query search with RRF fusion |
+| `digdig extract --urls <urls>` | Extract content from web pages |
+| `digdig extract --session <name>` | Extract session results and merge content |
+| `digdig extract --obscura` | JS-rendering fallback for SPA pages |
+| `digdig extract --urls <url> --session <name> --jina` | Agent-selected Jina Reader extraction for explicit URLs, merged into a session |
+| `digdig --session new` | Create deep search session |
+| `digdig --session <name> --quality` | Assess result quality, list pending results |
+| `digdig --session <name> --quality --approve-file <path>` | Approve verified pending results selected by `{id, revision}` JSON |
+| `digdig suggest-queries <session>` | Get query suggestion data for Agent |
+| `digdig strategy-info <session>` | Check current search stage |
+| `digdig recovery-analysis <session>` | Get recovery strategies for poor quality |
+| `digdig session-report <session>` | Full session analysis report |
+| `digdig session-list` | List all sessions |
+| `digdig session-delete <name>` | Delete a session |
+| `digdig graph-preprocess <session>` | TF-IDF + co-occurrence + result provenance analysis |
+| `digdig graph-add <session> --data-file <path>` | Add semantic entities/edges backed by approved result IDs |
+| `digdig graph-search <session>` | Discover entities by keyword |
+| `digdig graph-explore <session>` | View entity relations |
+| `digdig graph-drill <session>` | Follow specific relations |
+| `digdig graph-traverse <session>` | Traverse reasoning paths |
+| `digdig graph-obfuscate <session>` | List obfuscation candidates |
+| `digdig results-add <session> --kind <search|extracted> --data-file <path>` | Import external discovery or extracted bodies from session-scoped UTF-8 JSON |
+| `digdig doc-index <path>` | Index local documents for BM25 search |
+| `digdig doc-search <session> <query> --path <path>` | Search indexed docs and inject results into session |
+| `digdig claim-add <session> --claims-file <path>` | Submit atomic claims from UTF-8 JSON (single or batch, auto evidence-search) |
+| `digdig claim-list <session>` | List claims |
+| `digdig evidence-search <session> --claim-id <id>` | Search candidate evidence (read-only) |
+| `digdig evidence-verify <session> --claim-id <id> --evidence-file <path>` | Confirm UTF-8 JSON evidence + submit stance (+ optional auto-policy) |
+| `digdig evidence-list <session> --claim-id <id>` | List evidence for a claim |
+| `digdig verdict-list <session> --claim-id <id>` | List verdicts for a claim |
+| `digdig policy-aggregate <session>` | Run policy aggregation manually |
+| `digdig review-list <session>` | List reviews |
+| `digdig --health` | Check SearXNG server health |
+| `digdig --engines-list` | List available search engines (includes `ollama` if configured) |
+| `digdig --categories-list` | List available categories |
 
 ### Search Options
 
@@ -168,33 +170,33 @@ obscura --version
 
 ```bash
 # Basic search (outputs Markdown by default)
-sxng "machine learning"
+digdig "machine learning"
 
 # Output as JSON
-sxng --format json "machine learning"
+digdig --format json "machine learning"
 
 # Search with specific engines
-sxng --engines google,duckduckgo "privacy tools"
+digdig --engines google,duckduckgo "privacy tools"
 
 # Search IT and Science categories
-sxng --categories it,science "kubernetes tutorial"
+digdig --categories it,science "kubernetes tutorial"
 
 # Limit results and filter by time
-sxng --limit 5 --time week "latest AI news"
+digdig --limit 5 --time week "latest AI news"
 
 # Multi-query search with RRF fusion
-sxng --queries "tokio tutorial,rust async basics,async-std guide"
+digdig --queries "tokio tutorial,rust async basics,async-std guide"
 
 # List available engines (fetched from server)
-sxng --engines-list
+digdig --engines-list
 ```
 
 ## ⚙️ Configuration
 
 Configuration priority (highest to lowest):
 1. Environment variables
-2. Local config file (`./sxng.config.json`)
-3. Global config file (`~/sxng-cli/sxng.config.json`)
+2. Local config file (`./digdig.config.json`)
+3. Global config file (`~/digdig/digdig.config.json`)
 4. Default values
 
 ### Environment Variables
@@ -215,7 +217,7 @@ Configuration priority (highest to lowest):
 
 ### Config File
 
-Create `sxng.config.json`:
+Create `digdig.config.json`:
 
 ```json
 {
@@ -249,30 +251,30 @@ Search → Extract → Quality Assess → Approve → Build Graph → (Loop or E
 
 ```bash
 # 1. Create a session and search
-sxng --session new --owner "agent-1" --desc "Rust async study" "rust async ecosystem"
-# Outputs session path, e.g. .sxng/sessions/ds_1712345678_abcdef
+digdig --session new --owner "agent-1" --desc "Rust async study" "rust async ecosystem"
+# Outputs session path, e.g. .digdig/sessions/ds_1712345678_abcdef
 
 # 2. Extract content from results
-sxng extract --session ds_1712345678_abcdef
+digdig extract --session ds_1712345678_abcdef
 
 # 3. Check extraction output: stats.success and session.updated identify
 #    results that received source text; failed URLs remain pending.
 
 # 4. Assess quality and see each result's verified state
-sxng --session ds_1712345678_abcdef --quality
+digdig --session ds_1712345678_abcdef --quality
 
 # 5. Copy selected {id, revision} objects from quality output into
-#    .sxng/sessions/ds_1712345678_abcdef/agent-inputs/approve.json, then approve them.
-sxng --session ds_1712345678_abcdef --quality --approve-file .\.sxng\sessions\ds_1712345678_abcdef\agent-inputs\approve.json
+#    .digdig/sessions/ds_1712345678_abcdef/agent-inputs/approve.json, then approve them.
+digdig --session ds_1712345678_abcdef --quality --approve-file .\.digdig\sessions\ds_1712345678_abcdef\agent-inputs\approve.json
 
 # 6. Preprocess session content for entity discovery and provenance
-sxng graph-preprocess ds_1712345678_abcdef
+digdig graph-preprocess ds_1712345678_abcdef
 
 # 7. Put complex graph JSON in this session's Agent scratch directory, then add semantic edges
-sxng graph-add ds_1712345678_abcdef --data-file .\.sxng\sessions\ds_1712345678_abcdef\agent-inputs\graph-data.json
+digdig graph-add ds_1712345678_abcdef --data-file .\.digdig\sessions\ds_1712345678_abcdef\agent-inputs\graph-data.json
 
 # 8. Continue research with redundancy check
-sxng --session ds_1712345678_abcdef --queries "tokio vs async-std,benchmark 2026" --redundancy warn
+digdig --session ds_1712345678_abcdef --queries "tokio vs async-std,benchmark 2026" --redundancy warn
 ```
 
 ### Quality and Evidence Semantics
@@ -286,16 +288,16 @@ sxng --session ds_1712345678_abcdef --queries "tokio vs async-std,benchmark 2026
 
 | Command | Description |
 |---------|-------------|
-| `sxng --session new` | Create new auto-named session |
-| `sxng --session <session-name>` | Use session by name |
-| `sxng session-list` | List all sessions with stats |
-| `sxng session-delete <session-name>` | Delete specific session |
-| `sxng session-delete --older <hours>` | Delete old sessions |
+| `digdig --session new` | Create new auto-named session |
+| `digdig --session <session-name>` | Use session by name |
+| `digdig session-list` | List all sessions with stats |
+| `digdig session-delete <session-name>` | Delete specific session |
+| `digdig session-delete --older <hours>` | Delete old sessions |
 
 **Session Path Resolution:**
-- Pure name (e.g., `my-session`) → `.sxng/sessions/my-session`
+- Pure name (e.g., `my-session`) → `.digdig/sessions/my-session`
 - Full path (e.g., `/custom/path/session`) → used as-is
-- `new` → auto-generate unique name under `.sxng/sessions/`
+- `new` → auto-generate unique name under `.digdig/sessions/`
 
 ### Knowledge Graph
 
@@ -320,19 +322,19 @@ Graph navigation commands: `graph-search` (discover entities), `graph-explore` (
 
 ### External Search Results
 
-Results from other search tools (Tavily, Exa, etc.) can be injected into any active session via `results-add`, following the same pipeline as native sxng results:
+Results from other search tools (Tavily, Exa, etc.) can be injected into any active session via `results-add`, following the same pipeline as native digdig results:
 
 ```powershell
 # Import search discovery; its excerpts remain summaries and require extraction.
-sxng results-add <session-name> --kind search --tool exa --query "async runtime" `
-  --data-file .\.sxng\sessions\<session-name>\agent-inputs\exa-search.json
+digdig results-add <session-name> --kind search --tool exa --query "async runtime" `
+  --data-file .\.digdig\sessions\<session-name>\agent-inputs\exa-search.json
 ```
 
 Search imports become `pending` and require `extract --session`; inspect `stats.success`, `stats.failed`, and `session.updated`, then approve only entries whose quality output reports `verified: true`. An external tool that already returned a body must instead use `--kind extracted` with non-empty `content` and `extractor`; it becomes pending approval without another extraction. A failed extraction remains pending and cannot enter the graph. `tool` and `query` record the discovery provenance.
 
 ### Structured JSON Input
 
-All structured writes use a UTF-8 JSON file under `.sxng/sessions/<session-name>/agent-inputs/`. This avoids PowerShell quoting and Windows command-line length limits, keeps concurrent sessions isolated, and gives each command one inspectable input artifact. The CLI rejects inline JSON and files outside the owning session.
+All structured writes use a UTF-8 JSON file under `.digdig/sessions/<session-name>/agent-inputs/`. This avoids PowerShell quoting and Windows command-line length limits, keeps concurrent sessions isolated, and gives each command one inspectable input artifact. The CLI rejects inline JSON and files outside the owning session.
 
 | Command | Required file option |
 |---|---|
@@ -359,17 +361,17 @@ evidence-verify (with --complete auto-policy) → Review → Agent adjusts outpu
 
 ```powershell
 # 1. Put claims from your draft in the session's UTF-8 Agent input directory, then submit it.
-sxng claim-add my-session --claims-file .\.sxng\sessions\my-session\agent-inputs\claims.json
+digdig claim-add my-session --claims-file .\.digdig\sessions\my-session\agent-inputs\claims.json
 # → returns claims with IDs + auto-discovered evidence candidates
 
 # 2. Put {resultId, quote, charStart, charEnd} in the session's UTF-8 Agent input directory.
-sxng evidence-verify my-session --claim-id "cl_001" \
-  --evidence-file .\.sxng\sessions\my-session\agent-inputs\evidence.json \
+digdig evidence-verify my-session --claim-id "cl_001" \
+  --evidence-file .\.digdig\sessions\my-session\agent-inputs\evidence.json \
   --stance support --reason "Official docs confirm" --complete
 # → returns evidence + verdict + review (decision: approved / needsReview)
 
 # 3. Check final reviews
-sxng review-list my-session
+digdig review-list my-session
 ```
 
 **Key Principles:**
@@ -393,10 +395,10 @@ The pipeline is **only available for L2/L3 deep search sessions** — L1 simple 
 
 ```bash
 # Index (auto-triggered by doc-search)
-sxng doc-index ./docs
+digdig doc-index ./docs
 
 # Search and inject into session
-sxng doc-search <session-name> "query" --path ./docs
+digdig doc-search <session-name> "query" --path ./docs
 ```
 
 **How it works:** auto-indexing on first use (Orama BM25, title×3 / headings×2 / content×1), each matched chunk is injected as an `extracted` result with `extractor: "local-index"`, then follows `--quality` → `--approve-file` → `graph-add`. Use `graph-preprocess` before adding new entities so approved IDs become `sourceResultIds`. Local searches do **not** increment the round counter.
@@ -412,18 +414,18 @@ sxng doc-search <session-name> "query" --path ./docs
 
 See [PRD-005 design improvements](docs/prds/PRD-005-design-improvements.md) for the deferred remediation plan.
 
-## 💡 Projects Using SXNG CLI
+## 💡 Projects Using digdig
 
-SXNG CLI's deep search workflow (session accumulation, quality assessment, knowledge graph, claim–evidence–review) is used by projects that need persistent, multi-round research capabilities:
+digdig's deep search workflow (session accumulation, quality assessment, knowledge graph, claim–evidence–review) is used by projects that need persistent, multi-round research capabilities:
 
-- **[1052 OS](https://github.com/1052666/1052-OS)** — A personal AI operating system. Its `search-pack` integrates persistent research sessions, quality assessment, content extraction, and a claim–evidence–review pipeline, all powered by the same deep search concepts that drive SXNG CLI.
+- **[1052 OS](https://github.com/1052666/1052-OS)** — A personal AI operating system. Its `search-pack` integrates persistent research sessions, quality assessment, content extraction, and a claim–evidence–review pipeline, all powered by the same deep search concepts that drive digdig.
 
 > Open a PR to add your project here.
 
 ## 🔗 Links
 
 - **GitHub:** https://github.com/hkwuks/sxng-cli
-- **npm:** https://www.npmjs.com/package/sxng-cli
+- **npm:** https://www.npmjs.com/package/digdig
 - **SearXNG:** https://github.com/searxng/searxng
 
 ## 📄 License

@@ -3,8 +3,9 @@
  */
 
 import { readFileSync, readdirSync, rmSync, statSync } from 'fs';
-import { join, resolve } from 'path';
+import { join } from 'path';
 import { createSuccessEnvelope } from '../protocol.js';
+import { resolveStatePath } from '../legacy.js';
 
 export interface SessionMeta {
     owner: string;
@@ -16,7 +17,7 @@ export interface SessionMeta {
 
 /** Default session root directory */
 export function getDefaultSessionRoot(): string {
-    return resolve('.sxng', 'sessions');
+    return resolveStatePath('sessions');
 }
 
 /** Load session meta.json */
