@@ -1,6 +1,6 @@
 # 🔍 digdig
 
-> 📖 **完整文档请访问 GitHub**: https://github.com/hkwuks/sxng-cli#readme
+> 📖 **完整文档请访问 GitHub**: https://github.com/hkwuks/digdig#readme
 > 
 > 本 README 为快速参考，详细的安装指南（包括 SearXNG 自托管配置、Docker 部署、settings.yml 配置等）请参阅 GitHub 文档。
 
@@ -16,8 +16,8 @@
   <a href="https://www.npmjs.com/package/digdig">
     <img src="https://img.shields.io/npm/dm/digdig?style=flat-square&color=cb3837" alt="npm downloads">
   </a>
-  <a href="https://github.com/hkwuks/sxng-cli/blob/main/LICENSE">
-    <img src="https://img.shields.io/github/license/hkwuks/sxng-cli?style=flat-square&color=green" alt="license">
+  <a href="https://github.com/hkwuks/digdig/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/hkwuks/digdig?style=flat-square&color=green" alt="license">
   </a>
   <img src="https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen?style=flat-square" alt="node version">
 </p>
@@ -40,7 +40,7 @@
 
 ## 📦 Installation
 
-> ⚠️ **完整安装指南**: [GitHub - Installation](https://github.com/hkwuks/sxng-cli#installation)
+> ⚠️ **完整安装指南**: [GitHub - Installation](https://github.com/hkwuks/digdig#installation)
 > 
 > 包含 SearXNG 自托管配置、Docker 部署、30+ 搜索引擎 settings.yml 配置等。
 
@@ -51,20 +51,20 @@ npm install -g digdig
 > ⚠️ **Upgrading from `sxng-cli`?** The new package is `digdig`; version numbers restart, so `digdig@0.0.2` is newer than `sxng-cli@1.3.2`. Uninstall the old package first. The `sxng` command, `.sxng/` sessions, `sxng.config.json`, and `SEARXNG_*` variables keep working (with a `[deprecation]` line on stderr) until `0.5.0`.
 
 ```bash
-npx skills add hkwuks/sxng-cli
+npx skills add hkwuks/digdig
 ```
 
 > ⚠️ **Skill 同步**：更新 `digdig` 后，请同步更新 `digdig` skill 以保持功能一致：
 >
 > ```bash
-> npx skills update hkwuks/sxng-cli
+> npx skills update hkwuks/digdig
 > ```
 
 Or from source:
 
 ```bash
-git clone https://github.com/hkwuks/sxng-cli.git
-cd sxng-cli/cli
+git clone https://github.com/hkwuks/digdig.git
+cd digdig/cli
 npm install
 npm run build
 npm link
@@ -424,7 +424,7 @@ digdig's deep search workflow (session accumulation, quality assessment, knowled
 
 ## 🔗 Links
 
-- **GitHub:** https://github.com/hkwuks/sxng-cli
+- **GitHub:** https://github.com/hkwuks/digdig
 - **npm:** https://www.npmjs.com/package/digdig
 - **SearXNG:** https://github.com/searxng/searxng
 

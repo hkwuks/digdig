@@ -12,8 +12,8 @@
   <a href="https://www.npmjs.com/package/digdig">
     <img src="https://img.shields.io/npm/dm/digdig?style=flat-square&color=cb3837" alt="npm downloads">
   </a>
-  <a href="https://github.com/hkwuks/sxng-cli/blob/main/LICENSE">
-    <img src="https://img.shields.io/github/license/hkwuks/sxng-cli?style=flat-square&color=green" alt="license">
+  <a href="https://github.com/hkwuks/digdig/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/hkwuks/digdig?style=flat-square&color=green" alt="license">
   </a>
   <img src="https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen?style=flat-square" alt="node version">
 </p>
@@ -745,20 +745,20 @@ npm install -g digdig
 > and any `SEARXNG_*` variable → `DIGDIG_*`.
 
 ```bash
-npx skills add hkwuks/sxng-cli
+npx skills add hkwuks/digdig
 ```
 
 > ⚠️ **Skill Sync**: After updating `digdig`, also update `digdig` skill to keep them in sync:
 >
 > ```bash
-> npx skills update hkwuks/sxng-cli
+> npx skills update hkwuks/digdig
 > ```
 
 ### From Source
 
 ```bash
-git clone https://github.com/hkwuks/sxng-cli.git
-cd sxng-cli/cli
+git clone https://github.com/hkwuks/digdig.git
+cd digdig/cli
 npm install
 npm run build
 npm link
@@ -1303,4 +1303,4 @@ digdig's deep search workflow (session accumulation, quality assessment, knowled
 
 ## ⭐ Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=hkwuks/sxng-cli&type=date&legend=top-left&&sealed_token=b12gMAVqxjYCS22ZjqOjv8UiSZz1qfBf31GHJV9AuGBWjMmnLChWTr1sNBSqYuTvWybJV7P6peTQmNbw21XT6364T_JRlk0RJZDKzQV63hVGAqvEfWRNpjJIVRM5Z8mR4gKndmlitt43xJ8clNTutXwl7shH3gHBCHLH8ReaXNtJmgC9nV_HMPVFaBWj)](https://www.star-history.com/?repos=hkwuks%2Fsxng-cli&type=date&legend=top-left)
+[![Star History Chart](https://api.star-history.com/svg?repos=hkwuks/digdig&type=date&legend=top-left&&sealed_token=b12gMAVqxjYCS22ZjqOjv8UiSZz1qfBf31GHJV9AuGBWjMmnLChWTr1sNBSqYuTvWybJV7P6peTQmNbw21XT6364T_JRlk0RJZDKzQV63hVGAqvEfWRNpjJIVRM5Z8mR4gKndmlitt43xJ8clNTutXwl7shH3gHBCHLH8ReaXNtJmgC9nV_HMPVFaBWj)](https://www.star-history.com/?repos=hkwuks%2Fdigdig&type=date&legend=top-left)

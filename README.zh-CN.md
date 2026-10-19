@@ -12,8 +12,8 @@
   <a href="https://www.npmjs.com/package/digdig">
     <img src="https://img.shields.io/npm/dm/digdig?style=flat-square&color=cb3837" alt="npm downloads">
   </a>
-  <a href="https://github.com/hkwuks/sxng-cli/blob/main/LICENSE">
-    <img src="https://img.shields.io/github/license/hkwuks/sxng-cli?style=flat-square&color=green" alt="license">
+  <a href="https://github.com/hkwuks/digdig/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/hkwuks/digdig?style=flat-square&color=green" alt="license">
   </a>
   <img src="https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen?style=flat-square" alt="node version">
 </p>
@@ -729,20 +729,20 @@ npm install -g digdig
 > 过渡期共 5 个版本（到 `0.5.0` 为止），旧名一律继续可用：`sxng` 命令、`.sxng/` 会话、`sxng.config.json`、`SEARXNG_*` 环境变量。用到时会在 stderr 打一行 `[deprecation]`（可用 `DIGDIG_NO_DEPRECATION=1` 静默），`0.5.0` 起失效。迁移方式：`.sxng` → `.digdig`、`sxng.config.json` → `digdig.config.json`、`SEARXNG_*` → `DIGDIG_*`。
 
 ```bash
-npx skills add hkwuks/sxng-cli
+npx skills add hkwuks/digdig
 ```
 
 > ⚠️ **Skill 同步**：更新 `digdig` 后，请同步更新 `digdig` skill 以保持功能一致：
 >
 > ```bash
-> npx skills update hkwuks/sxng-cli
+> npx skills update hkwuks/digdig
 > ```
 
 ### 从源码构建
 
 ```bash
-git clone https://github.com/hkwuks/sxng-cli.git
-cd sxng-cli/cli
+git clone https://github.com/hkwuks/digdig.git
+cd digdig/cli
 npm install
 npm run build
 npm link
@@ -1290,4 +1290,4 @@ digdig 的深度搜索工作流（会话积累、质量评估、知识图谱、�
 
 ## ⭐ Star 历史
 
-[![Star History Chart](https://api.star-history.com/svg?repos=hkwuks/sxng-cli&type=date&legend=top-left&sealed_token=ugUt7g0kbmlxX_n5CevCTurOYzaaFJAXvBaDFvk81lpD4N7zYb5wbyXxkyisyxMZm2E2uFHH9cvA7Q8i84MG0izcZNqaQfgUeIxVEwuvCp_kVtv0BiKaLKkM6s2vhnnZTOaBp8wEnwWGZ2HWqLgvKlLjDWAiBh2GrCl3N7bAMTNrU3MMojGskEP7UK26)](https://www.star-history.com/?repos=hkwuks%2Fsxng-cli&type=date&legend=top-left)
+[![Star History Chart](https://api.star-history.com/svg?repos=hkwuks/digdig&type=date&legend=top-left&sealed_token=ugUt7g0kbmlxX_n5CevCTurOYzaaFJAXvBaDFvk81lpD4N7zYb5wbyXxkyisyxMZm2E2uFHH9cvA7Q8i84MG0izcZNqaQfgUeIxVEwuvCp_kVtv0BiKaLKkM6s2vhnnZTOaBp8wEnwWGZ2HWqLgvKlLjDWAiBh2GrCl3N7bAMTNrU3MMojGskEP7UK26)](https://www.star-history.com/?repos=hkwuks%2Fdigdig&type=date&legend=top-left)
