@@ -5,3 +5,6 @@ coverage/
 .DS_Store
 .env
 searxng.config.json
+
+# Syncthing/cloud-sync conflict copies must never ship or be tracked
+*sync-conflict*

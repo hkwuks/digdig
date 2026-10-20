@@ -326,3 +326,16 @@ Be precise about the reach: **no subcommand was observed truncating.** `session-
 - Goal: 命令名改为 dg（保留 digdig 长名与过渡期 sxng），并把项目定位从 SearXNG 的 CLI 改为多后端搜索 CLI，同时修正多份文档里的事实错误（环境变量前缀、timeout 默认值、不存在的 Ollama 自动回退、缺失的 DeepSeek 配置项、404 链接）
 - Task: `TaskFlowDocs/achieved/2026-10-20-dg-command-and-docs/`
 - Next action: None — completed and archived.
+
+## 清理同步冲突残留：dist/ 下 29 个 *sync-conflict* 文件被打进已
+
+- ID: TF-20261020-0248a8
+- Status: done
+- Priority: normal
+- Owner: Claude
+- Source: user-request
+- Added: 2026-10-20
+- Updated: 2026-10-20
+- Goal: 清理同步冲突残留：dist/ 下 29 个 *sync-conflict* 文件被打进已发布的 0.0.2 tarball，另有一个被 git 跟踪的冲突测试文件从未执行
+- Task: `TaskFlowDocs/achieved/2026-10-20-sync-conflict-cleanup/`
+- Next action: None — completed and archived.
