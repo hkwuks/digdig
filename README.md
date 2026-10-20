@@ -1,8 +1,8 @@
 # 🔍 digdig
 
 <p align="center">
-  <b>A powerful command-line interface for <a href="https://github.com/searxng/searxng">SearXNG</a></b><br>
-  Privacy-respecting web search from your terminal
+  <b>A multi-backend web search CLI for agents</b><br>
+  SearXNG · Ollama · DeepSeek — privacy-respecting search from your terminal
 </p>
 
 <p align="center">
@@ -35,6 +35,7 @@
 ## ✨ Features
 
 - 🔎 **Multi-Engine Search** — Search across Google, Bing, DuckDuckGo, GitHub, StackOverflow, and 30+ engines simultaneously
+- 🔌 **Pluggable Backends** — SearXNG is the default; select Ollama web search or DeepSeek Search with `-e ollama` / `-e deepseek`. No backend is an automatic fallback for another.
 - 🔄 **Dynamic Discovery** — Auto-fetches available engines and categories from your SearXNG server
 - 📄 **Multiple Formats** — Markdown (LLM-optimized) or JSON output
 - 🧠 **Deep Search** — Multi-round iterative research with session accumulation, quality assessment, and recovery strategies
@@ -679,7 +680,7 @@ services:
 docker compose up -d
 ```
 
-This runs SearXNG (port `8080`) and Valkey in the background. Verify with `docker compose ps` or `digdig --health`.
+This runs SearXNG (port `8080`) and Valkey in the background. Verify with `docker compose ps` or `dg --health`.
 
 **For Python venv (no Docker)**
 
@@ -721,8 +722,8 @@ SEARXNG_SETTINGS_PATH=~/.config/searxng/settings.yml \
 
 # 5) Verify + wire into digdig
 curl -s http://localhost:8888/healthz   # returns OK
-digdig init                               # baseUrl = http://localhost:8888
-digdig --health && digdig "hello world"
+dg init                                # baseUrl = http://localhost:8888
+dg --health && dg "hello world"
 ```
 
 ### From npm (Recommended)
@@ -730,6 +731,8 @@ digdig --health && digdig "hello world"
 ```bash
 npm install -g digdig
 ```
+
+This installs three names for the same program: **`dg`** (recommended, short), **`digdig`** (explicit), and the transitional **`sxng`** alias.
 
 > ⚠️ **Upgrading from `sxng-cli`?** `digdig` replaces `sxng-cli`; the version
 > numbering starts over, so `digdig@0.0.2` is **newer** than `sxng-cli@1.3.2`
@@ -816,19 +819,19 @@ If you prefer to let an LLM agent do the install and configuration for you, poin
 >      curl -s http://localhost:8888/healthz   # returns OK
 >      ```
 >      Then use `baseUrl` = `http://localhost:8888` in step 4.
-> 2. **Ollama web search** (optional, free API key):
->    - Ask the user for their Ollama API key (get one at https://ollama.com), or skip if they have none.
+> 2. **Extra backends** (optional):
+>    - Ask the user for an Ollama web search API key (https://ollama.com) and/or a DeepSeek Search API key (https://api-docs.deepseek.com/api/search), or skip if they have none. Both are used only when explicitly selected with `-e ollama` / `-e deepseek`; neither is a fallback.
 > 3. **Install the CLI**: `npm install -g digdig`.
-> 4. **Configure**: run `digdig init` and fill in `baseUrl` (`http://localhost:8080` for Docker, `http://localhost:8888` for venv), timeout, and the Ollama API key if provided.
-> 5. **Verify**: run `digdig --health` and `digdig "hello world"`. Report the result.
+> 4. **Configure**: run `dg init` and fill in `baseUrl` (`http://localhost:8080` for Docker, `http://localhost:8888` for venv), timeout, and any API keys they provided.
+> 5. **Verify**: run `dg --health` and `dg "hello world"`. Report the result.
 > ```
 
-The LLM should run these checks before declaring success: `docker compose ps` (SearXNG + Valkey up), `digdig --health` (healthy), and one real search returning non-empty results.
+The LLM should run these checks before declaring success: `docker compose ps` (SearXNG + Valkey up), `dg --health` (healthy), and one real search returning non-empty results.
 
 
 ### Obscura (Optional — for JS-heavy pages)
 
-[digdig extract](#-usage) uses **Defuddle + linkedom** by default for lightweight content extraction. When a page requires JavaScript rendering (SPAs, dynamic content), enable [Obscura](https://github.com/h4ckf0r0day/obscura) as a fallback. If `--obscura` is used and the binary is absent, digdig automatically downloads the matching release asset from the official GitHub HTTPS download endpoint:
+[dg extract](#-usage) uses **Defuddle + linkedom** by default for lightweight content extraction. When a page requires JavaScript rendering (SPAs, dynamic content), enable [Obscura](https://github.com/h4ckf0r0day/obscura) as a fallback. If `--obscura` is used and the binary is absent, digdig automatically downloads the matching release asset from the official GitHub HTTPS download endpoint:
 
 ```bash
 # Linux x86_64
@@ -861,16 +864,16 @@ No extra npm dependencies needed — Obscura is called via CLI. Auto-detected fr
 
 2. **Configure the CLI:**
    ```bash
-   digdig init
+   dg init
    ```
    Or set environment variable:
    ```bash
-   export SEARXNG_BASE_URL=http://your-searxng-instance:8080
+   export DIGDIG_BASE_URL=http://your-searxng-instance:8080
    ```
 
 3. **Perform a search:**
    ```bash
-   digdig "TypeScript tutorial"
+   dg "TypeScript tutorial"
    ```
 
 ---
@@ -881,50 +884,50 @@ No extra npm dependencies needed — Obscura is called via CLI. Auto-detected fr
 
 | Command | Description |
 |---------|-------------|
-| `digdig init` | Interactive configuration setup |
-| `digdig <query>` | Perform a web search |
-| `digdig --queries "q1,q2"` | Multi-query search with RRF fusion |
-| `digdig extract --urls <urls>` | Extract content from web pages |
-| `digdig extract --session <name>` | Extract session results and merge content |
-| `digdig extract --obscura` | JS-rendering fallback for SPA pages |
-| `digdig extract --urls <url> --jina` | Agent-selected Jina Reader extraction for explicit URLs |
-| `digdig --session new` | Create deep search session |
-| `digdig --session <name> --quality` | Assess result quality, list pending results |
-| `digdig --session <name> --quality --approve-file <path>` | Approve verified pending results selected by `{id, revision}` JSON |
-| `digdig suggest-queries <session>` | Get query suggestion data for Agent |
-| `digdig strategy-info <session>` | Check current search stage |
-| `digdig recovery-analysis <session>` | Get recovery strategies for poor quality |
-| `digdig session-report <session>` | Full session analysis report |
-| `digdig session-list` | List all sessions |
-| `digdig session-delete <session-name>` | Delete a session |
-| `digdig graph-preprocess <session>` | TF-IDF + co-occurrence + result provenance analysis |
-| `digdig graph-add <session> --data-file <path>` | Add semantic entities/edges backed by approved result IDs |
-| `digdig graph-search <session>` | Discover entities by keyword |
-| `digdig graph-explore <session>` | View entity relations |
-| `digdig graph-drill <session>` | Follow specific relations |
-| `digdig graph-traverse <session>` | Traverse reasoning paths |
-| `digdig graph-obfuscate <session>` | List obfuscation candidates |
-| `digdig results-add <session> --kind <search|extracted> --data-file <path>` | Import external discovery or extracted bodies from session-scoped UTF-8 JSON |
-| `digdig doc-index <path>` | Index local documents for BM25 search |
-| `digdig doc-search <session> <query> --path <path>` | Search indexed docs and inject results into session |
-| `digdig claim-add <session> --claims-file <path>` | Submit atomic claims from UTF-8 JSON (single or batch, auto evidence-search) |
-| `digdig claim-list <session>` | List claims |
-| `digdig evidence-search <session> --claim-id <id>` | Search candidate evidence (read-only) |
-| `digdig evidence-verify <session> --claim-id <id> --evidence-file <path>` | Confirm UTF-8 JSON evidence + submit stance (+ optional auto-policy) |
-| `digdig evidence-list <session> --claim-id <id>` | List evidence for a claim |
-| `digdig verdict-list <session> --claim-id <id>` | List verdicts for a claim |
-| `digdig policy-aggregate <session>` | Run policy aggregation manually |
-| `digdig review-list <session>` | List reviews |
-| `digdig --health` | Check SearXNG server health |
-| `digdig --engines-list` | List available search engines |
-| `digdig --categories-list` | List available categories |
-| `digdig --help` | Show help message |
+| `dg init` | Interactive configuration setup |
+| `dg <query>` | Perform a web search |
+| `dg --queries "q1,q2"` | Multi-query search with RRF fusion |
+| `dg extract --urls <urls>` | Extract content from web pages |
+| `dg extract --session <name>` | Extract session results and merge content |
+| `dg extract --obscura` | JS-rendering fallback for SPA pages |
+| `dg extract --urls <url> --jina` | Agent-selected Jina Reader extraction for explicit URLs |
+| `dg --session new` | Create deep search session |
+| `dg --session <name> --quality` | Assess result quality, list pending results |
+| `dg --session <name> --quality --approve-file <path>` | Approve verified pending results selected by `{id, revision}` JSON |
+| `dg suggest-queries <session>` | Get query suggestion data for Agent |
+| `dg strategy-info <session>` | Check current search stage |
+| `dg recovery-analysis <session>` | Get recovery strategies for poor quality |
+| `dg session-report <session>` | Full session analysis report |
+| `dg session-list` | List all sessions |
+| `dg session-delete <session-name>` | Delete a session |
+| `dg graph-preprocess <session>` | TF-IDF + co-occurrence + result provenance analysis |
+| `dg graph-add <session> --data-file <path>` | Add semantic entities/edges backed by approved result IDs |
+| `dg graph-search <session>` | Discover entities by keyword |
+| `dg graph-explore <session>` | View entity relations |
+| `dg graph-drill <session>` | Follow specific relations |
+| `dg graph-traverse <session>` | Traverse reasoning paths |
+| `dg graph-obfuscate <session>` | List obfuscation candidates |
+| `dg results-add <session> --kind <search|extracted> --data-file <path>` | Import external discovery or extracted bodies from session-scoped UTF-8 JSON |
+| `dg doc-index <path>` | Index local documents for BM25 search |
+| `dg doc-search <session> <query> --path <path>` | Search indexed docs and inject results into session |
+| `dg claim-add <session> --claims-file <path>` | Submit atomic claims from UTF-8 JSON (single or batch, auto evidence-search) |
+| `dg claim-list <session>` | List claims |
+| `dg evidence-search <session> --claim-id <id>` | Search candidate evidence (read-only) |
+| `dg evidence-verify <session> --claim-id <id> --evidence-file <path>` | Confirm UTF-8 JSON evidence + submit stance (+ optional auto-policy) |
+| `dg evidence-list <session> --claim-id <id>` | List evidence for a claim |
+| `dg verdict-list <session> --claim-id <id>` | List verdicts for a claim |
+| `dg policy-aggregate <session>` | Run policy aggregation manually |
+| `dg review-list <session>` | List reviews |
+| `dg --health` | Check the SearXNG backend health (Ollama/DeepSeek have no health endpoint) |
+| `dg --engines-list` | List available search engines |
+| `dg --categories-list` | List available categories |
+| `dg --help` | Show help message |
 
 ### Search Options
 
 | Option | Description |
 |--------|-------------|
-| `-e, --engines <list>` | Comma-separated list of search engines (e.g., `google,github`) |
+| `-e, --engines <list>` | Comma-separated list of search engines (e.g., `google,github`); `ollama` and `deepseek` route to those providers instead of SearXNG |
 | `-c, --categories <list>` | Comma-separated list of categories (e.g., `it,science`) |
 | `-l, --limit <n>` | Maximum number of results (default: 10) |
 | `-p, --page <n>` | Page number for pagination |
@@ -946,28 +949,28 @@ No extra npm dependencies needed — Obscura is called via CLI. Auto-detected fr
 
 ```bash
 # Basic search (outputs Markdown by default)
-digdig "machine learning"
+dg "machine learning"
 
 # Output as JSON
-digdig --format json "machine learning"
+dg --format json "machine learning"
 
 # Search with specific engines
-digdig --engines google,duckduckgo "privacy tools"
+dg --engines google,duckduckgo "privacy tools"
 
 # Search IT and Science categories
-digdig --categories it,science "kubernetes tutorial"
+dg --categories it,science "kubernetes tutorial"
 
 # Limit results and filter by time
-digdig --limit 5 --time week "latest AI news"
+dg --limit 5 --time week "latest AI news"
 
 # Multi-query search with RRF fusion
-digdig --queries "tokio tutorial,rust async basics,async-std guide"
+dg --queries "tokio tutorial,rust async basics,async-std guide"
 
 # List available engines (fetched from server)
-digdig --engines-list
+dg --engines-list
 
 # List available categories (fetched from server)
-digdig --categories-list
+dg --categories-list
 ```
 
 ---
@@ -984,18 +987,20 @@ Configuration priority (highest to lowest):
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `SEARXNG_BASE_URL` | SearXNG server URL | *(required)* |
-| `SEARXNG_DEFAULT_ENGINE` | Default search engine | *(none)* |
-| `SEARXNG_ALLOWED_ENGINES` | Comma-separated allowed engines | *(all)* |
-| `SEARXNG_DEFAULT_LIMIT` | Default result limit | `10` |
-| `SEARXNG_DEFAULT_FORMAT` | Default output format (`md` or `json`) | `md` |
-| `SEARXNG_USE_PROXY` | Use proxy (`true`/`false`) | `false` |
-| `SEARXNG_PROXY_URL` | Proxy URL | *(none)* |
-| `SEARXNG_TIMEOUT` | Request timeout in ms | `30000` |
-| `SEARXNG_REDUNDANCY_THRESHOLD` | Word-level Jaccard threshold for redundancy | `0.7` |
-| `SEARXNG_REDUNDANCY_BIGRAM_THRESHOLD` | Bigram-level Jaccard threshold (short queries) | `0.5` |
-| `OLLAMA_API_KEY` | [Ollama web search](https://ollama.com) API key (optional fallback backend) | *(none)* |
+| `DIGDIG_BASE_URL` | SearXNG server URL | *(required)* |
+| `DIGDIG_DEFAULT_ENGINE` | Default search engine | *(none)* |
+| `DIGDIG_ALLOWED_ENGINES` | Comma-separated allowed engines | *(all)* |
+| `DIGDIG_DEFAULT_LIMIT` | Default result limit | `10` |
+| `DIGDIG_DEFAULT_FORMAT` | Default output format (`md` or `json`) | `md` |
+| `DIGDIG_USE_PROXY` | Use proxy (`true`/`false`) | `false` |
+| `DIGDIG_PROXY_URL` | Proxy URL | *(none)* |
+| `DIGDIG_TIMEOUT` | Request timeout in ms | `10000` |
+| `DIGDIG_REDUNDANCY_THRESHOLD` | Word-level Jaccard threshold for redundancy | `0.7` |
+| `DIGDIG_REDUNDANCY_BIGRAM_THRESHOLD` | Bigram-level Jaccard threshold (short queries) | `0.5` |
+| `OLLAMA_API_KEY` | [Ollama web search](https://ollama.com) API key; enable with `-e ollama` (not an automatic fallback) | *(none)* |
 | `DEEPSEEK_API_KEY` | [DeepSeek Search](https://api-docs.deepseek.com/api/search) API key (optional backend; billed per successful request) | *(none)* |
+
+> `SEARXNG_*` variable names are still read until `0.5.0` and emit one `[deprecation]` line on stderr; `DIGDIG_*` wins when both are set.
 
 ### Config File
 
@@ -1015,8 +1020,9 @@ Create `digdig.config.json`:
   "defaultFormat": "md",
   "useProxy": false,
   "proxyUrl": "",
-  "timeout": 30000,
+  "timeout": 10000,
   "ollamaApiKey": "",
+  "deepseekApiKey": "",
   "redundancyThreshold": 0.7,
   "redundancyBigramThreshold": 0.5
 }
@@ -1040,30 +1046,30 @@ Search → Extract → Quality Assess → Approve → Build Graph → (Loop or E
 
 ```bash
 # 1. Create a session and search
-digdig --session new --owner "agent-1" --desc "Rust async study" "rust async ecosystem"
+dg --session new --owner "agent-1" --desc "Rust async study" "rust async ecosystem"
 # Session created: .digdig/sessions/<session-name>
 
 # 2. Extract content from results
-digdig extract --session <session-name>
+dg extract --session <session-name>
 
 # 3. Check extraction output: stats.success and session.updated identify
 #    results that received source text; failed URLs remain pending.
 
 # 4. Assess quality and see each result's verified state
-digdig --session <session-name> --quality
+dg --session <session-name> --quality
 
 # 5. Copy selected {id, revision} objects from quality output into
 #    .digdig/sessions/<session-name>/agent-inputs/approve.json, then approve them.
-digdig --session <session-name> --quality --approve-file .\.digdig\sessions\<session-name>\agent-inputs\approve.json
+dg --session <session-name> --quality --approve-file .\.digdig\sessions\<session-name>\agent-inputs\approve.json
 
 # 6. Preprocess session content for entity discovery and provenance
-digdig graph-preprocess <session-name>
+dg graph-preprocess <session-name>
 
 # 7. Put complex graph JSON in this session's Agent scratch directory, then add semantic edges
-digdig graph-add <session-name> --data-file .\.digdig\sessions\<session-name>\agent-inputs\graph-data.json
+dg graph-add <session-name> --data-file .\.digdig\sessions\<session-name>\agent-inputs\graph-data.json
 
 # 8. Continue research with redundancy check
-digdig --session <session-name> --queries "tokio vs async-std,benchmark 2026" --redundancy warn
+dg --session <session-name> --queries "tokio vs async-std,benchmark 2026" --redundancy warn
 ```
 
 ### Quality and Evidence Semantics
@@ -1077,12 +1083,12 @@ digdig --session <session-name> --queries "tokio vs async-std,benchmark 2026" --
 
 | Command | Description |
 |---------|-------------|
-| `digdig --session new` | Create new auto-named session |
-| `digdig --session <session-name>` | Use session by name (auto-resolves to `.digdig/sessions/<session-name>`) |
-| `digdig --session <path>` | Use session by full path |
-| `digdig session-list` | List all sessions with stats |
-| `digdig session-delete <session-name>` | Delete specific session |
-| `digdig session-delete --older <hours>` | Delete old sessions |
+| `dg --session new` | Create new auto-named session |
+| `dg --session <session-name>` | Use session by name (auto-resolves to `.digdig/sessions/<session-name>`) |
+| `dg --session <path>` | Use session by full path |
+| `dg session-list` | List all sessions with stats |
+| `dg session-delete <session-name>` | Delete specific session |
+| `dg session-delete --older <hours>` | Delete old sessions |
 
 **Session Path Resolution:**
 - Pure name (e.g., `my-session`) → `.digdig/sessions/my-session`
@@ -1121,11 +1127,11 @@ Graph navigation commands: `graph-search` (discover entities), `graph-explore` (
 
 ### External Search Results
 
-Results from other search tools (Tavily, Exa, etc.) can be injected into any active session via `results-add`. They go through the same pipeline as native digdig results:
+Results from other search tools (Tavily, Exa, etc.) can be injected into any active session via `results-add`. They go through the same pipeline as native dg results:
 
 ```powershell
 # Import search discovery; its excerpts remain summaries and require extraction.
-digdig results-add <session-name> --kind search --tool exa --query "async runtime" `
+dg results-add <session-name> --kind search --tool exa --query "async runtime" `
   --data-file .\.digdig\sessions\<session-name>\agent-inputs\exa-search.json
 ```
 
@@ -1153,10 +1159,10 @@ Quality output supplies `{id, revision}`. Save the selected objects in `approve.
 
 ```bash
 # Index documents (auto-triggered by doc-search, no separate step needed)
-digdig doc-index ./docs
+dg doc-index ./docs
 
 # Search and inject into session
-digdig doc-search <session-name> "search query" --path ./docs
+dg doc-search <session-name> "search query" --path ./docs
 ```
 
 **How it works:**
@@ -1195,7 +1201,7 @@ digdig doc-search <session-name> "search query" --path ./docs
 - Local document scanning has no defined symbolic-link boundary or cycle policy.
 - Index rebuilds overwrite the current persistence files; an interruption or disk failure can require re-indexing.
 
-See [PRD-005 design improvements](cli/docs/prds/PRD-005-design-improvements.md) for the deferred remediation plan.
+See the local, not-yet-published PRD-005 design-improvements document for the deferred remediation plan.
 
 ---
 
@@ -1203,7 +1209,7 @@ See [PRD-005 design improvements](cli/docs/prds/PRD-005-design-improvements.md) 
 
 ### Content Extraction
 
-`digdig extract` uses a multi-tier extraction strategy:
+`dg extract` uses a multi-tier extraction strategy:
 
 1. **Defuddle + linkedom** (default, lightweight) — Parses raw HTML with linkedom, extracts readable content with Defuddle. Fast, no browser needed.
 2. **Obscura** (JS rendering fallback) — When Defuddle extracts too little content (< 50 chars), Obscura renders the page with V8 JS engine and re-extracts. Use `--obscura` to enable.
@@ -1211,13 +1217,13 @@ See [PRD-005 design improvements](cli/docs/prds/PRD-005-design-improvements.md) 
 
 ```bash
 # Default: Defuddle only (fast)
-digdig extract --urls "https://example.com"
+dg extract --urls "https://example.com"
 
 # With Obscura fallback for JS-heavy pages
-digdig extract --urls "https://spa-site.com" --obscura
+dg extract --urls "https://spa-site.com" --obscura
 
 # After reviewing default extraction, use Jina for the specific URL that needs it and merge it into the session
-digdig extract --urls "https://complex-page.com" --session <session-name> --jina
+dg extract --urls "https://complex-page.com" --session <session-name> --jina
 ```
 
 Extraction options:
@@ -1237,7 +1243,7 @@ Unlike other CLI tools that hardcode supported engines and categories, this tool
 - This ensures compatibility with any SearXNG instance configuration
 - Adding new engines to your SearXNG instance automatically makes them available in the CLI
 
-Use `digdig --engines-list` and `digdig --categories-list` to see what's available on your server.
+Use `dg --engines-list` and `dg --categories-list` to see what's available on your server.
 
 ### Output Format
 

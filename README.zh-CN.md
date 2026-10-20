@@ -1,8 +1,8 @@
 # 🔍 digdig
 
 <p align="center">
-  <b>SearXNG 的命令行工具</b><br>
-  终端中的隐私优先网页搜索
+  <b>面向 Agent 的多后端网页搜索 CLI</b><br>
+  SearXNG · Ollama · DeepSeek —— 终端中的隐私优先网页搜索
 </p>
 
 <p align="center">
@@ -31,6 +31,7 @@
 ## ✨ 特色功能
 
 - 🔎 **多引擎搜索** — 同时搜索 Google、Bing、DuckDuckGo、GitHub 等 30+ 搜索引擎
+- 🔌 **可插拔后端** — 默认 SearXNG；用 `-e ollama` / `-e deepseek` 切换到 Ollama 网页搜索或 DeepSeek Search。任一后端都不是另一个的自动回退。
 - 🔄 **动态发现** — 自动从 SearXNG 服务器获取可用引擎和分类
 - 📄 **多格式输出** — Markdown（LLM 优化）或 JSON 格式
 - 🧠 **深度搜索** — 多轮迭代研究，支持会话累积、质量评估和恢复策略
@@ -672,7 +673,7 @@ services:
 docker compose up -d
 ```
 
-这会在后台启动 SearXNG（端口 `8080`）和 Valkey。使用 `docker compose ps` 或 `digdig --health` 验证服务是否正常运行。
+这会在后台启动 SearXNG（端口 `8080`）和 Valkey。使用 `docker compose ps` 或 `dg --health` 验证服务是否正常运行。
 
 **Python venv 方式（无 Docker）**
 
@@ -714,8 +715,8 @@ SEARXNG_SETTINGS_PATH=~/.config/searxng/settings.yml \
 
 # 5) 验证 + 接入 digdig
 curl -s http://localhost:8888/healthz   # 返回 OK
-digdig init                               # baseUrl = http://localhost:8888
-digdig --health && digdig "hello world"
+dg init                                # baseUrl = http://localhost:8888
+dg --health && dg "hello world"
 ```
 
 ### 通过 npm 安装（推荐）
@@ -723,6 +724,8 @@ digdig --health && digdig "hello world"
 ```bash
 npm install -g digdig
 ```
+
+这会安装三个同源命令：**`dg`**（推荐，简短）、**`digdig`**（完整名）以及过渡期的 **`sxng`** 别名。
 
 > ⚠️ **从 `sxng-cli` 升级上来的用户注意**：`digdig` 接替 `sxng-cli`，版本号重新起算，所以 `digdig@0.0.2` **比** `sxng-cli@1.3.2` **新**，尽管数字更小。请先卸载旧包（`npm uninstall -g sxng-cli`），因为两份副本各用一个会话目录，互相看不见对方的会话。
 >
@@ -797,19 +800,19 @@ npm link
 >      curl -s http://localhost:8888/healthz   # 返回 OK
 >      ```
 >      此时第 4 步的 `baseUrl` 使用 `http://localhost:8888`。
-> 2. **Ollama 网页搜索**（可选，免费 API key）：
->    - 向用户索取 Ollama API key（在 https://ollama.com 获取），若没有则跳过。
+> 2. **额外后端**（可选）：
+>    - 向用户索取 Ollama 网页搜索 API key（https://ollama.com）和/或 DeepSeek Search API key（https://api-docs.deepseek.com/api/search），若都没有则跳过。两者都只在用 `-e ollama` / `-e deepseek` 显式选择时生效，都不是自动回退。
 > 3. **安装 CLI**：`npm install -g digdig`。
-> 4. **配置**：运行 `digdig init`，填写 `baseUrl`（Docker 用 `http://localhost:8080`，venv 用 `http://localhost:8888`）、超时时间，以及用户提供的 Ollama API key。
-> 5. **验证**：运行 `digdig --health` 和 `digdig "hello world"`，报告结果。
+> 4. **配置**：运行 `dg init`，填写 `baseUrl`（Docker 用 `http://localhost:8080`，venv 用 `http://localhost:8888`）、超时时间，以及用户提供的 API key。
+> 5. **验证**：运行 `dg --health` 和 `dg "hello world"`，报告结果。
 > ```
 
-LLM 在宣布成功前应执行这些检查：`docker compose ps`（SearXNG + Valkey 均运行中）、`digdig --health`（healthy）、以及一次返回非空结果的真实搜索。
+LLM 在宣布成功前应执行这些检查：`docker compose ps`（SearXNG + Valkey 均运行中）、`dg --health`（healthy）、以及一次返回非空结果的真实搜索。
 
 
 ### Obscura（可选 — 用于 JS 密集页面）
 
-[digdig extract](#-使用指南) 默认使用 **Defuddle + linkedom** 进行轻量级内容提取。当页面需要 JavaScript 渲染（SPA、动态内容）时，可启用 [Obscura](https://github.com/h4ckf0r0day/obscura) 作为回退。使用 `--obscura` 且本机缺少二进制文件时，digdig 会从官方 GitHub HTTPS 下载入口自动下载对应平台的发布包：
+[dg extract](#-使用指南) 默认使用 **Defuddle + linkedom** 进行轻量级内容提取。当页面需要 JavaScript 渲染（SPA、动态内容）时，可启用 [Obscura](https://github.com/h4ckf0r0day/obscura) 作为回退。使用 `--obscura` 且本机缺少二进制文件时，digdig 会从官方 GitHub HTTPS 下载入口自动下载对应平台的发布包：
 
 ```bash
 # Linux x86_64
@@ -842,16 +845,16 @@ obscura --version
 
 2. **配置 CLI：**
    ```bash
-   digdig init
+   dg init
    ```
    或设置环境变量：
    ```bash
-   export SEARXNG_BASE_URL=http://your-searxng-instance:8080
+   export DIGDIG_BASE_URL=http://your-searxng-instance:8080
    ```
 
 3. **执行搜索：**
    ```bash
-   digdig "TypeScript tutorial"
+   dg "TypeScript tutorial"
    ```
 
 ---
@@ -862,50 +865,50 @@ obscura --version
 
 | 命令 | 说明 |
 |------|------|
-| `digdig init` | 交互式配置设置 |
-| `digdig <query>` | 执行网页搜索 |
-| `digdig --queries "q1,q2"` | 多查询搜索（RRF 融合排序） |
-| `digdig extract --urls <urls>` | 提取网页内容 |
-| `digdig extract --session <name>` | 提取会话结果并合并内容 |
-| `digdig extract --obscura` | JS 渲染回退（用于 SPA 页面） |
-| `digdig extract --urls <url> --jina` | Agent 为显式指定 URL 选择 Jina Reader 提取 |
-| `digdig --session new` | 创建深度搜索会话 |
-| `digdig --session <name> --quality` | 评估结果质量，列出待审结果 |
-| `digdig --session <name> --quality --approve-file <path>` | 从 `{id, revision}` JSON 文件审批已验证的待审结果 |
-| `digdig suggest-queries <session>` | 获取查询建议数据（供 Agent 使用） |
-| `digdig strategy-info <session>` | 查看当前搜索阶段 |
-| `digdig recovery-analysis <session>` | 获取低质量恢复策略 |
-| `digdig session-report <session>` | 完整会话分析报告 |
-| `digdig session-list` | 列出所有会话 |
-| `digdig session-delete <session-name>` | 删除指定会话 |
-| `digdig graph-preprocess <session>` | TF-IDF + 共现分析 + 结果来源轮次 |
-| `digdig graph-add <session> --data-file <path>` | 从 UTF-8 JSON 添加由已审批结果 ID 支撑的语义实体/边 |
-| `digdig graph-search <session>` | 按关键词发现实体 |
-| `digdig graph-explore <session>` | 查看实体关系 |
-| `digdig graph-drill <session>` | 追踪特定关系 |
-| `digdig graph-traverse <session>` | 遍历推理路径 |
-| `digdig graph-obfuscate <session>` | 列出混淆候选 |
-| `digdig results-add <session> --kind <search|extracted> --data-file <path>` | 从会话专属 UTF-8 JSON 导入外部搜索或已提取正文 |
-| `digdig doc-index <path>` | 索引本地文档（用于 BM25 搜索） |
-| `digdig doc-search <session> <query> --path <path>` | 搜索已索引文档并将结果注入会话 |
-| `digdig claim-add <session> --claims-file <path>` | 从 UTF-8 JSON 文件提交原子化陈述（支持单条或批量，自动证据搜索） |
-| `digdig claim-list <session>` | 列出陈述 |
-| `digdig evidence-search <session> --claim-id <id>` | 搜索候选证据（只读） |
-| `digdig evidence-verify <session> --claim-id <id> --evidence-file <path>` | 从 UTF-8 JSON 文件确认证据 + 提交立场（可选自动策略聚合） |
-| `digdig evidence-list <session> --claim-id <id>` | 列出某条陈述的证据 |
-| `digdig verdict-list <session> --claim-id <id>` | 列出某条陈述的判断结果 |
-| `digdig policy-aggregate <session>` | 手动执行策略聚合 |
-| `digdig review-list <session>` | 列出审核结论 |
-| `digdig --health` | 检查 SearXNG 服务器健康状态 |
-| `digdig --engines-list` | 列出可用搜索引擎 |
-| `digdig --categories-list` | 列出可用分类 |
-| `digdig --help` | 显示帮助信息 |
+| `dg init` | 交互式配置设置 |
+| `dg <query>` | 执行网页搜索 |
+| `dg --queries "q1,q2"` | 多查询搜索（RRF 融合排序） |
+| `dg extract --urls <urls>` | 提取网页内容 |
+| `dg extract --session <name>` | 提取会话结果并合并内容 |
+| `dg extract --obscura` | JS 渲染回退（用于 SPA 页面） |
+| `dg extract --urls <url> --jina` | Agent 为显式指定 URL 选择 Jina Reader 提取 |
+| `dg --session new` | 创建深度搜索会话 |
+| `dg --session <name> --quality` | 评估结果质量，列出待审结果 |
+| `dg --session <name> --quality --approve-file <path>` | 从 `{id, revision}` JSON 文件审批已验证的待审结果 |
+| `dg suggest-queries <session>` | 获取查询建议数据（供 Agent 使用） |
+| `dg strategy-info <session>` | 查看当前搜索阶段 |
+| `dg recovery-analysis <session>` | 获取低质量恢复策略 |
+| `dg session-report <session>` | 完整会话分析报告 |
+| `dg session-list` | 列出所有会话 |
+| `dg session-delete <session-name>` | 删除指定会话 |
+| `dg graph-preprocess <session>` | TF-IDF + 共现分析 + 结果来源轮次 |
+| `dg graph-add <session> --data-file <path>` | 从 UTF-8 JSON 添加由已审批结果 ID 支撑的语义实体/边 |
+| `dg graph-search <session>` | 按关键词发现实体 |
+| `dg graph-explore <session>` | 查看实体关系 |
+| `dg graph-drill <session>` | 追踪特定关系 |
+| `dg graph-traverse <session>` | 遍历推理路径 |
+| `dg graph-obfuscate <session>` | 列出混淆候选 |
+| `dg results-add <session> --kind <search|extracted> --data-file <path>` | 从会话专属 UTF-8 JSON 导入外部搜索或已提取正文 |
+| `dg doc-index <path>` | 索引本地文档（用于 BM25 搜索） |
+| `dg doc-search <session> <query> --path <path>` | 搜索已索引文档并将结果注入会话 |
+| `dg claim-add <session> --claims-file <path>` | 从 UTF-8 JSON 文件提交原子化陈述（支持单条或批量，自动证据搜索） |
+| `dg claim-list <session>` | 列出陈述 |
+| `dg evidence-search <session> --claim-id <id>` | 搜索候选证据（只读） |
+| `dg evidence-verify <session> --claim-id <id> --evidence-file <path>` | 从 UTF-8 JSON 文件确认证据 + 提交立场（可选自动策略聚合） |
+| `dg evidence-list <session> --claim-id <id>` | 列出某条陈述的证据 |
+| `dg verdict-list <session> --claim-id <id>` | 列出某条陈述的判断结果 |
+| `dg policy-aggregate <session>` | 手动执行策略聚合 |
+| `dg review-list <session>` | 列出审核结论 |
+| `dg --health` | 检查 SearXNG 后端健康状态（Ollama/DeepSeek 没有健康检查接口） |
+| `dg --engines-list` | 列出可用搜索引擎 |
+| `dg --categories-list` | 列出可用分类 |
+| `dg --help` | 显示帮助信息 |
 
 ### 搜索选项
 
 | 选项 | 说明 |
 |------|------|
-| `-e, --engines <list>` | 逗号分隔的搜索引擎列表（如 `google,github`） |
+| `-e, --engines <list>` | 逗号分隔的搜索引擎列表（如 `google,github`）；`ollama` 与 `deepseek` 会改走对应后端而不是 SearXNG |
 | `-c, --categories <list>` | 逗号分隔的分类列表（如 `it,science`） |
 | `-l, --limit <n>` | 最大结果数（默认：10） |
 | `-p, --page <n>` | 翻页页码 |
@@ -927,28 +930,28 @@ obscura --version
 
 ```bash
 # 基本搜索（默认 Markdown 输出）
-digdig "machine learning"
+dg "machine learning"
 
 # JSON 输出
-digdig --format json "machine learning"
+dg --format json "machine learning"
 
 # 指定引擎搜索
-digdig --engines google,duckduckgo "privacy tools"
+dg --engines google,duckduckgo "privacy tools"
 
 # 搜索 IT 和科学分类
-digdig --categories it,science "kubernetes tutorial"
+dg --categories it,science "kubernetes tutorial"
 
 # 限制结果数并按时间过滤
-digdig --limit 5 --time week "latest AI news"
+dg --limit 5 --time week "latest AI news"
 
 # 多查询 RRF 融合搜索
-digdig --queries "tokio tutorial,rust async basics,async-std guide"
+dg --queries "tokio tutorial,rust async basics,async-std guide"
 
 # 列出可用引擎（从服务器获取）
-digdig --engines-list
+dg --engines-list
 
 # 列出可用分类（从服务器获取）
-digdig --categories-list
+dg --categories-list
 ```
 
 ---
@@ -965,17 +968,20 @@ digdig --categories-list
 
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
-| `SEARXNG_BASE_URL` | SearXNG 服务器 URL | *（必填）* |
-| `SEARXNG_DEFAULT_ENGINE` | 默认搜索引擎 | *（无）* |
-| `SEARXNG_ALLOWED_ENGINES` | 逗号分隔的允许引擎列表 | *（全部）* |
-| `SEARXNG_DEFAULT_LIMIT` | 默认结果数限制 | `10` |
-| `SEARXNG_DEFAULT_FORMAT` | 默认输出格式（`md` 或 `json`） | `md` |
-| `SEARXNG_USE_PROXY` | 是否使用代理（`true`/`false`） | `false` |
-| `SEARXNG_PROXY_URL` | 代理 URL | *（无）* |
-| `SEARXNG_TIMEOUT` | 请求超时时间（毫秒） | `30000` |
-| `SEARXNG_REDUNDANCY_THRESHOLD` | 词级 Jaccard 冗余阈值 | `0.7` |
-| `SEARXNG_REDUNDANCY_BIGRAM_THRESHOLD` | 二元组 Jaccard 冗余阈值（短查询） | `0.5` |
-| `OLLAMA_API_KEY` | [Ollama 网页搜索](https://ollama.com) API 密钥（可选备用搜索后端） | *（无）* |
+| `DIGDIG_BASE_URL` | SearXNG 服务器 URL | *（必填）* |
+| `DIGDIG_DEFAULT_ENGINE` | 默认搜索引擎 | *（无）* |
+| `DIGDIG_ALLOWED_ENGINES` | 逗号分隔的允许引擎列表 | *（全部）* |
+| `DIGDIG_DEFAULT_LIMIT` | 默认结果数限制 | `10` |
+| `DIGDIG_DEFAULT_FORMAT` | 默认输出格式（`md` 或 `json`） | `md` |
+| `DIGDIG_USE_PROXY` | 是否使用代理（`true`/`false`） | `false` |
+| `DIGDIG_PROXY_URL` | 代理 URL | *（无）* |
+| `DIGDIG_TIMEOUT` | 请求超时时间（毫秒） | `10000` |
+| `DIGDIG_REDUNDANCY_THRESHOLD` | 词级 Jaccard 冗余阈值 | `0.7` |
+| `DIGDIG_REDUNDANCY_BIGRAM_THRESHOLD` | 二元组 Jaccard 冗余阈值（短查询） | `0.5` |
+| `OLLAMA_API_KEY` | [Ollama 网页搜索](https://ollama.com) API 密钥；用 `-e ollama` 显式启用（不是自动回退） | *（无）* |
+| `DEEPSEEK_API_KEY` | [DeepSeek Search](https://api-docs.deepseek.com/api/search) API 密钥（可选后端；按成功请求计费） | *（无）* |
+
+> `SEARXNG_*` 旧变量名在 `0.5.0` 前仍会被读取，用到时在 stderr 打一行 `[deprecation]`；两者同时设置时 `DIGDIG_*` 优先。
 
 ### 配置文件
 
@@ -995,8 +1001,9 @@ digdig --categories-list
   "defaultFormat": "md",
   "useProxy": false,
   "proxyUrl": "",
-  "timeout": 30000,
+  "timeout": 10000,
   "ollamaApiKey": "",
+  "deepseekApiKey": "",
   "redundancyThreshold": 0.7,
   "redundancyBigramThreshold": 0.5
 }
@@ -1020,29 +1027,29 @@ digdig --categories-list
 
 ```bash
 # 1. 创建会话并搜索
-digdig --session new --owner "agent-1" --desc "Rust async study" "rust async ecosystem"
+dg --session new --owner "agent-1" --desc "Rust async study" "rust async ecosystem"
 # 已创建会话：.digdig/sessions/<session-name>
 
 # 2. 从结果中提取内容
-digdig extract --session <session-name>
+dg extract --session <session-name>
 
 # 3. 检查提取输出：stats.success 和 session.updated 标识已取得正文的结果；失败 URL 保持待审。
 
 # 4. 评估质量并查看每条结果的 verified 状态
-digdig --session <session-name> --quality
+dg --session <session-name> --quality
 
 # 5. 将质量输出中选中的 {id, revision} 写入
 #    .digdig/sessions/<session-name>/agent-inputs/approve.json，再审批。
-digdig --session <session-name> --quality --approve-file .\.digdig\sessions\<session-name>\agent-inputs\approve.json
+dg --session <session-name> --quality --approve-file .\.digdig\sessions\<session-name>\agent-inputs\approve.json
 
 # 6. 预处理会话内容，发现实体并取得来源轮次
-digdig graph-preprocess <session-name>
+dg graph-preprocess <session-name>
 
 # 7. 将图谱 JSON 写入该会话的 Agent 临时目录，再添加语义边
-digdig graph-add <session-name> --data-file .\.digdig\sessions\<session-name>\agent-inputs\graph-data.json
+dg graph-add <session-name> --data-file .\.digdig\sessions\<session-name>\agent-inputs\graph-data.json
 
 # 8. 继续研究（带冗余检查）
-digdig --session <session-name> --queries "tokio vs async-std,benchmark 2026" --redundancy warn
+dg --session <session-name> --queries "tokio vs async-std,benchmark 2026" --redundancy warn
 ```
 
 ### 质量与证据语义
@@ -1056,12 +1063,12 @@ digdig --session <session-name> --queries "tokio vs async-std,benchmark 2026" --
 
 | 命令 | 说明 |
 |------|------|
-| `digdig --session new` | 创建自动命名的会话 |
-| `digdig --session <session-name>` | 按名称使用会话（自动解析为 `.digdig/sessions/<session-name>`） |
-| `digdig --session <path>` | 按完整路径使用会话 |
-| `digdig session-list` | 列出所有会话及统计信息 |
-| `digdig session-delete <session-name>` | 删除指定会话 |
-| `digdig session-delete --older <hours>` | 删除超过指定小时的旧会话 |
+| `dg --session new` | 创建自动命名的会话 |
+| `dg --session <session-name>` | 按名称使用会话（自动解析为 `.digdig/sessions/<session-name>`） |
+| `dg --session <path>` | 按完整路径使用会话 |
+| `dg session-list` | 列出所有会话及统计信息 |
+| `dg session-delete <session-name>` | 删除指定会话 |
+| `dg session-delete --older <hours>` | 删除超过指定小时的旧会话 |
 
 **会话路径解析：**
 - 纯名称（如 `my-session`）→ `.digdig/sessions/my-session`
@@ -1104,7 +1111,7 @@ digdig --session <session-name> --queries "tokio vs async-std,benchmark 2026" --
 
 ```powershell
 # 导入搜索发现；摘要仍然只是摘要，后续需要提取。
-digdig results-add <session-name> --kind search --tool exa --query "async runtime" `
+dg results-add <session-name> --kind search --tool exa --query "async runtime" `
   --data-file .\.digdig\sessions\<session-name>\agent-inputs\exa-search.json
 ```
 
@@ -1129,8 +1136,8 @@ digdig results-add <session-name> --kind search --tool exa --query "async runtim
 陈述和证据也应使用同一目录，例如：
 
 ```powershell
-digdig claim-add my-session --claims-file .\.digdig\sessions\my-session\agent-inputs\claims.json
-digdig evidence-verify my-session --claim-id "cl_001" `
+dg claim-add my-session --claims-file .\.digdig\sessions\my-session\agent-inputs\claims.json
+dg evidence-verify my-session --claim-id "cl_001" `
   --evidence-file .\.digdig\sessions\my-session\agent-inputs\evidence.json `
   --stance support --reason "官方文档确认" --complete
 ```
@@ -1141,10 +1148,10 @@ digdig evidence-verify my-session --claim-id "cl_001" `
 
 ```bash
 # 索引文档（doc-search 会自动触发索引，无需单独执行此步骤）
-digdig doc-index ./docs
+dg doc-index ./docs
 
 # 搜索并将结果注入会话
-digdig doc-search <session-name> "关键词" --path ./docs
+dg doc-search <session-name> "关键词" --path ./docs
 ```
 
 **工作原理：**
@@ -1183,7 +1190,7 @@ digdig doc-search <session-name> "关键词" --path ./docs
 - 本地文档扫描尚未定义符号链接的遍历边界或循环保护策略。
 - 索引重建会直接覆盖当前持久化文件；进程中断或磁盘故障后可能需要重新建立索引。
 
-延后处理方案见 [PRD-005 设计改进](cli/docs/prds/PRD-005-design-improvements.md)。
+延后处理方案见 本地尚未发布的 PRD-005 设计改进文档。
 
 ---
 
@@ -1191,7 +1198,7 @@ digdig doc-search <session-name> "关键词" --path ./docs
 
 ### 内容提取
 
-`digdig extract` 使用多层提取策略：
+`dg extract` 使用多层提取策略：
 
 1. **Defuddle + linkedom**（默认，轻量）— 使用 linkedom 解析原始 HTML，通过 Defuddle 提取可读内容。速度快，无需浏览器。
 2. **Obscura**（JS 渲染回退）— 当 Defuddle 提取内容过少（< 50 字符）时，Obscura 使用 V8 JS 引擎渲染页面并重新提取。使用 `--obscura` 启用。
@@ -1199,13 +1206,13 @@ digdig doc-search <session-name> "关键词" --path ./docs
 
 ```bash
 # 默认：仅 Defuddle（快速）
-digdig extract --urls "https://example.com"
+dg extract --urls "https://example.com"
 
 # 为 JS 密集页面启用 Obscura 回退
-digdig extract --urls "https://spa-site.com" --obscura
+dg extract --urls "https://spa-site.com" --obscura
 
 # 检查默认提取结果后，仅对需要的指定 URL 使用 Jina Reader，并合并回会话
-digdig extract --urls "https://complex-page.com" --session <session-name> --jina
+dg extract --urls "https://complex-page.com" --session <session-name> --jina
 ```
 
 提取选项：
@@ -1225,7 +1232,7 @@ digdig extract --urls "https://complex-page.com" --session <session-name> --jina
 - 确保与任何 SearXNG 实例配置兼容
 - 向 SearXNG 实例添加新引擎会自动在 CLI 中生效
 
-使用 `digdig --engines-list` 和 `digdig --categories-list` 查看服务器可用项。
+使用 `dg --engines-list` 和 `dg --categories-list` 查看服务器可用项。
 
 ### 输出格式
 

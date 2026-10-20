@@ -16,15 +16,15 @@
 ## Fix the stale Ollama auto-fallback documentation
 
 - ID: TF-20261017-437d95
-- Status: inbox
+- Status: done
 - Priority: normal
 - Owner: Claude
 - Source: user-request
 - Added: 2026-10-17
-- Updated: 2026-10-18
+- Updated: 2026-10-20
 - Goal: Four files (originally recorded as two) claim sxng auto-falls back to Ollama web search when SearXNG is unavailable. That behavior does not exist. Verified 2026-10-18 against the merged `main` build: with `ollamaApiKey` configured, `baseUrl` pointed at a dead server, and no `-e` flag, `sxng "rust async runtime"` returns `SEARCH_FAILED` / "Search failed: Bad Gateway", `retryable: true`, exit 1 — Ollama is never called. The resolution is documentation, not code. Six lines across those four files: `cli/src/init.ts:151` (the user-facing message) plus the `--- Ollama (Fallback Search) ---` heading at :150 and the `// Configure Ollama (fallback search)` comment at :149; `README.md:984` and `README.zh-CN.md:974` ("optional fallback backend" / "可选备用搜索后端"); and `cli/src/ollama-service.ts:5`, whose header still says "so it can serve as a drop-in fallback".
-- Task: Not promoted.
-- Next action: Doc-only. Reword all six lines to describe `-e ollama` as a second backend selected explicitly, not an automatic fallback. Consider folding in the two adjacent `engines-list` items below.
+- Task: `TaskFlowDocs/achieved/2026-10-20-dg-command-and-docs/`
+- Next action: None — closed 2026-10-20; all six lines reworded under R5.
 
 ### Correction to how this entry was originally written
 
@@ -228,28 +228,28 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## Documented default timeout contradicts the code
 
 - ID: TF-20261018-7c4e12
-- Status: inbox
+- Status: done
 - Priority: low
 - Owner: Claude
 - Source: follow-up
 - Added: 2026-10-18
-- Updated: 2026-10-18
+- Updated: 2026-10-20
 - Goal: `SEARXNG_TIMEOUT`'s documented default disagrees with what the CLI actually uses. `DEFAULT_CONFIG` sets `timeout: 10000` (`cli/src/config.ts:38`) and that is the effective value — verified by importing `config.js` from a cwd whose config file omits the field. But `README.md:981` and `README.zh-CN.md:971` both publish `30000`, and `cli/sxng.config.example.json:9` ships `"timeout": 30000`. A user copying the example gets 30s; a user reading the README's "default" column believes 30s is the default when it is not. `CLAUDE.md` (untracked, local) says `10000`, matching the code — possible evidence the code is the intended side and the example was edited later.
-- Task: Not promoted.
-- Next action: Decide whether 10000 or 30000 is intended, then align the code default, the example config, and both README tables. Update the local `CLAUDE.md` too if it moves.
+- Task: `TaskFlowDocs/achieved/2026-10-20-dg-command-and-docs/`
+- Next action: None — closed 2026-10-20; README tables, config examples and `init.ts` DEFAULT_CONFIG all now 10000 (R6).
 
 ## Sync the DeepSeek provider into the sxng skill docs
 
 - ID: TF-20261017-83df6c
-- Status: inbox
+- Status: done
 - Priority: normal
 - Owner: Claude
 - Source: follow-up
 - Added: 2026-10-17
-- Updated: 2026-10-18
+- Updated: 2026-10-20
 - Goal: The `-e deepseek` provider shipped in PR #3 is absent from the skill. Verified line by line on `main` (2026-10-18): `skills/sxng/SKILL.md:85` (`--engines-list` — "includes ollama if configured"), `:94` (`-e` help — "use `ollama` for Ollama web search"), and `:348` (the Ollama key/env paragraph, written as if it were the only external provider) all omit `deepseek`. `skills/sxng/references/pipeline.md:33` lists only the Ollama L1 backend row. `skills/sxng/references/appendix.md:76` names only ollama/tavily/exa as switch-to backends.
-- Task: Not promoted.
-- Next action: Rewrite the listed sites to cover both external providers symmetrically.
+- Task: `TaskFlowDocs/achieved/2026-10-20-dg-command-and-docs/`
+- Next action: None — closed 2026-10-20; SKILL.md / pipeline.md / appendix.md now name deepseek (R9), and the `-e` without-key behaviour is unchanged and still documented as a usage error.
 
 ### Two additions the skill also needs
 
@@ -312,4 +312,17 @@ Be precise about the reach: **no subcommand was observed truncating.** `session-
 - Updated: 2026-10-19
 - Goal: Rename sxng-cli to digdig. Publish under the npm package digdig (already reserved at https://www.npmjs.com/package/digdig, version 0.0.1, owned by hkwuks). Scope per user decision 2026-10-19: rename the identity layer (package name, bin, program.name(), README/README.zh-CN/cli/README/CLAUDE.md/skills references, skill directory name, repository/homepage/bugs URLs, plus the placeholder in npm-reserve-digdig/) AND the runtime artifacts (.sxng/ state directory, sxng.config.json, SEARXNG_* env vars, origins[].tool value) with migration code that keeps the old names working. Transition window: 5 versions. Old command name sxng and old names keep working through it with a one-line stderr deprecation notice; the old package sxng-cli is deprecated pointing at the new one. Migration code and the sxng bin alias are removed at the cut. Version line per user decision 2026-10-19: the new package starts at 0.0.2 and the cut lands at 0.5.0. Publishing to npm, deprecating sxng-cli on the registry, and renaming the GitHub repository are explicitly NOT this task: file changes only, no publish.
 - Task: `TaskFlowDocs/achieved/2026-10-19-rename-digdig/`
+- Next action: None — completed and archived.
+
+## 命令名改为 dg（保留 digdig 长名与过渡期 sxng），并把项目定
+
+- ID: TF-20261020-cfaa30
+- Status: done
+- Priority: normal
+- Owner: Claude
+- Source: user-request
+- Added: 2026-10-20
+- Updated: 2026-10-20
+- Goal: 命令名改为 dg（保留 digdig 长名与过渡期 sxng），并把项目定位从 SearXNG 的 CLI 改为多后端搜索 CLI，同时修正多份文档里的事实错误（环境变量前缀、timeout 默认值、不存在的 Ollama 自动回退、缺失的 DeepSeek 配置项、404 链接）
+- Task: `TaskFlowDocs/achieved/2026-10-20-dg-command-and-docs/`
 - Next action: None — completed and archived.

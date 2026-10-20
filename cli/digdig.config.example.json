@@ -6,7 +6,7 @@
   "defaultFormat": "md",
   "useProxy": false,
   "proxyUrl": "",
-  "timeout": 30000,
+  "timeout": 10000,
   "ollamaApiKey": "",
   "deepseekApiKey": "",
   "redundancyThreshold": 0.7,

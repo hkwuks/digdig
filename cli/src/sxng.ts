@@ -11,6 +11,6 @@
 import { main } from './entry.js';
 import { deprecate } from './legacy.js';
 
-deprecate('command', 'the `sxng` command is deprecated; use `digdig` (`sxng` is removed in 0.5.0)');
+deprecate('command', 'the `sxng` command is deprecated; use `dg` (`sxng` is removed in 0.5.0)');
 
 main();
