@@ -339,3 +339,16 @@ Be precise about the reach: **no subcommand was observed truncating.** `session-
 - Goal: 清理同步冲突残留：dist/ 下 29 个 *sync-conflict* 文件被打进已发布的 0.0.2 tarball，另有一个被 git 跟踪的冲突测试文件从未执行
 - Task: `TaskFlowDocs/achieved/2026-10-20-sync-conflict-cleanup/`
 - Next action: None — completed and archived.
+
+## 让构建从空的 dist 开始，保证下次 npm publish 的 tarball 不再夹
+
+- ID: TF-20261020-8f03df
+- Status: done
+- Priority: normal
+- Owner: Claude
+- Source: user-request
+- Added: 2026-10-20
+- Updated: 2026-10-20
+- Goal: 让构建从空的 dist 开始，保证下次 npm publish 的 tarball 不再夹带历史残留（冲突副本与源码已删除的旧编译产物）
+- Task: `TaskFlowDocs/achieved/2026-10-20-clean-build-dist/`
+- Next action: None — completed and archived.
