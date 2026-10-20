@@ -25,7 +25,7 @@ describe('CLI program (commander)', () => {
     const program = createProgram();
 
     it('has correct name and version', () => {
-        expect(program.name()).toBe('digdig');
+        expect(program.name()).toBe('dg');
         expect(program.version()).toBe(pkgVersion);
     });
 

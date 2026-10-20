@@ -2,7 +2,7 @@
 
 ## One Pool, One Pipeline
 
-All results, whether from digdig search, external tools (tavily/exa), or any other source, go into **the same `results.json` pool** in the session directory. There is no separate path for external results. Everything follows the same flow:
+All results, whether from `dg` search, external tools (tavily/exa), or any other source, go into **the same `results.json` pool** in the session directory. There is no separate path for external results. Everything follows the same flow:
 
 ```text
 results.json pool (all deduped results)
@@ -29,12 +29,13 @@ L2/L3 only
 
 | Source | Command | Status |
 |--------|---------|--------|
-| digdig search | `digdig --session <session> "query"` | pending |
-| Ollama web search (L1) | `digdig --session <session> --engines ollama "query"` | pending |
-| External search | `digdig results-add <session> --kind search --tool <tool> --query "source query" --data-file <session-input>` | pending, requires extraction |
-| External extracted body | `digdig results-add <session> --kind extracted --tool <tool> --query "source query" --data-file <session-input>` | pending approval |
-| Content extraction | `digdig extract --session <session>` | updates content, same status |
-| Entity/edge injection | `digdig graph-add <session> --data-file <session-input>` | entities/edges only |
+| SearXNG search (default backend) | `dg --session <session> "query"` | pending |
+| Ollama web search (L1) | `dg --session <session> --engines ollama "query"` | pending |
+| DeepSeek Search (L1) | `dg --session <session> --engines deepseek "query"` | pending |
+| External search | `dg results-add <session> --kind search --tool <tool> --query "source query" --data-file <session-input>` | pending, requires extraction |
+| External extracted body | `dg results-add <session> --kind extracted --tool <tool> --query "source query" --data-file <session-input>` | pending approval |
+| Content extraction | `dg extract --session <session>` | updates content, same status |
+| Entity/edge injection | `dg graph-add <session> --data-file <session-input>` | entities/edges only |
 
 > **Key rule**: `graph-add` does NOT accept results. Results must be in the pool first, approved, and injected into graph. Only then can `graph-add` reference result nodes in edges.
 
@@ -44,13 +45,13 @@ Results accumulate as pending. A warning fires at **>=30 pending results**, prom
 
 - Reduces token spend (one assessment per batch, not per result)
 - Gives the Agent more context for quality decisions (sees all pending together)
-- Lets external and digdig results be evaluated together
+- Lets external and dg results be evaluated together
 
 There is no hard upper limit; the Agent decides when to assess. The 30-count is a warning, not a block.
 
 ## Quality Assessment
 
-`digdig --session <session> --quality` outputs:
+`dg --session <session> --quality` outputs:
 
 1. **Quality score**: 3 programmatic indicators (contentDepth, sourceDiversity, novelty) with verdict (good/acceptable/poor)
 2. **Pending results list**: each with stable `id`, `revision`, title, URL, source, content preview, domain, and verification state
@@ -60,7 +61,7 @@ The Agent examines the pending list and writes selected `{id, revision}` objects
 ## Approval & Graph Injection
 
 ```bash
-digdig --session <session> --quality --approve-file ./.digdig/sessions/<session>/agent-inputs/approve.json
+dg --session <session> --quality --approve-file ./.digdig/sessions/<session>/agent-inputs/approve.json
 ```
 
 This single command:
@@ -75,7 +76,7 @@ After approval, the result nodes exist in the graph and can be referenced by `gr
 Once results are in the graph, run `graph-preprocess` and use `graph-add` for the semantic layer. Every entity and edge requires currently approved `sourceResultIds` from the supporting `resultProvenance` rows; result edges must use `resultProvenance[].id`, not a URL-derived guess. Give a new entity an explicit `id` when an edge in the same request references it.
 
 ```bash
-digdig graph-add <session> --data-file ./.digdig/sessions/<session>/agent-inputs/graph.json
+dg graph-add <session> --data-file ./.digdig/sessions/<session>/agent-inputs/graph.json
 ```
 
 Edges can reference any existing node type: `e:` (entity), `r:` (result), `q:` (query), `d:` (domain), `p:` (path).
@@ -93,7 +94,7 @@ See [Claim-Evidence-Review Audit](claim-evidence-review.md) for the full procedu
 
 ## Content Extraction
 
-`digdig extract --session <session>` reads only unextracted, unskipped URLs with fewer than two failures, fetches page content, and writes it back. It does NOT add new results. Explicit session URLs can be re-extracted. This means:
+`dg extract --session <session>` reads only unextracted, unskipped URLs with fewer than two failures, fetches page content, and writes it back. It does NOT add new results. Explicit session URLs can be re-extracted. This means:
 
 - Extract at any time, even before approval
 - After extraction, quality assessment has richer content data

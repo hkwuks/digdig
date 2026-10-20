@@ -18,12 +18,12 @@ Phase 1-8: deep-search SOP
 
 ```bash
 # Step 1: Save all claims as UTF-8 JSON under this session, then submit them.
-digdig claim-add <session> --claims-file ./.digdig/sessions/<session>/agent-inputs/claims.json
+dg claim-add <session> --claims-file ./.digdig/sessions/<session>/agent-inputs/claims.json
 # Returns claims and evidence candidates for every claim.
 
 # Step 2: Save {resultId, quote, charStart, charEnd} as UTF-8 JSON under this
 # session. For each claim, confirm evidence and submit a stance.
-digdig evidence-verify <session> --claim-id "cl_001" --evidence-file ./.digdig/sessions/<session>/agent-inputs/evidence-cl_001.json --stance "support" --reason "Official docs confirm directly" --complete
+dg evidence-verify <session> --claim-id "cl_001" --evidence-file ./.digdig/sessions/<session>/agent-inputs/evidence-cl_001.json --stance "support" --reason "Official docs confirm directly" --complete
 # Returns evidence, verdict, and review; --complete triggers aggregation.
 
 # Repeat Step 2 for cl_002 and cl_003.

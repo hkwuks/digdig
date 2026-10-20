@@ -17,6 +17,7 @@ export interface SearXNGConfig {
     proxyUrl: string;
     timeout: number;
     ollamaApiKey: string;
+    deepseekApiKey: string;
 }
 
 const DEFAULT_CONFIG: SearXNGConfig = {
@@ -26,8 +27,11 @@ const DEFAULT_CONFIG: SearXNGConfig = {
     defaultLimit: 10,
     useProxy: false,
     proxyUrl: '',
-    timeout: 30000,
-    ollamaApiKey: ''
+    // Same default as config.ts, so `init` does not write a value the README
+    // would then have to contradict.
+    timeout: 10000,
+    ollamaApiKey: '',
+    deepseekApiKey: ''
 };
 
 class ConfiguratorInterface {
@@ -150,12 +154,20 @@ export async function initConfig(): Promise<number> {
         config.proxyUrl = '';
     }
 
-    // Configure Ollama (fallback search)
-    console.log('\n--- Ollama (Fallback Search) ---');
-    console.log('Optional: when SearXNG is unavailable, digdig falls back to Ollama web search.');
+    // Ollama and DeepSeek are extra backends the user picks explicitly with -e.
+    // Neither is an automatic fallback: an unreachable SearXNG fails the search.
+    console.log('\n--- Ollama Web Search (optional) ---');
+    console.log('Optional: searched with -e ollama. Not a fallback for an unreachable SearXNG.');
     config.ollamaApiKey = await configurator.question(
         'Ollama API key (leave blank to skip)',
         config.ollamaApiKey
+    );
+
+    console.log('\n--- DeepSeek Search (optional) ---');
+    console.log('Optional: searched with -e deepseek. Billed per successful request.');
+    config.deepseekApiKey = await configurator.question(
+        'DeepSeek API key (leave blank to skip)',
+        config.deepseekApiKey
     );
 
     // Review and confirm
@@ -175,7 +187,7 @@ export async function initConfig(): Promise<number> {
             console.log(`\n✓ Configuration saved to ${configPath}`);
             console.log('\n✨ Setup complete! You can now use digdig to search.\n');
             console.log('Try it out:');
-            console.log('  digdig "TypeScript tutorial"\n');
+            console.log('  dg "TypeScript tutorial"\n');
             return 0;
         } catch (error) {
             console.error(`\n✗ Failed to save configuration: ${error instanceof Error ? error.message : String(error)}`);

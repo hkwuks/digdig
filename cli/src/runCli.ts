@@ -371,7 +371,7 @@ function formatSessionReportAsMarkdown(data: any): string {
 
     // Recovery hint
     if (q.verdict !== 'good') {
-        lines.push(`> Recovery: ${data.recovery.availableStrategies.length} strategies available. Use \`digdig recovery-analysis <session>\` for details.`);
+        lines.push(`> Recovery: ${data.recovery.availableStrategies.length} strategies available. Use \`dg recovery-analysis <session>\` for details.`);
         lines.push('');
     }
 
@@ -507,7 +507,7 @@ async function runSearch(
         const envelope = createErrorEnvelope(
             'MISSING_QUERY',
             'No search query provided',
-            { hint: 'Use: digdig "your search query" or digdig --queries "q1,q2,q3"' }
+            { hint: 'Use: dg "your search query" or dg --queries "q1,q2,q3"' }
         );
         console.log(JSON.stringify(envelope, null, 2));
         return 1;
@@ -909,8 +909,8 @@ export function createProgram(): Command {
     const program = new Command();
 
     program
-        .name('digdig')
-        .description('digdig - Web Search Tool (SearXNG, Ollama, DeepSeek)')
+        .name('dg')
+        .description('dg (digdig) - Web Search Tool (SearXNG, Ollama, DeepSeek)')
         .version(pkg.version)
         .argument('[query]', 'Search query')
         .option('-e, --engines <engines>', `Comma-separated list of search engines; "${EXTERNAL_PROVIDERS.join('"/"')}" route to non-SearXNG providers`)
@@ -932,7 +932,7 @@ export function createProgram(): Command {
         .option('--approve-file <path>', 'UTF-8 approval JSON array under this session agent-inputs directory')
         .option('--skip-file <path>', 'UTF-8 skip JSON array under this session agent-inputs directory')
         .option('--unskip-file <path>', 'UTF-8 restore JSON array under this session agent-inputs directory')
-        .option('--health', 'Check SearXNG server health')
+        .option('--health', 'Check the SearXNG backend health (Ollama/DeepSeek have no health endpoint)')
         .option('--engines-list', 'List available search engines')
         .option('--categories-list', 'List available categories')
         .allowUnknownOption(false);
@@ -1015,7 +1015,7 @@ export function createProgram(): Command {
         .option('--tool <tool>', 'Origin tool (may instead be supplied per item)')
         .addHelpText('after', `
 Examples:
-  digdig results-add my-session --kind search --tool exa --query "async runtime" --data-file .digdig/sessions/my-session/agent-inputs/results.json
+  dg results-add my-session --kind search --tool exa --query "async runtime" --data-file .digdig/sessions/my-session/agent-inputs/results.json
 
 Search imports await extraction; extracted imports await approval.`)
         .action(async (session, opts) => {
@@ -1036,8 +1036,8 @@ Search imports await extraction; extracted imports await approval.`)
         .option('-t, --type <exts>', 'File extensions (comma-separated)', 'md,txt')
         .addHelpText('after', `
 Examples:
-  digdig doc-index ./docs
-  digdig doc-index --type md,txt ~/notes`)
+  dg doc-index ./docs
+  dg doc-index --type md,txt ~/notes`)
         .action(async (path, opts) => {
             const code = await runDocIndex({
                 path,
@@ -1056,8 +1056,8 @@ Examples:
         .option('--boost <field:w,...>', 'Field weights (e.g. title:3,headings:2,content:1)', 'title:3,headings:2,content:1')
         .addHelpText('after', `
 Examples:
-  digdig doc-search my-session "async" --path ./docs
-  digdig doc-search my-session -k 5 "deploy" --path ~/notes`)
+  dg doc-search my-session "async" --path ./docs
+  dg doc-search my-session -k 5 "deploy" --path ~/notes`)
         .action(async (session, query, opts) => {
             const code = await runDocSearch({
                 session,
@@ -1097,8 +1097,8 @@ Examples:
         .option('-f, --format <fmt>', 'Output format: json (default), md')
         .addHelpText('after', `
 Examples:
-  digdig graph-obfuscate my-session --list
-  digdig graph-obfuscate my-session --fallback-rules --format md
+  dg graph-obfuscate my-session --list
+  dg graph-obfuscate my-session --fallback-rules --format md
 
 Note: --fallback-rules is experimental and may produce low-quality obfuscation labels.
 Recommended workflow: use --list to get candidates, then have an LLM generate obfuscated labels,
@@ -1124,8 +1124,8 @@ and write them back via graph-add.`)
         .option('-f, --format <fmt>', 'Output format: json (default), md')
         .addHelpText('after', `
 Examples:
-  digdig graph-preprocess my-session
-  digdig graph-preprocess my-session --top 50 --format md`)
+  dg graph-preprocess my-session
+  dg graph-preprocess my-session --top 50 --format md`)
         .action(async (session, opts) => {
             const sessionDir = resolveSessionPath(session);
             const result = graphPreprocess(sessionDir, {
@@ -1148,8 +1148,8 @@ Examples:
         .option('-f, --format <fmt>', 'Output format: json (default), md')
         .addHelpText('after', `
 Examples:
-  digdig suggest-queries my-session
-  digdig suggest-queries my-session --format md`)
+  dg suggest-queries my-session
+  dg suggest-queries my-session --format md`)
         .action(async (session, opts) => {
             const sessionDir = resolveSessionPath(session);
             const graph = loadSessionGraph(sessionDir);
@@ -1176,8 +1176,8 @@ Examples:
         .option('-f, --format <fmt>', 'Output format: json (default), md')
         .addHelpText('after', `
 Examples:
-  digdig strategy-info my-session
-  digdig strategy-info my-session --format md`)
+  dg strategy-info my-session
+  dg strategy-info my-session --format md`)
         .action(async (session, opts) => {
             const sessionDir = resolveSessionPath(session);
             const graph = loadSessionGraph(sessionDir);
@@ -1202,8 +1202,8 @@ Examples:
         .option('-f, --format <fmt>', 'Output format: json (default), md')
         .addHelpText('after', `
 Examples:
-  digdig recovery-analysis my-session
-  digdig recovery-analysis my-session --format md`)
+  dg recovery-analysis my-session
+  dg recovery-analysis my-session --format md`)
         .action(async (session, opts) => {
             const sessionDir = resolveSessionPath(session);
             const graph = loadSessionGraph(sessionDir);
@@ -1227,8 +1227,8 @@ Examples:
         .option('-f, --format <fmt>', 'Output format: json (default), md')
         .addHelpText('after', `
 Examples:
-  digdig session-report my-session
-  digdig session-report my-session --format md`)
+  dg session-report my-session
+  dg session-report my-session --format md`)
         .action(async (session, opts) => {
             const sessionDir = resolveSessionPath(session);
             const graph = loadSessionGraph(sessionDir);
@@ -1252,8 +1252,8 @@ Examples:
         .option('-f, --format <fmt>', 'Output format: md (default), json')
         .addHelpText('after', `
 Examples:
-  digdig graph-explore my-session --seed "tokio"
-  digdig graph-explore my-session --seed "tokio" --format json
+  dg graph-explore my-session --seed "tokio"
+  dg graph-explore my-session --seed "tokio" --format json
 
 See also: graph-drill, graph-search`)
         .action(async (session, opts) => {
@@ -1274,8 +1274,8 @@ See also: graph-drill, graph-search`)
         .option('-f, --format <fmt>', 'Output format: md (default), json')
         .addHelpText('after', `
 Examples:
-  digdig graph-drill my-session --seed "tokio" --relations "alternative_to"
-  digdig graph-drill my-session --seed "tokio" --relations "alternative_to,depends_on" --format json
+  dg graph-drill my-session --seed "tokio" --relations "alternative_to"
+  dg graph-drill my-session --seed "tokio" --relations "alternative_to,depends_on" --format json
 
 See also: graph-explore`)
         .action(async (session, opts) => {
@@ -1296,8 +1296,8 @@ See also: graph-explore`)
         .option('-f, --format <fmt>', 'Output format: md (default), json')
         .addHelpText('after', `
 Examples:
-  digdig graph-traverse my-session --path "p:chain_001"
-  digdig graph-traverse my-session --path "p:chain_001" --format json
+  dg graph-traverse my-session --path "p:chain_001"
+  dg graph-traverse my-session --path "p:chain_001" --format json
 
 Note: Path nodes are created by graph-preprocess. If no paths exist,
 the command will list available path node IDs.`)
@@ -1319,8 +1319,8 @@ the command will list available path node IDs.`)
         .option('-f, --format <fmt>', 'Output format: md (default), json')
         .addHelpText('after', `
 Examples:
-  digdig graph-search my-session --keyword "async"
-  digdig graph-search my-session --keyword "tokio" --limit 5 --format json
+  dg graph-search my-session --keyword "async"
+  dg graph-search my-session --keyword "tokio" --limit 5 --format json
 
 See also: graph-explore (for viewing relations of a known entity)`)
         .action(async (session, opts) => {
@@ -1344,8 +1344,8 @@ See also: graph-explore (for viewing relations of a known entity)`)
         .option('-f, --format <fmt>', 'Output format: json (default), md')
         .addHelpText('after', `
 Examples:
-  digdig claim-add my-session --claim-file .digdig/sessions/my-session/agent-inputs/claim.json
-  digdig claim-add my-session --claims-file .digdig/sessions/my-session/agent-inputs/claims.json`)
+  dg claim-add my-session --claim-file .digdig/sessions/my-session/agent-inputs/claim.json
+  dg claim-add my-session --claims-file .digdig/sessions/my-session/agent-inputs/claims.json`)
         .action(async (session, opts) => {
             const code = await runClaimAdd(session, {
                 claimFile: opts.claimFile,
@@ -1499,7 +1499,7 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                 const envelope = createErrorEnvelope(
                     'QUALITY_NO_SESSION',
                     '--quality requires --session',
-                    { hint: 'Use: digdig --session <name> --quality' }
+                    { hint: 'Use: dg --session <name> --quality' }
                 );
                 console.log(JSON.stringify(envelope, null, 2));
                 process.exit(1);
@@ -1601,7 +1601,7 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                         approval.error.message,
                         {
                             details: { quality, selectedResults, error: approval.error },
-                            hint: 'Run digdig extract --session <session> for unverified results, then review and approve again.',
+                            hint: 'Run dg extract --session <session> for unverified results, then review and approve again.',
                         }
                     ), null, 2));
                     process.exit(1);

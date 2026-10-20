@@ -2,7 +2,7 @@
  * Ollama Web Search Adapter
  *
  * Maps Ollama's web_search REST API to the same SearchResponse interface
- * used by SearXNGService, so it can serve as a drop-in fallback.
+ * used by SearXNGService, so it can be selected explicitly with `-e ollama`.
  */
 
 import axios, { AxiosInstance } from 'axios';

@@ -1,97 +1,97 @@
 ---
 name: digdig
-description: "Use digdig as the first-choice web search CLI for current, external, factual, technical, product, documentation, version, price, news, recommendation, comparison, and error-resolution questions. For L1 use a simple digdig query. For L2/L3 use digdig --session. If digdig fails or returns insufficient results, retry once with digdig.CMD on Windows, then use other search tools as fallback."
+description: "Use dg (the digdig CLI) as the first-choice web search CLI for current, external, factual, technical, product, documentation, version, price, news, recommendation, comparison, and error-resolution questions. For L1 use a simple dg query. For L2/L3 use dg --session. If dg fails or returns insufficient results, retry once with dg.CMD on Windows, then use other search tools as fallback."
 ---
 
 # digdig Web Search
 
-> Prefer `digdig` before other web search tools for external or time-sensitive facts. Use other search tools only as fallback or cross-check.
+> Prefer `dg` before other web search tools for external or time-sensitive facts. Use other search tools only as fallback or cross-check.
 
-> **Network permission (Codex sandbox)**: `digdig` makes network requests — usually to a self-hosted SearXNG server on localhost/LAN (e.g. `http://localhost:8888` or `http://localhost:8080`), though the base URL may point at a remote host. In Codex's manual-authorization mode the sandbox can block outbound traffic to local/LAN/remote addresses, so if an `digdig` command fails with a sandbox/network error, request network access, then retry the same command before falling back to other search tools.
+> **Network permission (Codex sandbox)**: `dg` makes network requests — usually to a self-hosted SearXNG server on localhost/LAN (e.g. `http://localhost:8888` or `http://localhost:8080`), though the base URL may point at a remote host. In Codex's manual-authorization mode the sandbox can block outbound traffic to local/LAN/remote addresses, so if a `dg` command fails with a sandbox/network error, request network access, then retry the same command before falling back to other search tools.
 
-Use `digdig` CLI to search the web. Results are deduplicated by normalized URL and content Jaccard similarity; session accumulation preserves same-title results when their URLs differ. Search results with empty title or empty snippet are automatically filtered out by CLI.
+Use `dg` CLI to search the web. Results are deduplicated by normalized URL and content Jaccard similarity; session accumulation preserves same-title results when their URLs differ. Search results with empty title or empty snippet are automatically filtered out by CLI.
 
 ## Proactive Usage - Always Search When
 
 | If the user... | Then... |
 |---------------|---------|
-| Asks about any technology, library, framework, tool, or product | Use `digdig` for current info (versions, docs, comparisons, reviews) |
-| Asks "what is", "how to", "tell me about", "find", "compare", "vs" | Use `digdig` when the answer depends on external facts |
-| Reports an error or unexpected behavior | Use `digdig` for solutions, known issues, fixes |
-| Wants a recommendation ("which is better", "best X for Y") | Use `digdig --session` with a multi-round session |
-| Asks about prices, costs, or alternatives | Use `digdig` for current data |
-| Asks about events, dates, or news | Use `digdig`; your training data is outdated for this |
-| Provides a URL and wants content extracted | Use `digdig extract --urls` |
-| Wants to understand a page's full content | Use `digdig extract --urls` to get the article body |
-| Has a question you're not 100% confident about | Use `digdig` to verify |
+| Asks about any technology, library, framework, tool, or product | Use `dg` for current info (versions, docs, comparisons, reviews) |
+| Asks "what is", "how to", "tell me about", "find", "compare", "vs" | Use `dg` when the answer depends on external facts |
+| Reports an error or unexpected behavior | Use `dg` for solutions, known issues, fixes |
+| Wants a recommendation ("which is better", "best X for Y") | Use `dg --session` with a multi-round session |
+| Asks about prices, costs, or alternatives | Use `dg` for current data |
+| Asks about events, dates, or news | Use `dg`; your training data is outdated for this |
+| Provides a URL and wants content extracted | Use `dg extract --urls` |
+| Wants to understand a page's full content | Use `dg extract --urls` to get the article body |
+| Has a question you're not 100% confident about | Use `dg` to verify |
 
 ## Quick Reference
 
 ```bash
 # Simple search
-digdig <query>                                # Search (markdown output)
-digdig --format json <query>                  # Search (JSON output)
-digdig --queries "q1,q2,q3"                  # Multi-query with RRF fusion and dedup
+dg <query>                # Search (markdown output)
+dg --format json <query>  # Search (JSON output)
+dg --queries "q1,q2,q3"   # Multi-query with RRF fusion and dedup
 
 # Deep search session
-digdig --session new --owner "agent-1" --desc "topic" "query"
-digdig --session <session> "more queries"
+dg --session new --owner "agent-1" --desc "topic" "query"
+dg --session <session> "more queries"
 
 # Content extraction
-digdig extract --urls "url1,url2"             # Extract from URLs
-digdig extract --session <session>            # Extract session results
-digdig extract --session <session> --urls "url1" --obscura  # JS-rendering fallback for a selected session URL
-digdig extract --session <session> --urls "url1" --jina     # Agent-selected Jina extraction for a selected session URL
+dg extract --urls "url1,url2"                           # Extract from URLs
+dg extract --session <session>                          # Extract session results
+dg extract --session <session> --urls "url1" --obscura  # JS-rendering fallback for a selected session URL
+dg extract --session <session> --urls "url1" --jina     # Agent-selected Jina extraction for a selected session URL
 
 # Claim-Evidence-Review (L2/L3 only, after search)
-digdig claim-add <session> --claim-file .\.digdig\sessions\<session>\agent-inputs\claim.json           # Add one UTF-8 JSON claim
-digdig claim-add <session> --claims-file .\.digdig\sessions\<session>\agent-inputs\claims.json         # Add UTF-8 JSON claim array
-digdig claim-list <session>                                    # List claims
-digdig evidence-search <session> --claim-id <id>               # Search evidence candidates (read-only)
-digdig evidence-verify <session> --claim-id <id> --evidence-file .\.digdig\sessions\<session>\agent-inputs\evidence.json --stance support --reason "..." --complete
-digdig evidence-list <session> --claim-id <id>                 # List evidence for a claim
-digdig verdict-list <session> --claim-id <id>                  # List verdicts for a claim
-digdig policy-aggregate <session>                              # Manual policy aggregation
-digdig review-list <session>                                   # List reviews
+dg claim-add <session> --claim-file .\.digdig\sessions\<session>\agent-inputs\claim.json    # Add one UTF-8 JSON claim
+dg claim-add <session> --claims-file .\.digdig\sessions\<session>\agent-inputs\claims.json  # Add UTF-8 JSON claim array
+dg claim-list <session>                                                                     # List claims
+dg evidence-search <session> --claim-id <id>                                                # Search evidence candidates (read-only)
+dg evidence-verify <session> --claim-id <id> --evidence-file .\.digdig\sessions\<session>\agent-inputs\evidence.json --stance support --reason "..." --complete
+dg evidence-list <session> --claim-id <id>  # List evidence for a claim
+dg verdict-list <session> --claim-id <id>   # List verdicts for a claim
+dg policy-aggregate <session>               # Manual policy aggregation
+dg review-list <session>                    # List reviews
 
 # Quality & iteration
-digdig --session <session> --quality   # Assess result quality & list pending
+dg --session <session> --quality  # Assess result quality & list pending
 # Save selected {id, revision} objects from quality output, then approve them.
-digdig --session <session> --quality --approve-file .\.digdig\sessions\<session>\agent-inputs\approve.json
-digdig suggest-queries <session>              # Get query suggestions
-digdig strategy-info <session>                # Check search stage
-digdig recovery-analysis <session>            # Get recovery strategies
-digdig session-report <session>               # Full session report
+dg --session <session> --quality --approve-file .\.digdig\sessions\<session>\agent-inputs\approve.json
+dg suggest-queries <session>    # Get query suggestions
+dg strategy-info <session>      # Check search stage
+dg recovery-analysis <session>  # Get recovery strategies
+dg session-report <session>     # Full session report
 
 # Knowledge graph
-digdig graph-preprocess <session>             # TF-IDF + co-occurrence analysis
-digdig results-add <session> --kind search --tool exa --query "source query" --data-file .\.digdig\sessions\<session>\agent-inputs\results.json  # Append external discovery as pending
-digdig graph-add <session> --data-file .\.digdig\sessions\<session>\agent-inputs\graph-data.json       # Add entities/edges (after approval)
-digdig graph-search <session> --keyword "x"   # Discover entities
-digdig graph-search <session> --keyword "x" --limit 5  # Limit results
-digdig graph-explore <session> --seed "x"     # View entity relations
-digdig graph-drill <session> --seed "x" --relations "r1,r2"  # Follow relations
-digdig graph-traverse <session> --path "p:chain_001"  # Traverse reasoning paths
-digdig graph-obfuscate <session> --list       # List obfuscation candidates
+dg graph-preprocess <session>                                                                                                                # TF-IDF + co-occurrence analysis
+dg results-add <session> --kind search --tool exa --query "source query" --data-file .\.digdig\sessions\<session>\agent-inputs\results.json  # Append external discovery as pending
+dg graph-add <session> --data-file .\.digdig\sessions\<session>\agent-inputs\graph-data.json                                                 # Add entities/edges (after approval)
+dg graph-search <session> --keyword "x"                                                                                                      # Discover entities
+dg graph-search <session> --keyword "x" --limit 5                                                                                            # Limit results
+dg graph-explore <session> --seed "x"                                                                                                        # View entity relations
+dg graph-drill <session> --seed "x" --relations "r1,r2"                                                                                      # Follow relations
+dg graph-traverse <session> --path "p:chain_001"                                                                                             # Traverse reasoning paths
+dg graph-obfuscate <session> --list                                                                                                          # List obfuscation candidates
 
 # Local document search
-digdig doc-index <path>                        # Index documents (auto-triggered by doc-search)
-digdig doc-search <session> <query> --path <p>  # Search indexed docs & inject into session
+dg doc-index <path>                         # Index documents (auto-triggered by doc-search)
+dg doc-search <session> <query> --path <p>  # Search indexed docs & inject into session
 
 # Utility
-digdig init                                   # Interactive setup (includes Ollama API key)
-digdig session-list                           # List workspace sessions
-digdig session-delete --older 24              # Delete old sessions
-digdig --engines-list                         # List available engines (includes ollama if configured)
-digdig --categories-list                      # List available categories
-digdig --health                               # Check server status
+dg init                       # Interactive setup (includes Ollama/DeepSeek keys)
+dg session-list               # List workspace sessions
+dg session-delete --older 24  # Delete old sessions
+dg --engines-list             # List available engines (includes ollama/deepseek if configured)
+dg --categories-list          # List available categories
+dg --health                   # Check server status
 ```
 
 ## Search Options
 
 | Option | Example | Purpose |
 |--------|---------|---------|
-| `-e, --engines` | `-e google,github` | Specific search engines (use `ollama` for Ollama web search) |
+| `-e, --engines` | `-e google,github` | Specific search engines (`ollama` / `deepseek` route to those backends instead of SearXNG) |
 | `-c, --categories` | `-c it,science` | Filter by category |
 | `-l, --limit` | `-l 20` | Max results (default: 10) |
 | `-p, --page` | `-p 2` | Pagination |
@@ -114,11 +114,11 @@ digdig --health                               # Check server status
 Extract full article content from web pages. Use `--obscura` as a fallback for JS-heavy pages. Jina is rate-limited: inspect the default extraction first, then let the Agent decide whether a specific URL needs `--jina`.
 
 ```bash
-digdig extract --urls "https://example.com/a,https://example.com/b"
-digdig extract --session <session-name>
-digdig extract --urls "https://spa-site.com" --obscura
+dg extract --urls "https://example.com/a,https://example.com/b"
+dg extract --session <session-name>
+dg extract --urls "https://spa-site.com" --obscura
 # After reviewing the default extraction, use Jina only for a selected URL and merge it back to the session.
-digdig extract --urls "https://spa-site.com" --session <session-name> --jina
+dg extract --urls "https://spa-site.com" --session <session-name> --jina
 ```
 
 | Option | Purpose |
@@ -137,7 +137,7 @@ Deep search enables multi-round iterative research with session accumulation, qu
 > Once a deep search session is created, **ALL results from ALL search backends MUST go into that same session** via `results-add`. The session is the state container; abandoning it discards the knowledge graph, quality history, redundancy state, and strategy progression.
 >
 > **Allowed:**
-> - Switch search backends when one fails (digdig -> tavily -> exa -> open-web-search)
+> - Switch search backends when one fails (dg -> tavily -> exa -> open-web-search)
 > - Inject external results into the current session via `results-add`
 > - Extract content from URLs independently and add to the session
 >
@@ -166,17 +166,17 @@ For L2/L3 research, keep a small **Query Plan in the Agent's working notes**. It
 All results go into the same pool, same pipeline:
 
 ```text
-digdig search or results-add -> results.json (pending)
-digdig extract --session     -> writes content + extractedAt on success
-digdig --quality             -> Agent reviews pending results
-digdig --approve-file        -> approved results enter the structural graph
-digdig graph-add             -> Agent adds semantic entities/edges
+dg search or results-add -> results.json (pending)
+dg extract --session     -> writes content + extractedAt on success
+dg --quality             -> Agent reviews pending results
+dg --approve-file        -> approved results enter the structural graph
+dg graph-add             -> Agent adds semantic entities/edges
 L2/L3 only:
   claim-add -> evidence-verify -> policy-aggregate -> review
   Agent adjusts final output and cites only approved claims.
 ```
 
-- **All results** (digdig + external) become `pending` in the same `results.json`
+- **All results** (dg + external) become `pending` in the same `results.json`
 - **Extract** does not add results. A successful session merge writes both `content` and `extractedAt`.
 - **Approve** accepts only entries reported as `verified: true`, then injects them into graph (structural edges).
 - **Failed extraction** stays pending. It cannot be approved or graph-injected until a later extraction succeeds.
@@ -187,26 +187,26 @@ L2/L3 only:
 
 ```bash
 # Create session and search
-digdig --session new --owner "agent-1" --desc "topic" "query"
+dg --session new --owner "agent-1" --desc "topic" "query"
 # Output includes session path, use it for subsequent commands
 
 # Extract content from results. Inspect `stats.success`, `stats.failed`, and
 # `session.updated`; a failed URL remains pending.
-digdig extract --session <session>
+dg extract --session <session>
 
 # Assess quality, then approve only listed entries with verified: true.
-digdig --session <session> --quality
-digdig --session <session> --quality --approve-file .\.digdig\sessions\<session>\agent-inputs\approve.json
+dg --session <session> --quality
+dg --session <session> --quality --approve-file .\.digdig\sessions\<session>\agent-inputs\approve.json
 
 # Preprocess session content, then add entities/edges to the graph.
-digdig graph-preprocess <session>
-digdig graph-add <session> --data-file .\.digdig\sessions\<session>\agent-inputs\graph-data.json
+dg graph-preprocess <session>
+dg graph-add <session> --data-file .\.digdig\sessions\<session>\agent-inputs\graph-data.json
 
 # Get suggestions if quality needs improvement
-digdig suggest-queries <session>
+dg suggest-queries <session>
 
 # Continue searching with redundancy check
-digdig "follow-up" --session <session> --redundancy warn
+dg "follow-up" --session <session> --redundancy warn
 ```
 
 ### Session Management
@@ -214,15 +214,15 @@ digdig "follow-up" --session <session> --redundancy warn
 Sessions are stored under `.digdig/sessions/` in the current working directory. 
 
 ```bash
-digdig session-list                           # List all sessions
-digdig session-delete <name>                  # Delete a session
-digdig session-delete --older 24              # Delete sessions older than 24h
+dg session-list               # List all sessions
+dg session-delete <name>      # Delete a session
+dg session-delete --older 24  # Delete sessions older than 24h
 ```
 
 ### Quality Assessment
 
 ```bash
-digdig --session <session> --quality
+dg --session <session> --quality
 ```
 
 Returns 3 independent diagnostics: contentDepth, sourceDiversity, novelty. Verdict: good / acceptable / poor. Based on verdict, use `suggest-queries` or `recovery-analysis` for next steps. Quality does not verify factual correctness, relevance, source authority, or Claim support.
@@ -231,11 +231,11 @@ All results accumulate as *pending* in the same pool. At **>=30 pending**, CLI w
 
 ```bash
 # View pending results with id, revision, verification state, and quality score
-digdig --session <session> --quality
+dg --session <session> --quality
 
 # Save selected {id, revision} objects only when their JSON output says verified: true.
 # Any unverified, duplicate, stale, or invalid selection makes the whole request fail without writes.
-digdig --session <session> --quality --approve-file .\.digdig\sessions\<session>\agent-inputs\approve.json
+dg --session <session> --quality --approve-file .\.digdig\sessions\<session>\agent-inputs\approve.json
 ```
 
 One `--approve-file` call processes selected results from all sources together.
@@ -251,18 +251,18 @@ Results must be approved first so they exist in the structural layer. Then use `
 ```bash
 # Correct order:
 # 1. Search or results-add
-digdig --session <session> "query"
-digdig results-add <session> --kind search --tool exa --query "source query" --data-file .\.digdig\sessions\<session>\agent-inputs\external-results.json
+dg --session <session> "query"
+dg results-add <session> --kind search --tool exa --query "source query" --data-file .\.digdig\sessions\<session>\agent-inputs\external-results.json
 
 # 2. Extract, and check that stats.success and session.updated are nonzero
-digdig extract --session <session>
+dg extract --session <session>
 
 # 3. Inspect quality output; approve only verified pending results. This builds the structural graph.
-digdig --session <session> --quality --approve-file .\.digdig\sessions\<session>\agent-inputs\approve.json
+dg --session <session> --quality --approve-file .\.digdig\sessions\<session>\agent-inputs\approve.json
 
 # 4. Preprocess session content, then add graph JSON from a file.
-digdig graph-preprocess <session>
-digdig graph-add <session> --data-file .\.digdig\sessions\<session>\agent-inputs\graph-data.json
+dg graph-preprocess <session>
+dg graph-add <session> --data-file .\.digdig\sessions\<session>\agent-inputs\graph-data.json
 ```
 
 **External results**: Import search discovery with `results-add --kind search` -> `extract` -> `--approve-file` -> `graph-add`. If the external tool already returned a body, import it with `--kind extracted`, non-empty `content`, and `extractor`; it awaits approval without re-extraction.
@@ -301,7 +301,7 @@ For L2/L3, stop only when all core Query Plan rows are `covered`, or remaining r
 
 ## When to Use
 
-**Simple Search** (`digdig <query>`): specific facts, API docs, error solutions, finding a URL.
+**Simple Search** (`dg <query>`): specific facts, API docs, error solutions, finding a URL.
 
 **Deep Search** (`--session`): multi-dimensional comparison, cross-validation needed, research reports, or initial search reveals incomplete information.
 
@@ -311,31 +311,31 @@ See SOP for detailed L1/L2/L3 complexity guidelines.
 
 | Command | Purpose |
 |---------|---------|
-| `digdig <query>` | Search the web |
-| `digdig extract` | Extract page content |
-| `digdig results-add` | Append external results as pending |
-| `digdig graph-preprocess` | TF-IDF + co-occurrence analysis |
-| `digdig graph-add` | Add entities/edges to graph |
-| `digdig graph-search` | Discover entities by keyword |
-| `digdig graph-explore` | View entity relations |
-| `digdig graph-drill` | Follow specific relations |
-| `digdig graph-traverse` | Traverse reasoning path |
-| `digdig graph-obfuscate` | Entity obfuscation (experimental) |
-| `digdig suggest-queries` | Query suggestions for next round |
-| `digdig strategy-info` | Current search stage |
-| `digdig recovery-analysis` | Recovery strategy analysis |
-| `digdig session-report` | Full session history |
-| `digdig session-list` | List all sessions |
-| `digdig session-delete` | Delete sessions |
-| `digdig init` | Interactive setup |
-| `digdig claim-add` | Submit claims (single or batch, auto evidence-search) |
-| `digdig claim-list` | List claims |
-| `digdig evidence-search` | Search candidate evidence (read-only) |
-| `digdig evidence-verify` | Confirm evidence + submit stance (+ optional auto-policy) |
-| `digdig evidence-list` | List evidence for a claim |
-| `digdig verdict-list` | List verdicts for a claim |
-| `digdig policy-aggregate` | Run policy aggregation manually |
-| `digdig review-list` | List reviews |
+| `dg <query>` | Search the web |
+| `dg extract` | Extract page content |
+| `dg results-add` | Append external results as pending |
+| `dg graph-preprocess` | TF-IDF + co-occurrence analysis |
+| `dg graph-add` | Add entities/edges to graph |
+| `dg graph-search` | Discover entities by keyword |
+| `dg graph-explore` | View entity relations |
+| `dg graph-drill` | Follow specific relations |
+| `dg graph-traverse` | Traverse reasoning path |
+| `dg graph-obfuscate` | Entity obfuscation (experimental) |
+| `dg suggest-queries` | Query suggestions for next round |
+| `dg strategy-info` | Current search stage |
+| `dg recovery-analysis` | Recovery strategy analysis |
+| `dg session-report` | Full session history |
+| `dg session-list` | List all sessions |
+| `dg session-delete` | Delete sessions |
+| `dg init` | Interactive setup |
+| `dg claim-add` | Submit claims (single or batch, auto evidence-search) |
+| `dg claim-list` | List claims |
+| `dg evidence-search` | Search candidate evidence (read-only) |
+| `dg evidence-verify` | Confirm evidence + submit stance (+ optional auto-policy) |
+| `dg evidence-list` | List evidence for a claim |
+| `dg verdict-list` | List verdicts for a claim |
+| `dg policy-aggregate` | Run policy aggregation manually |
+| `dg review-list` | List reviews |
 
 ## Tips
 
@@ -345,7 +345,8 @@ See SOP for detailed L1/L2/L3 complexity guidelines.
 - If searches fail, retry the same command with the required sandbox/network permission before using fallback tools
 - Use `--quality` after accumulating enough pending results (>=30 triggers a warning)
 - Use `--redundancy warn` to avoid repeating similar queries
-- **Ollama web search**: If `ollamaApiKey` is configured (via `digdig init` or `OLLAMA_API_KEY` env var), `ollama` appears in `--engines-list`. L1: use `--engines ollama` to search via Ollama alongside SearXNG. L2/L3: Agent uses `results-add --tool ollama --kind search` to inject Ollama results into the session pipeline.
+- **Ollama web search**: If `ollamaApiKey` is configured (via `dg init` or `OLLAMA_API_KEY` env var), `ollama` appears in `--engines-list`. L1: use `--engines ollama` to search via Ollama. L2/L3: Agent uses `results-add --tool ollama --kind search` to inject Ollama results into the session pipeline. Ollama is **not** an automatic fallback — an unreachable SearXNG fails the search rather than switching backends.
+- **DeepSeek Search**: Same rules with `deepseekApiKey` / `DEEPSEEK_API_KEY` and `--engines deepseek`. Billed per successful request, so prefer it for targeted L1 lookups rather than broad exploration.
 
 ## Result Quality Filtering
 

@@ -58,10 +58,10 @@ Choose tool sequences based on problem complexity:
 
 ```bash
 # Step 1: Single search
-digdig "FastAPI latest version" -l 5
+dg "FastAPI latest version" -l 5
 
 # Step 2 (optional): Extract official page for verification
-digdig extract --urls "https://pypi.org/project/fastapi/"
+dg extract --urls "https://pypi.org/project/fastapi/"
 ```
 
 **Stop Conditions**:
@@ -83,30 +83,30 @@ digdig extract --urls "https://pypi.org/project/fastapi/"
 
 ```bash
 # Step 1: Create Session
-digdig --session new --owner "agent-1" --desc "Vector DB comparison" "vector database 2026 Pinecone Weaviate Qdrant comparison"
+dg --session new --owner "agent-1" --desc "Vector DB comparison" "vector database 2026 Pinecone Weaviate Qdrant comparison"
 
 # Step 2: Extract, then preprocess the extracted content
-digdig extract --session <session>
-digdig graph-preprocess <session> --format json
+dg extract --session <session>
+dg graph-preprocess <session> --format json
 # For a JS-heavy page, select the concrete session URL and use Obscura:
-# digdig extract --session <session> --urls "https://example.com/page" --obscura
+# dg extract --session <session> --urls "https://example.com/page" --obscura
 
 # Step 3: Quality assessment + approve selected {id, revision} objects into the structural graph
-digdig --session <session> --quality
-digdig --session <session> --quality --approve-file .\.digdig\sessions\<session>\agent-inputs\approve.json
+dg --session <session> --quality
+dg --session <session> --quality --approve-file .\.digdig\sessions\<session>\agent-inputs\approve.json
 
 # Step 4: Agent writes graph.json with approved sourceResultIds, then builds the semantic graph.
-digdig graph-add <session> --data-file .\.digdig\sessions\<session>\agent-inputs\graph.json
+dg graph-add <session> --data-file .\.digdig\sessions\<session>\agent-inputs\graph.json
 
 # Step 5: If a Query Plan gap remains, get suggestions + supplementary search
-digdig suggest-queries <session> --format json
-digdig --session <session> --queries "Pinecone pricing 2026,Weaviate vs Qdrant benchmark" --redundancy warn
+dg suggest-queries <session> --format json
+dg --session <session> --queries "Pinecone pricing 2026,Weaviate vs Qdrant benchmark" --redundancy warn
 
 # Return to Steps 2-4 for every new result batch: extract, preprocess,
 # approve, then add any needed entities or edges.
 
 # Step 6: Explore graph to verify coverage
-digdig graph-explore <session> --seed "Pinecone" --format json
+dg graph-explore <session> --seed "Pinecone" --format json
 ```
 
 **Stop Conditions**:
@@ -142,17 +142,17 @@ Before searching, create this plan in the Agent's working notes. It is not persi
 | `<question>` | official / independent / counter-evidence / current source | unsearched | `<query only when a gap exists>` |
 
 ```bash
-digdig --session new --owner "researcher" --desc "RAG Vector DB deep research" --queries "vector database 2026 ranking,vector DB for RAG comparison"
+dg --session new --owner "researcher" --desc "RAG Vector DB deep research" --queries "vector database 2026 ranking,vector DB for RAG comparison"
 ```
 
 #### Phase 2: Preprocessing & Entity Discovery
 
 ```bash
 # Extract key page content
-digdig extract --session <session>
+dg extract --session <session>
 
 # Get TF-IDF terms, co-occurrence pairs, existing entities from extracted content
-digdig graph-preprocess <session> --format json
+dg graph-preprocess <session> --format json
 ```
 
 **Agent Decision Logic**:
@@ -165,8 +165,8 @@ digdig graph-preprocess <session> --format json
 Approve the extracted results before adding semantic entities or edges. This creates the structural result nodes that later edges can reference.
 
 ```bash
-digdig --session <session> --quality
-digdig --session <session> --quality --approve-file .\.digdig\sessions\<session>\agent-inputs\approve.json
+dg --session <session> --quality
+dg --session <session> --quality --approve-file .\.digdig\sessions\<session>\agent-inputs\approve.json
 ```
 
 #### Phase 4: Build Knowledge Graph
@@ -174,7 +174,7 @@ digdig --session <session> --quality --approve-file .\.digdig\sessions\<session>
 > **Before Phase 4**: Approved results must already exist in the graph via `--quality --approve-file`. `graph-add` only accepts entities and edges; results go through the pending pipeline first.
 
 ```bash
-digdig graph-add <session> --data-file .\.digdig\sessions\<session>\agent-inputs\graph.json
+dg graph-add <session> --data-file .\.digdig\sessions\<session>\agent-inputs\graph.json
 ```
 
 The knowledge graph has two layers:
@@ -197,15 +197,15 @@ References to non-existent nodes are skipped and reported in `skippedEdges`.
 
 ```bash
 # Step 1: Save external discovery JSON under the session, then import it (becomes pending).
-digdig results-add <session> --kind search --tool exa --query "external source query" --data-file .\.digdig\sessions\<session>\agent-inputs\external-search.json
+dg results-add <session> --kind search --tool exa --query "external source query" --data-file .\.digdig\sessions\<session>\agent-inputs\external-search.json
 
 # Step 2: Extract, then run quality assessment and approve (injects into graph)
-digdig extract --session <session>
-digdig --session <session> --quality
-digdig --session <session> --quality --approve-file .\.digdig\sessions\<session>\agent-inputs\approve.json
+dg extract --session <session>
+dg --session <session> --quality
+dg --session <session> --quality --approve-file .\.digdig\sessions\<session>\agent-inputs\approve.json
 
 # Step 3: Save entities and edges with approved sourceResultIds, then add them.
-digdig graph-add <session> --data-file .\.digdig\sessions\<session>\agent-inputs\graph.json
+dg graph-add <session> --data-file .\.digdig\sessions\<session>\agent-inputs\graph.json
 ```
 
 The origin `tool` (`"digdig"` | `"tavily"` | `"exa"` | `"open-web-search"` | ...) records which tool produced each result. digdig-native results default to `"digdig"`. External results participate equally in quality assessment, path discovery, and domain diversity; the graph treats them identically regardless of source.
@@ -244,7 +244,7 @@ The origin `tool` (`"digdig"` | `"tavily"` | `"exa"` | `"open-web-search"` | ...
 #### Phase 5: Query Suggestions
 
 ```bash
-digdig suggest-queries <session> --format json
+dg suggest-queries <session> --format json
 ```
 
 **Agent Decision Logic**:
@@ -257,7 +257,7 @@ digdig suggest-queries <session> --format json
 #### Phase 6: Continue Search (with Redundancy Check)
 
 ```bash
-digdig "follow-up query" --session <session> --redundancy warn
+dg "follow-up query" --session <session> --redundancy warn
 ```
 
 Before this command, update the Query Plan and state which row and evidence gap the query addresses. Then return to Phase 2. Stop when all core rows are `covered`, the round budget is exhausted, or remaining core rows are explicitly `blocked` and will be disclosed.
@@ -265,7 +265,7 @@ Before this command, update the Query Plan and state which row and evidence gap 
 #### Phase 7: Recovery Analysis (when consecutive poor quality)
 
 ```bash
-digdig recovery-analysis <session> --format json
+dg recovery-analysis <session> --format json
 ```
 
 | Strategy | Applicable Scenario | Agent Action |
@@ -283,7 +283,7 @@ results into the current session with `results-add`.
 Also check search stage suggestions:
 
 ```bash
-digdig strategy-info <session> --format json
+dg strategy-info <session> --format json
 ```
 
 - `broad_exploration`: First 2-3 rounds, use general engines
@@ -298,7 +298,7 @@ digdig strategy-info <session> --format json
 1. **Switch backends, not sessions.** Use alternative search tools (tavily, exa, open-web-search, web search MCP tools) to get results.
 2. **Inject all results into the current session** via `results-add`, retaining the query that produced them:
    ```bash
-    digdig results-add <session> --kind search --tool <tool> --query "failed-backend query" --data-file .digdig/sessions/<session>/agent-inputs/fallback-search.json
+    dg results-add <session> --kind search --tool <tool> --query "failed-backend query" --data-file .digdig/sessions/<session>/agent-inputs/fallback-search.json
    ```
 3. **Continue the normal pipeline**: extract -> `--quality` -> `--approve-file` -> graph-preprocess -> `graph-add`.
 
@@ -317,16 +317,16 @@ digdig strategy-info <session> --format json
 
 ```bash
 # Discover entities
-digdig graph-search <session> --keyword <term> --format json
+dg graph-search <session> --keyword <term> --format json
 
 # View entity relations
-digdig graph-explore <session> --seed <entity> --format json
+dg graph-explore <session> --seed <entity> --format json
 
 # Drill into specific relations
-digdig graph-drill <session> --seed <entity> --relations <list> --format json
+dg graph-drill <session> --seed <entity> --relations <list> --format json
 
 # Traverse reasoning paths
-digdig graph-traverse <session> --path <path-id> --format json
+dg graph-traverse <session> --path <path-id> --format json
 ```
 
 **Agent Decision Logic**:
@@ -339,7 +339,7 @@ digdig graph-traverse <session> --path <path-id> --format json
 #### View Full Session Report
 
 ```bash
-digdig session-report <session> --format json
+dg session-report <session> --format json
 ```
 
 ---
@@ -425,7 +425,7 @@ Before outputting final answer, verify:
 - [ ] Every factual conclusion has `[Title](URL)` citation
 - [ ] Single-source conclusions are marked **Confidence: Low** (see [Cross-Validation](evidence-standards.md#2-cross-validation))
 - [ ] Source disagreements show evidence from both sides (see [Conflict Resolution](evidence-standards.md#3-conflict-resolution))
-- [ ] Used `digdig extract` to extract key page content
+- [ ] Used `dg extract` to extract key page content
 - [ ] L2/L3 levels used `--session` and knowledge graph
 - [ ] L3 level used `--quality` assessment and decided next steps accordingly
 - [ ] **L2/L3: ran Claim-Evidence-Review pipeline** (`claim-add` -> `evidence-verify` -> review)
