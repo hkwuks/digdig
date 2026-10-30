@@ -734,7 +734,7 @@ export function createProgram(argv: string[] = []): Command {
         .description('Interactive configuration setup')
         .action(async () => {
             const code = await initConfig();
-            process.exit(code);
+            process.exitCode = code;
         });
 
     program
@@ -760,7 +760,7 @@ export function createProgram(argv: string[] = []): Command {
                 jina: opts.jina ?? false,
             };
             const code = await runExtract(extractor, extractOptions);
-            process.exit(code);
+            process.exitCode = code;
         });
 
     program
@@ -781,7 +781,7 @@ export function createProgram(argv: string[] = []): Command {
                 format: graphFormat,
                 strategy: opts.strategy,
             });
-            process.exit(code);
+            process.exitCode = code;
         });
 
     program
@@ -794,7 +794,7 @@ export function createProgram(argv: string[] = []): Command {
                 session,
                 dataFile: opts.dataFile,
             });
-            process.exit(code);
+            process.exitCode = code;
         });
 
     program
@@ -818,7 +818,7 @@ Search imports await extraction; extracted imports await approval.`)
                 query: opts.query,
                 tool: opts.tool,
             });
-            process.exit(code);
+            process.exitCode = code;
         });
 
     program
@@ -835,7 +835,7 @@ Examples:
                 path,
                 extensions: opts.type?.split(',').map((e: string) => e.trim()).filter(Boolean),
             });
-            process.exit(code);
+            process.exitCode = code;
         });
 
     program
@@ -858,7 +858,7 @@ Examples:
                 topK: opts.top,
                 boost: opts.boost,
             });
-            process.exit(code);
+            process.exitCode = code;
         });
 
     program
@@ -866,7 +866,7 @@ Examples:
         .description('List all sessions')
         .action(async () => {
             const code = await runSessionList();
-            process.exit(code);
+            process.exitCode = code;
         });
 
     program
@@ -876,7 +876,7 @@ Examples:
         .action(async (names, opts) => {
             const nameList = (names || '').split(',').map((n: string) => n.trim()).filter(Boolean);
             const code = await runSessionDelete(nameList, opts.older);
-            process.exit(code);
+            process.exitCode = code;
         });
 
     program
@@ -903,7 +903,7 @@ and write them back via graph-add.`)
                 format: opts.format === 'md' ? 'md' : 'json',
                 skipEntityTypes: opts.skipTypes?.split(',').map((t: string) => t.trim()).filter(Boolean),
             });
-            process.exit(code);
+            process.exitCode = code;
         });
 
     program
@@ -930,7 +930,7 @@ Examples:
             } else {
                 console.log(JSON.stringify(createSuccessEnvelope(result), null, 2));
             }
-            process.exit(0);
+            process.exitCode = 0;
         });
 
     program
@@ -950,7 +950,7 @@ Examples:
                 session,
                 format: subcommandFormat(argv, command.name(), opts.format) === 'md' ? 'md' : 'json',
             });
-            process.exit(code);
+            process.exitCode = code;
         });
 
     program
@@ -975,7 +975,7 @@ Examples:
             } else {
                 console.log(JSON.stringify(createSuccessEnvelope(data), null, 2));
             }
-            process.exit(0);
+            process.exitCode = 0;
         });
 
     program
@@ -1003,7 +1003,7 @@ Examples:
             } else {
                 console.log(JSON.stringify(createSuccessEnvelope(info), null, 2));
             }
-            process.exit(0);
+            process.exitCode = 0;
         });
 
     program
@@ -1027,7 +1027,7 @@ Examples:
             } else {
                 console.log(JSON.stringify(createSuccessEnvelope(analysis), null, 2));
             }
-            process.exit(0);
+            process.exitCode = 0;
         });
 
     program
@@ -1048,7 +1048,7 @@ See also: graph-drill, graph-search`)
                 seed: opts.seed,
                 format: opts.format === 'json' ? 'json' : 'md',
             });
-            process.exit(code);
+            process.exitCode = code;
         });
 
     program
@@ -1071,7 +1071,7 @@ See also: graph-explore`)
                 relations: opts.relations.split(',').map((r: string) => r.trim()).filter(Boolean),
                 format: opts.format === 'json' ? 'json' : 'md',
             });
-            process.exit(code);
+            process.exitCode = code;
         });
 
     program
@@ -1093,7 +1093,7 @@ the command will list available path node IDs.`)
                 pathId: opts.path,
                 format: opts.format === 'json' ? 'json' : 'md',
             });
-            process.exit(code);
+            process.exitCode = code;
         });
 
     program
@@ -1116,7 +1116,7 @@ See also: graph-explore (for viewing relations of a known entity)`)
                 limit: opts.limit,
                 format: opts.format === 'json' ? 'json' : 'md',
             });
-            process.exit(code);
+            process.exitCode = code;
         });
 
     // ── Claim commands ──────────────────────────────────────────
@@ -1138,7 +1138,7 @@ Examples:
                 claimsFile: opts.claimsFile,
                 format: opts.format,
             });
-            process.exit(code);
+            process.exitCode = code;
         });
 
     program
@@ -1152,7 +1152,7 @@ Examples:
                 status: opts.status,
                 format: opts.format,
             });
-            process.exit(code);
+            process.exitCode = code;
         });
 
     program
@@ -1166,7 +1166,7 @@ Examples:
                 claimId: opts.claimId,
                 format: opts.format,
             });
-            process.exit(code);
+            process.exitCode = code;
         });
 
     program
@@ -1190,7 +1190,7 @@ Examples:
                 complete: opts.complete ?? false,
                 format: opts.format,
             });
-            process.exit(code);
+            process.exitCode = code;
         });
 
     program
@@ -1204,7 +1204,7 @@ Examples:
                 claimId: opts.claimId,
                 format: opts.format,
             });
-            process.exit(code);
+            process.exitCode = code;
         });
 
     program
@@ -1218,7 +1218,7 @@ Examples:
                 claimId: opts.claimId,
                 format: opts.format,
             });
-            process.exit(code);
+            process.exitCode = code;
         });
 
     program
@@ -1232,7 +1232,7 @@ Examples:
                 claimId: opts.claimId,
                 format: opts.format,
             });
-            process.exit(code);
+            process.exitCode = code;
         });
 
     program
@@ -1246,7 +1246,7 @@ Examples:
                 status: opts.status,
                 format: opts.format,
             });
-            process.exit(code);
+            process.exitCode = code;
         });
 
     return program;
@@ -1262,7 +1262,7 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
 
         if (opts.version) {
             console.log(program.version());
-            process.exit(0);
+            process.exitCode = 0;
             return;
         }
 
@@ -1276,7 +1276,7 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                     { hint: `Check if SearXNG is running at ${config.baseUrl}` }
                 );
             console.log(JSON.stringify(envelope, null, 2));
-            process.exit(health.status === 'healthy' ? 0 : 1);
+            process.exitCode = health.status === 'healthy' ? 0 : 1;
             return;
         }
 
@@ -1288,7 +1288,7 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                     { hint: 'Use: dg --session <name> --quality' }
                 );
                 console.log(JSON.stringify(envelope, null, 2));
-                process.exit(1);
+                process.exitCode = 1;
                 return;
             }
             const sessionDir = resolveSessionPath(opts.session);
@@ -1322,10 +1322,10 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
             if (opts.skipFile || opts.unskipFile) {
                 if (opts.skipFile && opts.unskipFile) {
                     console.log(JSON.stringify(createErrorEnvelope('MULTIPLE_SKIP_ACTIONS', 'Use only one of --skip-file or --unskip-file'), null, 2));
-                    process.exit(1);
+                    process.exitCode = 1;
                     return;
                 }
-                process.exit(applySkip(opts.skipFile ? '--skip-file' : '--unskip-file', opts.skipFile ?? opts.unskipFile, Boolean(opts.skipFile)) ? 0 : 1);
+                process.exitCode = applySkip(opts.skipFile ? '--skip-file' : '--unskip-file', opts.skipFile ?? opts.unskipFile, Boolean(opts.skipFile)) ? 0 : 1;
                 return;
             }
 
@@ -1338,7 +1338,7 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
             if (opts.approveFile) {
                 const selections = readSelections('--approve-file', opts.approveFile);
                 if (!selections) {
-                    process.exit(1);
+                    process.exitCode = 1;
                     return;
                 }
                 const selectedResults = selections
@@ -1356,7 +1356,7 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                             hint: 'Run dg extract --session <session> for unverified results, then review and approve again.',
                         }
                     ), null, 2));
-                    process.exit(1);
+                    process.exitCode = 1;
                     return;
                 }
 
@@ -1372,7 +1372,7 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                     selectedResults,
                     message: `Approved ${approval.approved} results, injected into graph (+${injectInfo.nodesAdded} nodes, +${injectInfo.edgesAdded} edges)`,
                 }), null, 2));
-                process.exit(0);
+                process.exitCode = 0;
                 return;
             }
 
@@ -1384,7 +1384,7 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                 } else {
                     console.log(JSON.stringify(createSuccessEnvelope(facts), null, 2));
                 }
-                process.exit(0);
+                process.exitCode = 0;
                 return;
             }
 
@@ -1416,7 +1416,7 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                 }
                 console.log('\n**Agent writes ID/revision selections to session agent-inputs, then uses --approve-file.**');
             }
-            process.exit(0);
+            process.exitCode = 0;
             return;
         }
 
@@ -1431,13 +1431,13 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                         { hint: 'Check if SearXNG server is properly configured' }
                     );
                     console.log(JSON.stringify(envelope, null, 2));
-                    process.exit(1);
+                    process.exitCode = 1;
                     return;
                 }
                 engines.push(...configuredProviders);
                 const envelope = createSuccessEnvelope({ engines, source: 'server' });
                 console.log(JSON.stringify(envelope, null, 2));
-                process.exit(0);
+                process.exitCode = 0;
             } catch (error) {
                 const envelope = createErrorEnvelope(
                     'ENGINES_FETCH_FAILED',
@@ -1445,7 +1445,7 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                     { hint: 'Check your network connection and SearXNG server status' }
                 );
                 console.log(JSON.stringify(envelope, null, 2));
-                process.exit(1);
+                process.exitCode = 1;
             }
             return;
         }
@@ -1460,12 +1460,12 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                         { hint: 'Check if SearXNG server is properly configured' }
                     );
                     console.log(JSON.stringify(envelope, null, 2));
-                    process.exit(1);
+                    process.exitCode = 1;
                     return;
                 }
                 const envelope = createSuccessEnvelope({ categories, source: 'server' });
                 console.log(JSON.stringify(envelope, null, 2));
-                process.exit(0);
+                process.exitCode = 0;
             } catch (error) {
                 const envelope = createErrorEnvelope(
                     'CATEGORIES_FETCH_FAILED',
@@ -1473,7 +1473,7 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                     { hint: 'Check your network connection and SearXNG server status' }
                 );
                 console.log(JSON.stringify(envelope, null, 2));
-                process.exit(1);
+                process.exitCode = 1;
             }
             return;
         }
@@ -1499,7 +1499,7 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
             merge: opts.merge,
             redundancy: opts.redundancy as 'warn' | 'adjust' | 'skip' | undefined,
         });
-        process.exit(code);
+        process.exitCode = code;
     });
 
     try {
