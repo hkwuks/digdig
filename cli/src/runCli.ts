@@ -30,7 +30,8 @@ import { initSessionDir, resolveSessionPath, appendSessionResults, loadSessionRe
 import { runSessionList, runSessionDelete, getDefaultSessionRoot } from './commands/session.js';
 import { graphPreprocess } from './deep/graph-preprocess.js';
 import { checkQueryRedundancy, RedundancyConfig } from './deep/query-redundancy.js';
-import { assessLatestResultQuality, assessResultQuality, QualityThresholds } from './deep/quality-assess.js';
+import { assessLatestResultQuality } from './deep/quality-assess.js';
+import { buildPendingReport, describeResult, PendingReport } from './deep/pending-facts.js';
 import { generateQuerySuggestions } from './deep/query-suggest.js';
 import { determineSearchStage, getStrategyInfo } from './deep/search-strategy.js';
 import { analyzeRecoveryOptions, RecoveryAnalysis, RoundQuality } from './deep/recovery-analysis.js';
@@ -178,37 +179,23 @@ function formatPreprocessAsMarkdown(data: any): string {
     return lines.join('\n');
 }
 
-function formatQualityAsMarkdown(data: any): string {
+function formatFactsAsMarkdown(facts: PendingReport): string {
     const lines: string[] = [];
-    lines.push('## Result Quality Assessment');
+    lines.push('## Session Facts');
     lines.push('');
-    const verdictEmoji: Record<string, string> = { good: '✓', acceptable: '△', poor: '✗' };
-    lines.push(`**Verdict:** ${data.verdict.toUpperCase()} ${verdictEmoji[data.verdict] || ''}`);
+    lines.push(`**Results:** ${facts.total} — ${facts.extracted} with an extracted body, ${facts.unextracted} without`);
+    lines.push(`**Sources:** ${facts.sources}`);
+    if (facts.sourceList.length) lines.push(`**Source list:** ${facts.sourceList.join(' · ')}`);
     lines.push('');
 
-    const breakdown = data.breakdown;
-    if (breakdown) {
-        lines.push('| Indicator | Value | Threshold | Pass |');
-        lines.push('|-----------|-------|-----------|------|');
-        const indicators = ['contentDepth', 'sourceDiversity', 'novelty'];
-        const labels: Record<string, string> = {
-            contentDepth: 'Content Depth',
-            sourceDiversity: 'Source Diversity',
-            novelty: 'Novelty',
-        };
-        for (const key of indicators) {
-            const ind = breakdown[key];
-            if (ind) {
-                const valueStr = key === 'novelty' ? ind.value.toFixed(2) : String(Math.round(ind.value * 100) / 100);
-                const thStr = key === 'novelty' ? ind.threshold.toFixed(2) : String(ind.threshold);
-                lines.push(`| ${labels[key] || key} | ${valueStr} | ${thStr} | ${ind.pass ? '✓' : '✗'} |`);
-            }
-        }
+    if (facts.pending.length) {
+        lines.push(`**Awaiting approval:** ${facts.pending.length}`);
         lines.push('');
-    }
-
-    if (data.failedIndicators?.length > 0) {
-        lines.push(`**Failed:** ${data.failedIndicators.join(', ')}`);
+        lines.push('| # | Source | Body | Verified | Round | Title |');
+        lines.push('|---|--------|------|----------|-------|-------|');
+        facts.pending.forEach((fact, index) => {
+            lines.push(`| ${index} | ${fact.domain || '-'} | ${fact.contentLength} | ${fact.verified ? '✓' : '✗'} | ${fact.round ?? '-'} | ${fact.title || fact.url} |`);
+        });
         lines.push('');
     }
 
@@ -798,8 +785,7 @@ export function createProgram(argv: string[] = []): Command {
         .option('--desc <text>', 'Session description (stored in meta.json)')
         .option('--graph <file>', 'Save search result metadata to knowledge graph file')
         .option('--redundancy <action>', 'Query redundancy check: warn | adjust | skip')
-        .option('--quality', 'Assess result quality for current session')
-        .option('--threshold-override <json>', 'Override quality thresholds (JSON, e.g. \'{"contentDepth":100}\')')
+        .option('--quality', 'List pending results with what the session has gathered, as counted facts')
         .option('--approve-file <path>', 'UTF-8 approval JSON array under this session agent-inputs directory')
         .option('--skip-file <path>', 'UTF-8 skip JSON array under this session agent-inputs directory')
         .option('--unskip-file <path>', 'UTF-8 restore JSON array under this session agent-inputs directory')
@@ -1434,46 +1420,12 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                 return;
             }
 
-            let thresholdOverride: Partial<QualityThresholds> | undefined;
-            if (opts.thresholdOverride) {
-                try {
-                    thresholdOverride = JSON.parse(opts.thresholdOverride);
-                } catch {
-                    const envelope = createErrorEnvelope(
-                        'INVALID_THRESHOLD_OVERRIDE',
-                        '--threshold-override must be valid JSON',
-                        { hint: 'Example: \'{"contentDepth":100}\'' }
-                    );
-                    console.log(JSON.stringify(envelope, null, 2));
-                    process.exit(1);
-                    return;
-                }
-            }
-
             // Get pending results for Agent review
             const pending = getPendingResults(sessionDir);
+            const facts = buildPendingReport(sessionResults, pending);
 
-            // For novelty calculation, only compare against approved/historical results
-            const approvedResults = sessionResults.filter(r => r.status === 'approved' && !r.skippedAt && hasVerifiedContent(r));
-            const priorResults = approvedResults.length > 0 ? approvedResults : [];
-
-            const quality = assessResultQuality(
-                pending,
-                priorResults,
-                thresholdOverride
-            );
-            const describeResult = (result: typeof pending[number], index?: number) => ({
-                ...(index === undefined ? {} : { index }),
-                id: result.id,
-                revision: result.revision,
-                url: result.url,
-                source: result.source || 'digdig',
-                contentLength: result.content?.length ?? 0,
-                extractedAt: result.extractedAt,
-                verified: hasVerifiedContent(result),
-            });
-
-            // Approval is allowed only after reporting current quality and verification state.
+            // Approval is allowed only after reporting what is waiting and how
+            // much of it carries a body.
             if (opts.approveFile) {
                 const selections = readSelections('--approve-file', opts.approveFile);
                 if (!selections) {
@@ -1491,7 +1443,7 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                         approval.error.code,
                         approval.error.message,
                         {
-                            details: { quality, selectedResults, error: approval.error },
+                            details: { facts, selectedResults, error: approval.error },
                             hint: 'Run dg extract --session <session> for unverified results, then review and approve again.',
                         }
                     ), null, 2));
@@ -1507,7 +1459,7 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                     total: approval.total,
                     nodesAdded: injectInfo.nodesAdded,
                     edgesAdded: injectInfo.edgesAdded,
-                    quality,
+                    facts,
                     selectedResults,
                     message: `Approved ${approval.approved} results, injected into graph (+${injectInfo.nodesAdded} nodes, +${injectInfo.edgesAdded} edges)`,
                 }), null, 2));
@@ -1516,18 +1468,12 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
             }
 
             if (pending.length === 0) {
-                // No pending results, just show current quality
-                const quality = assessResultQuality(
-                    sessionResults,
-                    priorResults,
-                    thresholdOverride
-                );
-
+                // Nothing to approve: the counts still describe the session.
                 const outputFormat = (opts.format || config.defaultFormat) as 'json' | 'md';
                 if (outputFormat === 'md') {
-                    console.log(formatQualityAsMarkdown(quality));
+                    console.log(formatFactsAsMarkdown(facts));
                 } else {
-                    console.log(JSON.stringify(createSuccessEnvelope(quality), null, 2));
+                    console.log(JSON.stringify(createSuccessEnvelope(facts), null, 2));
                 }
                 process.exit(0);
                 return;
@@ -1535,38 +1481,25 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
 
             const outputFormat = (opts.format || config.defaultFormat) as 'json' | 'md';
             if (outputFormat === 'json') {
-                // JSON output includes pending results with indices for Agent
+                // The body under review, alongside the per-result facts. The
+                // preview is deliberately `content` and not the display
+                // fallback: this list exists so the Agent can read the
+                // extracted text before approving it.
                 console.log(JSON.stringify(createSuccessEnvelope({
-                    quality,
-                    pendingResults: pending.map((r, i) => ({
-                        index: i,
-                        id: r.id,
-                        revision: r.revision,
-                        title: r.title,
-                        url: r.url,
-                        source: r.source || 'digdig',
-                        status: r.status,
-                        // The body under review, deliberately not the display fallback:
-                        // this list exists so the Agent can read the extracted text
-                        // before approving it, and `excerpt` here is the page
-                        // description — the wrong text to judge an extraction by.
-                        contentPreview: r.content ? r.content.slice(0, 300) : undefined,
-                        contentLength: r.content?.length ?? 0,
-                        domain: sourceKey(r.url),
-                        extractedAt: r.extractedAt,
-                        verified: hasVerifiedContent(r),
+                    ...facts,
+                    pending: facts.pending.map((fact, index) => ({
+                        ...fact,
+                        index,
+                        contentPreview: pending[index].content?.slice(0, 300),
                     })),
                     hint: 'Agent reviews content and approves with the id/revision objects returned here.',
                 }), null, 2));
             } else {
-                console.log(formatQualityAsMarkdown(quality));
+                console.log(formatFactsAsMarkdown(facts));
                 console.log('\n## Pending Results (awaiting Agent approval)\n');
                 for (let i = 0; i < pending.length; i++) {
                     const r = pending[i];
                     console.log(`${i}. [${r.title || 'No Title'}](${r.url}) [${r.source || 'digdig'}]`);
-                    // These are extracted results awaiting approval, so the text to
-                    // review is `content` — the body that will be cited — and not the
-                    // display fallback, which would surface the page description.
                     if (r.content) {
                         const preview = r.content.slice(0, 300).replace(/\s+/g, ' ');
                         console.log(`   Preview: ${preview}${r.content.length > 300 ? '...' : ''}`);

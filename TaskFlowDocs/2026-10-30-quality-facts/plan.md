@@ -64,19 +64,24 @@
 - Dependencies: Step 1（`sourceKey`）。
 - Files: `cli/src/deep/pending-facts.ts`（新建）、`cli/src/deep/coverage.ts`（导出 `firstRound`）、`cli/src/runCli.ts`
 - Implementation checklist:
-  - [ ] `coverage.ts` 导出 `firstRound`（`pending-facts` 与 `coverage` 都需要"首次出现轮次"这同一个事实，重复实现会分叉）。
-  - [ ] 新建 `pending-facts.ts`，导出 `PendingFact`、`PendingReport`、`buildPendingReport(results, pending)`，形状见 `spec.md`。
-  - [ ] `buildPendingReport` 的 `contentLength` 取 `result.content?.length ?? 0`，`extracted` 取 `hasVerifiedContent(result)`；**不要**用 `content || excerpt`——这是待审批清单，正文与摘要必须分开，混用会让"未抽取"看起来像"已抽取"。
-  - [ ] `runCli.ts` 删除 `--threshold-override` 选项与 `INVALID_THRESHOLD_OVERRIDE` 解析块。
-  - [ ] `runCli.ts` 的 `--quality` 三分支（approve / 无待审批 / JSON 待审批）改用 `buildPendingReport`；信封里 `quality` 改名 `facts`，`details.quality` 改名 `details.facts`。
-  - [ ] `formatQualityAsMarkdown` 重写为事实表：汇总计数 + 待审批逐条。删掉 `Verdict`、`Threshold`、`Pass` 三列与 `verdictEmoji`。
-  - [ ] 测试：`content` 为空、只有 `excerpt` 的搜索结果 → `extracted: false`、`contentLength: 0`（AC4）。
-  - [ ] 测试：抽取落地后重跑，`extracted` 计数 +1，该结果 `round` 不变（AC5）。
-  - [ ] 测试：无 `origins` 的旧格式 session → `round` 键省略，不抛错（AC10）。
-  - [ ] 测试：`--quality` JSON 输出不含 `verdict` / `breakdown` / `failedIndicators`（AC3）。
+  - [x] `coverage.ts` 导出 `firstRound`（`pending-facts` 与 `coverage` 都需要"首次出现轮次"这同一个事实，重复实现会分叉）。
+  - [x] 新建 `pending-facts.ts`，导出 `PendingFact`、`PendingReport`、`buildPendingReport(results, pending)`，形状见 `spec.md`。
+  - [x] `buildPendingReport` 的 `contentLength` 取 `result.content?.length ?? 0`；**不要**用 `content || excerpt`——这是待审批清单，正文与摘要必须分开，混用会让"未抽取"看起来像"已抽取"。`extracted` 与 `verified` 分开：前者是有正文，后者是带齐审批所需元数据，一个结果可以读却不可批。
+  - [x] `runCli.ts` 删除 `--threshold-override` 选项与 `INVALID_THRESHOLD_OVERRIDE` 解析块。
+  - [x] `runCli.ts` 的 `--quality` 三分支（approve / 无待审批 / JSON 待审批）改用 `buildPendingReport`；信封里 `quality` 改名 `facts`，`details.quality` 改名 `details.facts`。
+  - [x] `formatQualityAsMarkdown` 重写为 `formatFactsAsMarkdown`：汇总计数 + 待审批事实表。删掉 `Verdict`、`Threshold`、`Pass` 三列与 `verdictEmoji`。
+  - [x] 测试：`content` 为空、只有 `excerpt` 的搜索结果 → `extracted: false`、`contentLength: 0`（AC4）。
+  - [x] 测试：抽取落地后重跑，`extracted` 计数 +1，该结果 `round` 不变（AC5）。
+  - [x] 测试：无 `origins` 的旧格式 session → `round` 键省略，不抛错（AC10）。
+  - [x] 测试：`--quality` JSON 输出不含 `verdict` / `breakdown` / `failedIndicators`（AC3）。
 - Acceptance: AC3、AC4、AC5、AC10（`--quality` 部分）通过。
-- Verification: `npx vitest run test/unit/cli-quality.test.ts test/unit/deep/pending-facts.test.ts`；`npx tsc --noEmit`；`npx vitest run`（全量仍绿）。
+- Verification: `npx vitest run test/unit/deep/pending-facts.test.ts test/unit/cli.test.ts`；`npx tsc --noEmit`；`npx vitest run`（全量仍绿）。
 - Rollback: 恢复 `runCli.ts` 的 `--quality` 分支与本步新增的两个文件即可；`quality-assess.ts` 未被删，`suggest-queries` / `recovery-analysis` / `session-report` 仍走旧路径。
+- Actual: `tsc --noEmit` = 0；全量 39 files / 552 tests passed。新增 `pending-facts.test.ts` 11 条。实跑两个真实 session 核对：
+  - `cli/.digdig/sessions/t1`（当前格式）→ `{total:10, extracted:0, unextracted:10, sources:7}`。旧 `contentDepth` 在这个 session 上会因为"一条都没抽取"而报 0，实际它是 10 条都只有 snippet——正是新口径要说清的事。
+  - `test/research-bench/.sxng/sessions/ds_1784824003062_hg8fxd`（无 `origins`，6 轮 31 条）→ `{total:31, extracted:31, unextracted:0, sources:29}`，`pending: []`，无异常；`dg coverage` 同一 session 的 `byRound` 为空但 `rounds: 6`，如实反映"有轮次计数但没有可归轮的记录"。
+- Note: 全量首跑曾有一次 `cli.test.ts` 单测失败，随后连续 8 次全绿。失败未重现，未记录到具体断言；`node_modules` 是符号链接到主检出，两棵树共用同一个 `.vite` 缓存，是最可能的来源。若再次出现需单独排查。
+- Status: done
 
 ### Step 3 — 删除判断层与其余消费者
 

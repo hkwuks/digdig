@@ -434,7 +434,7 @@ describe('CLI program (commander)', () => {
         expect(JSON.parse(output.mock.calls.at(-1)![0] as string).data.queries).toEqual(['first query', 'second query']);
     });
 
-    it('rejects approval of an unverified result and returns quality diagnostics', async () => {
+    it('rejects approval of an unverified result and returns the session facts', async () => {
         const sessionDir = mkdtempSync(join(tmpdir(), 'sxng-cli-approval-test-'));
         appendSessionResults(sessionDir, [{
             url: 'https://example.com/summary', title: 'Summary', content: 'Search snippet only.', source: 'exa',
@@ -452,7 +452,8 @@ describe('CLI program (commander)', () => {
                 status: 'error',
                 error: { code: 'RESULT_NOT_VERIFIED' },
             });
-            expect(result.error.details.quality).toBeDefined();
+            expect(result.error.details.facts).toBeDefined();
+            expect(result.error.details.facts).not.toHaveProperty('verdict');
             expect(result.error.details.selectedResults).toEqual([
                 expect.objectContaining({ source: 'exa', verified: false }),
             ]);

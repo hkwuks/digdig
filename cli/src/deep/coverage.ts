@@ -86,8 +86,13 @@ const SPECIALIZED_SOURCES = [
     'hackernews.com',
 ];
 
-/** The round a result first appeared in. */
-function firstRound(result: SessionResult): number | undefined {
+/**
+ * The round a result first appeared in.
+ *
+ * Exported because the pending-facts report needs the same fact, and a second
+ * implementation of "first sighting" would eventually disagree with this one.
+ */
+export function firstRound(result: SessionResult): number | undefined {
     let earliest: number | undefined;
     for (const origin of result.origins ?? []) {
         const round = origin.round;
