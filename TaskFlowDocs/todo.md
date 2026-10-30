@@ -75,15 +75,15 @@ Two things wrong: an auth failure is not retryable, and SearXNG is not involved.
 ## F6 — Apply RRF fusion to merged multi-provider results
 
 - ID: TF-20261017-25e067
-- Status: inbox
+- Status: cancelled
 - Priority: normal
 - Owner: Claude
 - Source: follow-up:F6
 - Added: 2026-10-17
-- Updated: 2026-10-18
-- Goal: In the single-query path, `-e deepseek,google` concatenates provider results ahead of SearXNG results without ranking; RRF only runs for `--queries` and `--session`. Decide the ordering strategy, and consider feeding DeepSeek's `rerank_score`/`authority` in as the provider-side signal.
+- Updated: 2026-10-28
+- Goal: Superseded by `TF-20261028-fe548a` (2026-10-28) — 该任务的 R8 把 `-e deepseek,google` 一并纳入统一融合流水线，本条的诉求（单查询路径只拼接不排序）届时自动消失，故不再单独实施。原始描述保留如下供追溯：In the single-query path, `-e deepseek,google` concatenates provider results ahead of SearXNG results without ranking; RRF only runs for `--queries` and `--session`. Decide the ordering strategy, and consider feeding DeepSeek's `rerank_score`/`authority` in as the provider-side signal.
 - Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Next action: None — superseded by `TF-20261028-fe548a`。该任务 Step 3 已完成（2026-10-29），`-e deepseek,google` 现走统一融合流水线并输出 `fusionScore`，本条诉求已实测消失，可关闭。
 
 ### Verified 2026-10-18 against the merged `main` build
 
@@ -351,4 +351,68 @@ Be precise about the reach: **no subcommand was observed truncating.** `session-
 - Updated: 2026-10-20
 - Goal: 让构建从空的 dist 开始，保证下次 npm publish 的 tarball 不再夹带历史残留（冲突副本与源码已删除的旧编译产物）
 - Task: `TaskFlowDocs/achieved/2026-10-20-clean-build-dist/`
+- Next action: None — completed and archived.
+
+## 质量过滤修复：verdict 不阻断任何流程、contentDepth 分母只数
+
+- ID: TF-20261028-313ff2
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: user-request
+- Added: 2026-10-28
+- Updated: 2026-10-29
+- Goal: 把质量「过滤」从 CLI 里退出来，改成**只报客观事实，由 LLM 判断好坏**。CLI 不引入 embedding、不做语义相似度、不给 verdict。判据：凡是需要"这算不算好"的结论，都不该由 CLI 给；凡是能数出来的事实（条数、长度、域名数、重复数、覆盖率），CLI 报准。
+- Task: Not promoted.
+- Next action: 等 `TF-20261028-fe548a`（排序/去重/轮次）落地后再 promote —— 事实统计读的输入被重复结果与错误轮次归属污染，先改会统计到坏数据上。
+
+### 方向（用户 2026-10-29 决定）
+
+不在 CLI 中实现完整的质量过滤：那需要引入 embedding 等方案，太重。**由 LLM 决定质量。**
+
+这条决定推翻了本条目原先"修复六条缺陷 + 重建校准脚本"的设想，把它简化成：
+
+1. **删掉 verdict 与全部阈值**（`good/acceptable/poor`、`150`、`3`、`0.3`、`0.75` 及 `--threshold-override`）。判定好坏是 LLM 的事，CLI 给一个三档标签只会误导。
+2. **`novelty` 整个删掉**。它现在拿 Jaccard 比标题（搜索结果 `content` 在 `session.ts:208` 被删），既不准又是语义判断，正是应该交给 LLM 的部分。重复 URL 已经由身份层去重，不需要第二个近似指标。
+3. **保留并修正纯计数事实**：`contentDepth` 改成分母为全部结果（含未抽取），另给 `extractionCoverage`（已抽取/总数）、`sourceDiversity`（域名数）、`domains` 列表、`unextracted` 条数。这些不需要任何智能，只是数数。
+4. **本地文档不再被判死**：`extractDomain` 对 `file://` 返回 `''`，事实层改为统计"来源数"而非"域名数"，本地文件按其文件路径计入来源。
+5. **校准脚本 `test/calibrate-thresholds.ts` 删除**：没有阈值就没有可校准的对象。它现在也跑不动（读 `e423dbc` 已删除的字段）。
+6. **审批不阻断**：verdict 删除后此项自动消失；`--approve-file` 只看 `hasVerifiedContent`（结果是否真有正文），这是事实而非质量判断。
+
+### 提交给 LLM 的事实清单（promote 时定稿）
+
+每条结果：title、url、来源（域名或文件路径）、正文长度、是否已抽取、抽取器、状态。
+每一轮：查询、引擎、新增条数、重复条数、来源数、已抽取比例。
+
+LLM 拿到这些自己判断够不够、要不要换角度、要不要继续。CLI 不再替它下结论。
+
+### 原六条缺陷（2026-10-28 实测，`main` @ 328c1fa 构建产物）
+
+保留作为记录；在新方向下，第 1、3、4 条由"删除 verdict"直接消解，第 2、6 条属事实层仍要修，第 5 条由"删除 novelty"消解。
+
+1. **verdict 不参与任何过滤。** 唯一读者是 `runCli.ts:373`（打印 recovery 提示）。`--approve-file`（`:1586-1600`）只看 `hasVerifiedContent`，不看 quality。`quality-assess.ts:4` 写的 "removes obviously poor results" 是不实描述。
+2. **contentDepth 分母只数已抽取项。** `quality-assess.ts:69` 先 filter 再除。实测 10 条结果里只有 1 条抽取 9000 字符 → `contentDepth = 9000, pass`；9 条未抽取完全不计入。方向最坏：抽得越少分越高。同函数内 `sourceDiversity`（`:79`）却用全部结果，两个指标口径不一。
+3. **sourceDiversity ≥ 3 使 1-2 源轮次永远无法 good。** 实测 1 条 20000 字符 → `acceptable`；2 条各 20000 → `acceptable`；3 条 3 域名 → `good`。聚焦查询返回 1-2 个权威源是常态，被判为次优。叠加第 2 条后，实际 verdict ≈ 只由域名数决定。
+4. **两个评估函数对同一 session 给出相反 verdict。** `--quality`（`:1569-1573`）只把 approved 当先验 → `acceptable, novelty=1`；`assessLatestResultQuality`（`quality-assess.ts:136-140`，被 suggest-queries / recovery-analysis 用）把全部更早轮次当先验 → `poor, novelty=0`。另：无待审批分支（`:1629-1633`）传全量作 sessionResults，novelty 拿本轮和自己比，实测该分支永不因 novelty 失败。
+5. **novelty 实际比的是标题。** 搜索结果的 `content` 在 `session.ts:208` 被删除，`quality-assess.ts:106` 的 `r.content || r.title` 于是取到 title。实测两条 URL 不同、标题相同 → `novelty = 0`。指标测的是标题相似度。
+6. **本地文档 sourceDiversity 恒 0。** `quality-assess.ts:59` 对 `file://` 返回 `''`，`computeSourceDiversity` 跳过空串。实测 2 个 chunk 各 500 字符 → `sourceDiversity 0/3`。纯本地 RAG session 结构性拿不到 `good`。
+
+### 校准脚本是死的
+
+`test/calibrate-thresholds.ts` 实跑报错：`TypeError: Cannot read properties of undefined (reading 'value')` —— 它读 `breakdown.resultCount` 与 `breakdown.entityRichness`，两项在 `e423dbc`（2026-07-08）已删除。此外：不在任何 npm script；`vitest.config.ts` 的 include 不覆盖；`tsconfig.json` 的 `include` 只有 `src/**/*`，所以连类型错误都不会暴露。因此 `150 / 3 / 0.3 / 0.75` 四个阈值无可追溯来源。新方向下该脚本直接删除。
+
+### 文档与代码的历史漂移
+
+`036e30f`（2026-06-08）初版是 5 指标（含 `resultCount`、`entityRichness`），verdict 为 `≤2 fail → acceptable / ≥3 fail → poor`；`e423dbc`（2026-07-08）删掉两项并改为 1-fail 制。`CLAUDE.md`、`runCli.ts:337` 的格式化器、测试脚本三者都未同步。
+
+### 对下游的影响（promote 时确认）
+
+`recovery-analysis`（`quality-assess.ts` 的 `failedIndicators.includes(...)` 驱动策略选择）与 `suggest-queries`（`qualityLastRound`）都依赖 verdict 与 `failedIndicators`。删掉 verdict 后这两个命令要改为基于事实阈值自行表达"哪些维度偏低"，或直接把这些事实交给 LLM 让它选策略。这是 C 里最大的一处改动面。
+
+## 统一搜索结果身份与排序流转：URL 身份收拢到单一函数（cano
+
+- ID: TF-20261028-fe548a
+- Status: done
+- Goal: 统一搜索结果身份与排序流转：URL 身份收拢到单一函数（canonicalUrl/resultKey），让 dedupe/session/graph/RRF 复用同一 key；抽取不再递增 round；RRF 前对每份 ranking 去重、append 移到融合之后，使单查询与多查询路径语义一致
+- Task: `TaskFlowDocs/achieved/2026-10-28-result-identity-pipeline/`
 - Next action: None — completed and archived.
