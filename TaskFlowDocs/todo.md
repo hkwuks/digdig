@@ -274,15 +274,15 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## Stop `process.exit()` from truncating piped stdout
 
 - ID: TF-20261018-282836
-- Status: inbox
+- Status: in_progress
 - Priority: normal
 - Owner: Claude
 - Source: follow-up
 - Added: 2026-10-18
-- Updated: 2026-10-30
+- Updated: 2026-10-31
 - Goal: No command's piped stdout is silently truncated. `process.exit()` terminates the process before Node flushes the stdout write buffer, so when stdout is a pipe the kernel keeps only what fits — 65,536 bytes on this machine — and a piping Agent receives cut-off, unparseable JSON. **Split out of `TF-20261017-d8f7b3` on 2026-10-18** (user decision): it was recorded there as that entry's "Defect 2", but its root cause is the shared exit mechanism, not search, and none of the field-mapping work touches it.
-- Task: Not promoted.
-- Next action: Promote when ready. Measurements, the minimal reproduction and the fix are recorded in `TF-20261017-d8f7b3` → `### Defect 2`; copy that section into this task's PRD when it is promoted.
+- Task: `TaskFlowDocs/2026-10-30-stdout-flush/`
+- Next action: Complete PRD / Spec / Plan and request approval.
 
 ### Verified facts carried over from `TF-20261017-d8f7b3`
 
