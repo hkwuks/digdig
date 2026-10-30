@@ -112,10 +112,10 @@
 
 ### Checkpoint A — 代码完成，文档未动
 
-- [ ] `npx tsc --noEmit` = 0
-- [ ] `npx vitest run` 全绿
-- [ ] `grep -rn "threshold" cli/src/deep` 无质量阈值命中
-- [ ] `dg --help` 里不再出现 `recovery-analysis` / `--threshold-override`
+- [x] `npx tsc --noEmit` = 0
+- [x] `npx vitest run` 全绿
+- [x] `grep -rn "threshold" cli/src/deep` 无质量阈值命中
+- [x] `dg --help` 里不再出现 `recovery-analysis` / `--threshold-override`
 
 ### Step 4 — 文档与 Agent 操作手册同步
 
@@ -144,21 +144,24 @@
 - Dependencies: Step 4。
 - Files: 无改动（只读核对）。
 - Implementation checklist:
-  - [ ] AC1–AC10 逐条执行并记录实际命令与实际输出。
-  - [ ] AC9：`npx tsc --noEmit` 与 `npx vitest run` 的完整结果贴进 Verification。
-  - [ ] AC10：用 `test/research-bench/.sxng/sessions/ds_1784824003062_hg8fxd`（无 `origins`，6 轮，31 条）实跑 `dg coverage` 与 `dg --quality`。
-  - [ ] AC3：用 `cli/.digdig/sessions/t1`（当前格式）实跑，核对输出字段。
-  - [ ] 确认 `CLAUDE.md` 未进 git、`TaskFlowDocs/repository-docs/personal.md` 未被改动。
-  - [ ] 检查差分范围：只有 PRD 的 In Scope 列表内的文件被改。
+  - [x] AC1–AC10 逐条执行并记录实际命令与实际输出。
+  - [x] AC9：`npx tsc --noEmit` 与 `npx vitest run` 的完整结果贴进 Verification。
+  - [x] AC10：用 `test/research-bench/.sxng/sessions/ds_1784824003062_hg8fxd`（无 `origins`，6 轮，31 条）实跑 `dg coverage` 与 `dg --quality`。
+  - [x] AC3：用 `cli/.digdig/sessions/t1`（当前格式）实跑，核对输出字段。
+  - [x] 确认 `CLAUDE.md` 未进 git、`TaskFlowDocs/repository-docs/personal.md` 未被改动。
+  - [x] 检查差分范围：只有 PRD 的 In Scope 列表内的文件被改。
 - Acceptance: 十条 AC 全部带回实际输出；无越界改动。
 - Verification: 结果写入本文件 `## Verification / Review`。
 - Rollback: 无（只读）。
 
+## Verification / Review`。
+- Rollback: 无（只读）。
+
 ### Checkpoint B — 可交付
 
-- [ ] 十条 AC 全绿且有实测输出
-- [ ] 工作树干净，`CLAUDE.md` 仍 untracked
-- [ ] `TF-20261028-12ced8` 的范围变化已记入本文件 Follow-ups（不改它的 todo 条目，那是它的写入者的事）
+- [x] 十条 AC 全绿且有实测输出
+- [x] 工作树干净，`CLAUDE.md` 仍 untracked
+- [x] `TF-20261028-12ced8` 的范围变化已记入本文件 Follow-ups（不改它的 todo 条目，那是它的写入者的事）
 
 ## Checkpoints
 
@@ -167,14 +170,109 @@
 
 ## Verification / Review
 
-_每个 Step 完成后在此追加实际命令与实际结果。_
+### AC1 — `deep/` 里没有质量三档
+
+```
+$ grep -rn "'good'|"good"|'acceptable'|'poor'" src/deep/
+（无输出）
+```
+
+全仓库的 `verdict` 只剩 `src/claims/`、`src/commands/verdict.ts`、`src/commands/review.ts`、`src/commands/evidence.ts` —— 证据裁定，与搜索质量无关。`src/deep/pending-facts.ts` 的头注释提到 "verdict" 是在解释被替换掉的东西。
+
+### AC2 — 质量阈值清零
+
+```
+$ grep -rn "DEFAULT_THRESHOLDS|QualityThresholds|NOVELTY_SIMILARITY" src/
+（无输出）
+$ grep -rn "threshold-override|thresholdOverride" src/
+（无输出）
+```
+
+`src/deep` 下剩余的 `threshold` 全部是检索参数：`dedupe.ts` 的 Jaccard 去重阈值、`co-occurrence.ts` 的共现窗口、`coverage.ts` 注释里引用的测量值。
+
+### AC3 — `--quality` 只报事实
+
+```
+$ node dist/index.js --session cli/.digdig/sessions/t1 --quality --format json
+keys: ['extracted', 'pending', 'sourceList', 'sources', 'total', 'unextracted']
+no judgement fields: OK      # verdict/breakdown/failedIndicators/contentDepth/sourceDiversity/novelty 均不存在
+```
+
+逐条字段（`test/unit/deep/pending-facts.test.ts` 断言 `Object.keys(report).sort()`）：`id`, `revision`, `title`, `url`, `source`, `domain`, `contentLength`, `extracted`, `verified`, `round`。
+
+### AC4 — 只有 `excerpt` 的搜索结果不算有正文
+
+`pending-facts.test.ts` → `reports a search result as unextracted rather than counting its snippet as a body`：`content: ''` + `excerpt: '...'` → `contentLength: 0`, `extracted: false`。通过。
+
+对照真实数据：`cli/.digdig/sessions/t1` 的 10 条结果全部只有 snippet，报告 `extracted: 0`。旧 `contentDepth` 在这个 session 上给出的也是 0 分，但理由是"没有已抽取项"——它分不清"没抽"和"抽了但很短"。
+
+### AC5 — 抽取落地后计数 +1，轮次不变
+
+`results-add.test.ts` → `records a landed extraction against the round that found the result`：`after.extracted === before.extracted + 1`，`after.total === before.total`，该结果的 `round` 前后相同，且 `content` 确实含新正文。通过。
+
+### AC6 — 本地文档计入来源
+
+`coverage.test.ts` → `counts each local document as its own source`：`file:///docs/a.md#chunk-0` + `#chunk-1` → `/docs/a.md` 计 2；`file:///docs/b.md#chunk-0` → `/docs/b.md` 计 1。`domainsSeen` 不再是 0。通过。
+
+### AC7 — `recovery-analysis` 命令消失
+
+```
+$ node dist/index.js --help | grep -c recovery-analysis
+0
+$ node dist/index.js recovery-analysis x
+error: too many arguments. Expected 1 argument but got 2: recovery-analysis, x.
+```
+
+`cli.test.ts` 断言 `commandNames` 不含它。
+
+### AC8 — `coverage` 与 `--quality` 无重复字段
+
+```
+$ coverage → keys: ['byRound','distinctiveTerms','domainsSeen','repeated','rounds','uniqueResults','untouchedSpecialized']
+$ --quality → keys: ['extracted','pending','sourceList','sources','total','unextracted']
+```
+
+`coverage` 无 `pending`；`--quality` 无 `byRound`/`repeated`/`distinctiveTerms`。
+
+### AC9 — 编译与全量测试
+
+```
+$ npx tsc --noEmit
+tsc=0
+$ npx vitest run
+Test Files  37 passed (37)
+     Tests  519 passed (519)
+```
+
+基线是 38 files / 541 tests（`9816f2f`）。差值来自删除 5 个失去被测对象的文件（`quality-assess.test.ts`、`recovery-analysis.test.ts`、`calibrate-thresholds.ts` 及两个 bench 用例）与新增 `pending-facts.test.ts` 11 条。
+
+### AC10 — 旧格式 session 不抛错
+
+无 `origins` 的 `test/research-bench/.sxng/sessions/ds_1784824003062_hg8fxd`（6 轮 31 条）：
+
+```
+$ dg coverage <...> --format md      → exit 0，rounds: 6，byRound 为空（没有可归轮的记录）
+$ dg --quality <...> --format json    → exit 0，{total:31, extracted:31, sources:29}
+```
+
+`byRound` 为空是诚实的：那批数据没有轮次归属，不是 0 轮。
+
+### 既有缺陷（不在本任务范围）
+
+`session-report` / `suggest-queries` / `strategy-info` 的 `--format md` 不生效，输出仍是 JSON。根因是 commander 在父子命令同名 flag 时把值给了父命令，子命令 `opts.format` 为 `undefined`。`main` 上行为相同，`coverage` 用 `subcommandFormat(argv, ...)` 绕开。已记入 Follow-ups。
 
 ## Change Log
 
 - 2026-10-30 — 创建 Plan（v1），依据 PRD 与 Spec 切分五个垂直步骤。
+- 2026-10-30 — Step 2 记录实际的 `extracted`/`verified` 分离（原计划写的是两者同取 `hasVerifiedContent`，实现时发现这两个是不同的事实）。
+- 2026-10-30 — Step 3 记录 `getSessionAnalysis` 签名变更（待审批列表由调用方传入，分析函数不读盘）。
+- 2026-10-30 — Step 4 补上计划漏列的三个文档：`cli/README.md`、`references/pipeline.md`、`references/appendix.md`。
 
 ## Follow-ups
 
+- **`TF-20261028-12ced8`（阈值集中化）范围变化**：它要收拢的 14 个阈值中，`quality-assess.ts` 的 4 个（`contentDepth 150`、`sourceDiversity 3`、`novelty 0.3`、`NOVELTY_SIMILARITY 0.75`）已随本任务的判断层一并删除。剩余 10 个仍在。该条目的 todo 记录由它自己的写入者更新，本任务不改。
+
+- **子命令 `--format md` 不生效**（`session-report`、`suggest-queries`、`strategy-info`）：commander 父子同名 flag 时子命令 `opts.format` 为 `undefined`。`coverage` 已用 `subcommandFormat(argv, ...)` 绕开，其余三个尚未。既有缺陷，`main` 上行为相同。
 - `TF-20261028-12ced8`（阈值集中化）：本任务删除质量层后，它要收拢的 14 个阈值只剩 10 个。完成本任务后在其 todo 条目上记录范围变化——但**不由本任务改那条记录**，它有自己的写入者。
 - `TF-20261017-bfc96d`（仓库规则/CODE_STYLE/CONTRIBUTING/CI）：本任务按 `git log` 反推的提交格式执行，不创建这些文档。
 
