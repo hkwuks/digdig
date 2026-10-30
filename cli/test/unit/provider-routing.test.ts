@@ -104,6 +104,40 @@ describe('provider routing', () => {
         expect(envelope.data.results[0].engine).toBe('deepseek');
     });
 
+    it('ranks merged provider and SearXNG results by fusion score, not by provider block', async () => {
+        // AC5: the old merge flatMapped [providerResults, sxngResponse], so output
+        // order was structural. Returning two provider hits against one SearXNG
+        // hit makes block order and fusion order disagree, which the old code
+        // could not distinguish and this test can.
+        config.deepseekApiKey = 'k';
+        deepseekSearch.mockResolvedValue({
+            query: 'q',
+            numberOfResults: 2,
+            results: [
+                { title: 'deepseek-a', url: 'https://provider-a.test', content: 'a', engine: 'deepseek', category: 'general' },
+                { title: 'deepseek-b', url: 'https://provider-b.test', content: 'b', engine: 'deepseek', category: 'general' },
+            ],
+            suggestions: [], answers: [], corrections: [], infoboxes: [], unresponsiveEngines: [],
+        });
+        const service = stubSxng();
+
+        const envelope = await run(['q', '-e', 'deepseek,google', '--format', 'json'], service);
+
+        const scores = envelope.data.results.map((r: any) => r.fusionScore);
+        expect(scores.every((s: number) => s > 0)).toBe(true);
+        // Descending fusion score, ties broken stably — never provider-block order.
+        expect(scores).toEqual([...scores].sort((a: number, b: number) => b - a));
+        // The discriminator against the old flatMap: the provider's second result
+        // sat at position 2 of its own ranking, SearXNG's only result at position
+        // 1 of its own. Block concatenation would put both provider hits first;
+        // fusion puts SearXNG's ahead of the provider's second. (The provider's
+        // first result and SearXNG's only one tie at 1/61, so their mutual order
+        // is not asserted.)
+        const order = envelope.data.results.map((r: any) => r.url);
+        expect(order.indexOf('https://sxng.test')).toBeLessThan(order.indexOf('https://provider-b.test'));
+        expect(order).toContain('https://provider-a.test');
+    });
+
     it('merges DeepSeek and SearXNG results when both are selected', async () => {
         config.deepseekApiKey = 'k';
         const service = stubSxng();
