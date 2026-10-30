@@ -107,15 +107,17 @@ Measured with `ollama` as the provider stand-in, since no `DEEPSEEK_API_KEY` is 
 ## Add repository governance and CI
 
 - ID: TF-20261017-bfc96d
-- Status: inbox
+- Status: in_progress
 - Priority: normal
 - Owner: Claude
 - Source: user-request
 - Added: 2026-10-17
-- Updated: 2026-10-30
-- Goal: Configure the GitHub repo with code standards, a contribution flow, and CI: `CONTRIBUTING.md` (branch prefixes, commit format, PR flow), `CODE_STYLE.md`, PR and issue templates, `CODEOWNERS`, and GitHub Actions running build + tests on push and PR. Note: TaskFlow's merge driver and `todo-merge-audit` check expect a `.github/workflows/hooks.yml` job (see `TaskFlowDocs/repository-docs/index.md`).
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Updated: 2026-10-31
+- Goal: Configure the GitHub repo with code standards, a contribution flow, and CI: `CONTRIBUTING.md` (branch prefixes, commit format, PR flow), `CODE_STYLE.md`, PR and issue templates, `CODEOWNERS`, and GitHub Actions running build + tests on push and PR.
+- Task: `TaskFlowDocs/2026-10-30-repo-governance/`
+- Next action: Complete PRD / Spec / Plan and request approval.
+
+  **Correction (2026-10-31)**: this entry used to end its Goal with "TaskFlow's merge driver and `todo-merge-audit` check expect a `.github/workflows/hooks.yml` job (see `TaskFlowDocs/repository-docs/index.md`)". That claim did not hold: `index.md` contains no mention of `hooks.yml`, and this repository holds no TaskFlow hook scripts at all (`git ls-files | grep -c hooks/` → 0). The `Hooks` workflow it described belongs to the TaskFlow plugin's own repository. The sentence was removed rather than left in the Goal, and the entry no longer asks for that job.
 - 用户 2026-10-30 再次要求：需要给仓库配置规则、code style、contributing 等。实测当前状态：`.github/` 目录不存在，没有 PR 模板、没有 CODEOWNERS、没有 CI workflow；`CONTRIBUTING.md`、`CODE_STYLE.md`、`ROADMAP.md` 均缺失（`TaskFlowDocs/repository-docs/index.md` 已登记为 missing）。现有约定只能从 `git log` 反推：`type(scope): 中文摘要` + 正文，分支 `<type>/<日期>-<slug>`，合并走 GitHub PR。promote 时应把这些反推出来的实践写成文档，并让 TaskFlow 的 `repository-docs-context` hook 能识别。
 
 ### Two things the CI job has to solve, found 2026-10-18
