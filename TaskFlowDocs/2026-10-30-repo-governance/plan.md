@@ -97,20 +97,24 @@
 
 ### Step 4 — CI workflow
 
-- Goal: every push to `main` and every PR runs build and tests on the Node versions the repository claims to support.
+- Goal: every push to `main` and every PR runs build and tests, with the Node versions the published package claims to support covered by at least a build check.
 - Dependencies: Steps 1–3 (the workflow is the automation of what those documents say).
 - Files: `.github/workflows/ci.yml` (new)
 - Implementation checklist:
-  - [ ] Triggers: `push` on `main`, all `pull_request`.
-  - [ ] Matrix: 18.x, 20.x, 22.x — 18.x is the `engines` floor, not a preference.
-  - [ ] `actions/setup-node` with `cache: npm` and `cache-dependency-path: cli/package-lock.json` — the lockfile is not at the repo root.
-  - [ ] Steps run with `working-directory: cli`: `npm ci`, `npm run build`, `npm test`.
-  - [ ] No lint step — there is no linter.
-  - [ ] Action versions pinned to major tags (`@v4`), no floating `@main`.
+  - [x] Triggers: `push` on `main`, all `pull_request`.
+  - [x] Two jobs, split by what each Node line can actually do:
+    - `build` on 18.x / 20.x / 22.x — `npm ci` + `npm run build`.
+    - `test` on 20.x / 22.x — `npm ci` + `npm test`.
+  - [x] `actions/setup-node` with `cache: npm` and `cache-dependency-path: cli/package-lock.json` — the lockfile is not at the repo root.
+  - [x] Steps run with `working-directory: cli`.
+  - [x] No lint step — there is no linter.
+  - [x] Action versions pinned to major tags (`@v4`), no floating `@main`.
 - Acceptance: AC3 (valid YAML); AC4 (a real run succeeds, or the failure is recorded truthfully).
 - Verification: `python3 -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"`; after push, `gh run list`.
 - Rollback: delete the file.
-- Status: pending
+- Status: done
+
+**Deviation (2026-10-31, user chose option A)**: the first run failed on `node 18.x` at the `Test` step. The cause is the test runner, not this codebase: `vitest@4.1.8` declares `engines.node = ^20.0.0 || ^22.0.0 || >=24.0.0`, and its `rolldown` dependency needs `^20.19.0` for `node:util`'s `styleText`. `Build` and `Install` passed on 18. A built `dist/` was then run under Node 18.20.8 and completed a real search successfully, so `engines: >=18.0.0` is true for the runtime and false only for the development toolchain. Deleting the 18 leg would have removed the only check on a promise the published `npm` package makes, so the jobs are split instead: 18 keeps its build check, and tests run where a runner exists.
 
 ### Step 5 — Index and Todo correction
 
@@ -140,6 +144,7 @@ _(filled in after Step 5 and the first CI run)_
 ## Change Log
 
 - v1 — plan written.
+- 2026-10-31 — 首次 CI 运行在 `node 18.x` 的 `Test` 步骤失败。原因是测试运行器而非本仓库代码（`vitest@4.1.8` 要求 Node `^20`，其 `rolldown` 依赖要求 `^20.19.0`）。按用户决定（选项 A）把 CI 拆成 `build`（18/20/22）与 `test`（20/22）两个 job，`engines` 不动。同步更新 `spec.md` 的 CI 契约段、`CONTRIBUTING.md` 的 CI 段。工作修订，Task 版本保持 v1。
 
 ## Follow-ups
 

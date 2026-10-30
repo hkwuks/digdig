@@ -103,15 +103,16 @@ npx vitest run       → 37 文件 / 519 测试通过
 
 ## CI
 
-`.github/workflows/ci.yml` 在每次 push 到 `main` 和每个 PR 上跑：
+`.github/workflows/ci.yml` 在每次 push 到 `main` 和每个 PR 上跑两个 job：
 
-```
-npm ci → npm run build → npm test
-```
+| job | Node 矩阵 | 跑什么 |
+|---|---|---|
+| `build` | 18.x / 20.x / 22.x | `npm ci` → `npm run build` |
+| `test` | 20.x / 22.x | `npm ci` → `npm test` |
 
-Node 版本矩阵是 `18.x` / `20.x` / `22.x` —— 下限来自 `cli/package.json` 的 `engines`，不是随手挑的。本地只跑一个版本没问题，但 PR 必须三格全绿。
+**为什么 18.x 只编译不测试**：`vitest` 4 要求 Node `^20`，跑不起来；但 `tsc` 在 18 上正常，而发布的 npm 包声明 `engines.node >= 18.0.0`。所以 18 保留编译检查，测试在有运行器的版本上跑。删掉 18 那一格就等于让 `engines` 的承诺无人检查。
 
-CI 失败时先看是哪一格：只有 18.x 挂通常意味着用了较新的语法或 API，这时的正确处置是改代码或调 `engines`，**不是把 18.x 从矩阵里删掉**。
+CI 失败时先看是哪一格：只有 18.x 的 `build` 挂通常意味着用了 18 不支持的语法，这时的正确处置是改代码或调 `engines`，**不是把 18.x 从矩阵里删掉**。
 
 ## 本地验证
 

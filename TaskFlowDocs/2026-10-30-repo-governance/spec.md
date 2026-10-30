@@ -57,16 +57,17 @@ TaskFlowDocs/todo.md                      修正 TF-20261017-bfc96d 的过时句
 
 ```yaml
 触发：push → main；所有 pull_request
-矩阵：node 18.x（engines 下限）、20.x、22.x
-步骤：actions/checkout → actions/setup-node(cache: npm, cache-dependency-path: cli/package-lock.json)
-      → npm ci（working-directory: cli）
-      → npm run build
-      → npm test
+job build：node 18.x（engines 下限）、20.x、22.x  → npm ci → npm run build
+job test： node 20.x、22.x                        → npm ci → npm test
+共同：actions/checkout → actions/setup-node(cache: npm, cache-dependency-path: cli/package-lock.json)
+      各 step 的 working-directory: cli
 ```
+
+**为什么拆成两个 job**：`build` 在 18/20/22 全跑，`test` 只在 20/22 跑。`vitest@4` 声明 `engines.node = ^20.0.0 || ^22.0.0 || >=24.0.0`，其 `rolldown` 依赖又要求 `^20.19.0`，所以 18 上跑不了测试；但 `tsc` 在 18 上正常，且已实测构建产物在 Node 18.20.8 下能完成真实搜索。发布的 npm 包声明 `engines.node >= 18.0.0`，删掉 18 那一格会让这个承诺无人检查。拆 job 是让每个版本跑到它能跑的部分。
 
 **为什么不加 lint 步骤**：仓库没有 linter。加一个需要先决定用哪个、写配置、修一遍现有告警 —— 那是另一件事，不在本 spec。
 
-**为什么矩阵是 18/20/22**：`package.json` 的 `engines` 写 `>=18.0.0`。矩阵下限必须等于声明的下限，否则声明是空话。若 18 跑不过，正确处置是修代码或改 `engines`，**不是删掉 18 那一格**。
+**为什么不改 `engines`**：提到 `>=22` 会让已安装 0.0.2 的 Node 18 用户收到 npm 警告，是面向用户的行为改变，需要单独决定，不混在「加 CI」里做。
 
 **缓存路径**：`package-lock.json` 在 `cli/` 下而非仓库根，`cache-dependency-path` 必须指对，否则缓存静默失效。
 
