@@ -276,33 +276,10 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## Stop `process.exit()` from truncating piped stdout
 
 - ID: TF-20261018-282836
-- Status: in_progress
-- Priority: normal
-- Owner: Claude
-- Source: follow-up
-- Added: 2026-10-18
-- Updated: 2026-10-31
+- Status: done
 - Goal: No command's piped stdout is silently truncated. `process.exit()` terminates the process before Node flushes the stdout write buffer, so when stdout is a pipe the kernel keeps only what fits — 65,536 bytes on this machine — and a piping Agent receives cut-off, unparseable JSON. **Split out of `TF-20261017-d8f7b3` on 2026-10-18** (user decision): it was recorded there as that entry's "Defect 2", but its root cause is the shared exit mechanism, not search, and none of the field-mapping work touches it.
-- Task: `TaskFlowDocs/2026-10-30-stdout-flush/`
-- Next action: Complete PRD / Spec / Plan and request approval.
-
-### Verified facts carried over from `TF-20261017-d8f7b3`
-
-Minimal reproduction, with no sxng code involved:
-
-```
-console.log('x'.repeat(200000)) + process.exit(0) | pipe   → 65536   (truncated)
-console.log('x'.repeat(200000)) + natural exit    | pipe   → 200001  (intact)
-console.log('x'.repeat(200000)) + process.exit(0) > file   → 200001  (intact)
-```
-
-Identical through `wc -c`, `cat > file`, and a Node reader, so the consumer is not the variable; 65,536 was this machine's pipe capacity (`fcntl.F_GETPIPE_SZ`). `sxng` calls `process.exit` 46 times — 45 in `cli/src/runCli.ts` (23 of them the `process.exit(code)` ending a subcommand, including right after `runSearch` returns at `:1748`) and 1 in `cli/src/index.ts`'s `main()`.
-
-Be precise about the reach: **no subcommand was observed truncating.** `session-report` on a small session measures 2,647 bytes both ways, and the search path is the only place an oversized payload was reproduced. "Every subcommand has it" is an inference from the shared exit mechanism, not a measurement, and should be confirmed per-command before being relied on.
-
-**Fix**: stop calling `process.exit()` to end a command — set `process.exitCode` and let the event loop drain. This is also what the project rule already requires ("do not use any method which may block the running code to achieve the function of outputting logs"). Bounding the output is a separate, still-worthwhile change, not the fix for this.
-
-**Interaction with the sibling task**: after this lands, `--format md` on an Ollama search (`content` 835–25,804 chars) stops being truncated at 65,536 — the full body reaches the pipe. Lengthening the md output must not be done in the same change as the exit fix, or the two effects cannot be told apart when verifying.
+- Task: `TaskFlowDocs/achieved/2026-10-30-stdout-flush/`
+- Next action: None — completed and archived.
 
 ## Rename sxng-cli to digdig. Publish under the npm package digdig (already reserve
 

@@ -1,6 +1,6 @@
 # 不再让 `process.exit()` 截断管道 stdout
 > Task version: v1
-> Status: in_progress
+> Status: completed
 
 ## Goal
 
