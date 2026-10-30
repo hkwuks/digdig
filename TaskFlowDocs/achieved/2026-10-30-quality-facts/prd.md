@@ -1,7 +1,7 @@
 # 质量层退场：CLI 只报可数事实，好坏交给 LLM
 
 > Task version: v1
-> Status: checking
+> Status: completed
 
 ## Goal
 
