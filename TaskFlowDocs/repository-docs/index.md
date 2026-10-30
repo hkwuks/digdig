@@ -7,11 +7,11 @@ This index is the authoritative routing and check record for repository document
 | repository-guidance | `README.md` | design,roadmap | yes | ready |
 | repository-guidance | `README.zh-CN.md` | design,roadmap | yes | ready |
 | repository-rule | `LICENSE` | all | yes | ready |
-| repository-rule | `CONTRIBUTING.md` | design,code,commit,pr,release | no | missing |
-| repository-rule | `CODE_STYLE.md` | code,review | no | missing |
+| repository-rule | `CONTRIBUTING.md` | design,code,commit,pr,release | yes | ready |
+| repository-rule | `CODE_STYLE.md` | code,review | yes | ready |
 | repository-guidance | `ROADMAP.md` | design,roadmap,release | no | missing |
-| repository-rule | `.github/pull_request_template.md` | pr | no | missing |
-| repository-rule | `.github/CODEOWNERS` | pr,review | no | optional |
+| repository-rule | `.github/pull_request_template.md` | pr | yes | ready |
+| repository-rule | `.github/CODEOWNERS` | pr,review | yes | ready |
 | repository-rule | `CODE_OF_CONDUCT.md` | all | no | optional |
 | repository-rule | `SECURITY.md` | code,review,release | no | optional |
 | repository-rule | `RELEASE.md` | release | no | optional |

@@ -1,0 +1,6 @@
+# CODEOWNERS
+#
+# 所有路径默认请仓库所有者 review。新增子模块时可以按路径细分，
+# 例如：/cli/src/deep/  @someone
+
+*       @hkwuks
