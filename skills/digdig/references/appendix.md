@@ -35,8 +35,8 @@ dg --session <session> --quality --approve-file ./.digdig/sessions/<session>/age
 dg graph-preprocess <session> --format json
 dg graph-add <session> --data-file ./.digdig/sessions/<session>/agent-inputs/graph-round-2.json
 
-# Phase 7: Recovery when consecutive poor rounds
-dg recovery-analysis <session> --format json
+# Phase 7: Recovery when rounds stop producing
+dg coverage <session> --format json
 dg strategy-info <session> --format json
 
 # Phase 8: Graph exploration
@@ -68,9 +68,9 @@ dg evidence-verify <session> --claim-id "cl_003" --evidence-file ./.digdig/sessi
 | Fabricating citation links | Only use URLs actually visited |
 | Reading summaries without extracting content | Use `extract` for key sources |
 | Building knowledge graph without querying it | Use `graph-explore` to verify coverage |
-| Continuing search without quality assessment | Use `--quality` each round, decide accordingly |
+| Continuing search without reviewing pending facts | Read `--quality` and `coverage` each round, decide accordingly |
 | Repeating queries wasting rounds | Use `--redundancy warn` to check redundancy |
-| Not recovering from consecutive poor rounds | Use `recovery-analysis` for strategy suggestions |
+| Not recovering when rounds stop producing | Read `coverage` for per-round new/repeated counts and change direction |
 | Deleting sessions without user approval | Keep session inputs unless the user explicitly asks to delete them |
 | Using `query-graph` | Deprecated, use `graph-explore` + `graph-drill` |
 | Search backend fails -> abandon session | Switch backend (`-e ollama` / `-e deepseek`, or ollama/tavily/exa), inject via `results-add`, keep session |

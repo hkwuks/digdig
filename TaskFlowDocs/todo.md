@@ -356,15 +356,15 @@ Be precise about the reach: **no subcommand was observed truncating.** `session-
 ## 质量过滤修复：verdict 不阻断任何流程、contentDepth 分母只数
 
 - ID: TF-20261028-313ff2
-- Status: inbox
+- Status: in_progress
 - Priority: normal
 - Owner: Claude
 - Source: user-request
 - Added: 2026-10-28
-- Updated: 2026-10-29
+- Updated: 2026-10-30
 - Goal: 把质量「过滤」从 CLI 里退出来，改成**只报客观事实，由 LLM 判断好坏**。CLI 不引入 embedding、不做语义相似度、不给 verdict。判据：凡是需要"这算不算好"的结论，都不该由 CLI 给；凡是能数出来的事实（条数、长度、域名数、重复数、覆盖率），CLI 报准。
-- Task: Not promoted.
-- Next action: 等 `TF-20261028-fe548a`（排序/去重/轮次）落地后再 promote —— 事实统计读的输入被重复结果与错误轮次归属污染，先改会统计到坏数据上。
+- Task: `TaskFlowDocs/2026-10-30-quality-facts/`
+- Next action: PRD / Spec / Plan v1 written, awaiting approval before Step 1.
 
 ### 方向（用户 2026-10-29 决定）
 

@@ -3,48 +3,43 @@
  *
  * Composes the individual data modules into a single analysis call:
  * - checkQueryRedundancy
- * - assessResultQuality
+ * - buildPendingReport
  * - generateQuerySuggestions
- * - analyzeRecoveryOptions
  * - getStrategyInfo
  *
- * Agent can call getSessionAnalysis() to get a comprehensive snapshot
- * of the session state for decision-making.
+ * Agent can call getSessionAnalysis() to get a snapshot of the session state
+ * for decision-making. It reports what is there and what has been searched;
+ * it does not say whether that is enough.
  */
 
 import { DirectedGraph } from 'graphology';
 import { GraphNodeAttrs, GraphEdgeAttrs } from './graph.js';
 import { SessionResult } from './session.js';
-import { QualityScore, QualityThresholds, assessLatestResultQuality } from './quality-assess.js';
+import { PendingReport, buildPendingReport } from './pending-facts.js';
 import { QuerySuggestionData, SearchStage, generateQuerySuggestions } from './query-suggest.js';
 import { StrategyConfig, StrategyInfo, getStrategyInfo } from './search-strategy.js';
-import { RecoveryAnalysis, analyzeRecoveryOptions } from './recovery-analysis.js';
 import { RedundancyConfig, RedundancyResult, checkQueryRedundancy } from './query-redundancy.js';
 
 // ── Types ─────────────────────────────────────────────────────────
 
 export interface SessionAnalysis {
-    quality: QualityScore;
+    pending: PendingReport;
     strategy: StrategyInfo;
     suggestions: QuerySuggestionData;
-    recovery: RecoveryAnalysis;
 }
 
 // ── Unified analysis ──────────────────────────────────────────────
 
-/** Get a comprehensive analysis of the current session state.
- *  Combines quality assessment, strategy info, query suggestions,
- *  and recovery analysis into a single output for Agent decision-making. */
+/** Get a snapshot of the current session state.
+ *  Combines counted facts, strategy info, and query suggestions. */
 export function getSessionAnalysis(
     graph: DirectedGraph<GraphNodeAttrs, GraphEdgeAttrs>,
     sessionResults: SessionResult[],
-    options?: {
-        qualityThresholds?: Partial<QualityThresholds>;
-        strategyConfig?: Partial<StrategyConfig>;
-    }
+    pending: SessionResult[],
+    options?: { strategyConfig?: Partial<StrategyConfig> }
 ): SessionAnalysis {
-    // Quality assessment
-    const quality = assessLatestResultQuality(sessionResults, options?.qualityThresholds);
+    // Counted facts about what the session has gathered.
+    const facts = buildPendingReport(sessionResults, pending);
 
     // Strategy info
     const strategy = getStrategyInfo(graph, options?.strategyConfig);
@@ -54,18 +49,9 @@ export function getSessionAnalysis(
         graph,
         sessionResults,
         strategy.currentStage,
-        quality
     );
 
-    // Recovery analysis
-    const recovery = analyzeRecoveryOptions(
-        graph,
-        sessionResults,
-        quality,
-        options?.strategyConfig
-    );
-
-    return { quality, strategy, suggestions, recovery };
+    return { pending: facts, strategy, suggestions };
 }
 
 /** Check a new query for redundancy before execution.

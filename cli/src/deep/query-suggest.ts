@@ -10,7 +10,7 @@ import { DirectedGraph } from 'graphology';
 import { GraphNodeAttrs, GraphEdgeAttrs } from './graph.js';
 import { SessionResult } from './session.js';
 import { getEntityDegree } from './degree-utils.js';
-import { QualityScore } from './quality-assess.js';
+import { sourceKey } from './dedupe.js';
 
 // ── Types ─────────────────────────────────────────────────────────
 
@@ -35,7 +35,6 @@ export interface QuerySuggestionData {
     unexploredDomains: string[];
     currentStage: SearchStage;
     roundHistory: RoundHistoryEntry[];
-    qualityLastRound?: QualityScore;
 }
 
 // ── Domain extraction ─────────────────────────────────────────────
@@ -56,14 +55,6 @@ const SPECIALIZED_DOMAINS = [
     'hackernews.com',
 ];
 
-function extractDomain(url: string): string {
-    try {
-        return new URL(url).hostname;
-    } catch {
-        return '';
-    }
-}
-
 // ── Suggestion generation ─────────────────────────────────────────
 
 /** Generate query suggestion data from session context.
@@ -71,8 +62,7 @@ function extractDomain(url: string): string {
 export function generateQuerySuggestions(
     graph: DirectedGraph<GraphNodeAttrs, GraphEdgeAttrs>,
     sessionResults: SessionResult[],
-    currentStage: SearchStage,
-    qualityLastRound?: QualityScore
+    currentStage: SearchStage
 ): QuerySuggestionData {
     // Collect top entities sorted by degree × frequency descending
     const topEntities = collectTopEntities(graph);
@@ -80,7 +70,7 @@ export function generateQuerySuggestions(
     // Detect unexplored domains
     const exploredDomains = new Set<string>();
     for (const r of sessionResults) {
-        const domain = extractDomain(r.url);
+        const domain = sourceKey(r.url);
         if (domain) exploredDomains.add(domain);
     }
     const unexploredDomains = SPECIALIZED_DOMAINS.filter(d => !exploredDomains.has(d));
@@ -93,7 +83,6 @@ export function generateQuerySuggestions(
         unexploredDomains,
         currentStage,
         roundHistory,
-        qualityLastRound,
     };
 }
 

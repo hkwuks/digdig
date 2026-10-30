@@ -55,13 +55,12 @@ dg policy-aggregate <session>               # Manual policy aggregation
 dg review-list <session>                    # List reviews
 
 # Quality & iteration
-dg --session <session> --quality  # Assess result quality & list pending
-# Save selected {id, revision} objects from quality output, then approve them.
+dg --session <session> --quality  # List pending with what the session has gathered
+# Save selected {id, revision} objects from the output, then approve them.
 dg --session <session> --quality --approve-file .\.digdig\sessions\<session>\agent-inputs\approve.json
 dg suggest-queries <session>    # Get query suggestions
 dg coverage <session>           # What this session has looked at, as counted facts
 dg strategy-info <session>      # Check search stage
-dg recovery-analysis <session>  # Get recovery strategies
 dg session-report <session>     # Full session report
 
 # Knowledge graph
@@ -105,10 +104,9 @@ dg --health                   # Check server status
 | `--owner` | `--owner "agent-1"` | Session owner |
 | `--desc` | `--desc "research topic"` | Session description |
 | `--redundancy` | `--redundancy warn` | Redundancy check: warn / adjust / skip |
-| `--quality` | `--quality` | Assess result quality (requires --session) |
+| `--quality` | `--quality` | List pending results and what the session has gathered, as counted facts (requires --session) |
 | `--approve-file <path>` | `--approve-file .digdig/sessions/<session>/agent-inputs/approve.json` | Approve only verified `{id, revision}` selections (requires --quality) |
 | `--skip-file` / `--unskip-file` | `--skip-file <path>` | Skip or restore `{id, revision}` selections |
-| `--threshold-override` | `--threshold-override '{"contentDepth":100}'` | Override quality thresholds (JSON) |
 
 ## Extract
 
@@ -129,7 +127,7 @@ dg extract --urls "https://spa-site.com" --session <session-name> --jina
 
 ## Deep Search
 
-Deep search enables multi-round iterative research with session accumulation, quality assessment, recovery strategies, and knowledge graph navigation.
+Deep search enables multi-round iterative research with session accumulation, counted coverage facts, and knowledge graph navigation.
 
 > Read the [SOP](references/SOP.md) for core procedures and [Evidence Standards](references/evidence-standards.md) for source quality rules before starting. For the final L2/L3 claim audit, read [Claim-Evidence-Review Audit](references/claim-evidence-review.md) after synthesizing the draft.
 
@@ -226,12 +224,12 @@ dg session-delete --older 24  # Delete sessions older than 24h
 dg --session <session> --quality
 ```
 
-Returns 3 independent diagnostics: contentDepth, sourceDiversity, novelty. Verdict: good / acceptable / poor. Based on verdict, use `suggest-queries` or `recovery-analysis` for next steps. Quality does not verify factual correctness, relevance, source authority, or Claim support.
+Returns counted facts, not a judgement: how many results the session holds, how many carry an extracted body, how many distinct sources, and per pending result its id, revision, source, body length, whether it is extracted and verified, and the round that first saw it. Whether that is enough is your call — it depends on the question, which the CLI does not know. These facts do not verify factual correctness, relevance, source authority, or Claim support either.
 
 All results accumulate as *pending* in the same pool. At **>=30 pending**, CLI warns the Agent to assess. The Agent runs quality, reviews the pending results, and approves by writing selected `{id, revision}` objects:
 
 ```bash
-# View pending results with id, revision, verification state, and quality score
+# View pending results with id, revision, verification state, and counted facts
 dg --session <session> --quality
 
 # Save selected {id, revision} objects only when their JSON output says verified: true.
@@ -325,8 +323,7 @@ See SOP for detailed L1/L2/L3 complexity guidelines.
 | `dg suggest-queries` | Query suggestions for next round |
 | `dg coverage` | Whole-session view: rounds, queries, new vs repeated, round-local terms, untouched primary sources |
 | `dg strategy-info` | Current search stage |
-| `dg recovery-analysis` | Recovery strategy analysis |
-| `dg session-report` | Full session history |
+| `dg session-report` | What the session has gathered plus stage progression |
 | `dg session-list` | List all sessions |
 | `dg session-delete` | Delete sessions |
 | `dg init` | Interactive setup |

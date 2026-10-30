@@ -41,7 +41,7 @@ describe('CLI program (commander)', () => {
         expect(commandNames).toContain('graph-obfuscate');
         expect(commandNames).toContain('suggest-queries');
         expect(commandNames).toContain('strategy-info');
-        expect(commandNames).toContain('recovery-analysis');
+        expect(commandNames).not.toContain('recovery-analysis');
         expect(commandNames).toContain('session-report');
         expect(commandNames).toContain('graph-explore');
         expect(commandNames).toContain('graph-drill');
@@ -62,6 +62,7 @@ describe('CLI program (commander)', () => {
         expect(optionFlags.some(f => f.includes('--categories-list'))).toBe(true);
         expect(optionFlags.some(f => f.includes('--redundancy'))).toBe(true);
         expect(optionFlags.some(f => f.includes('--quality'))).toBe(true);
+        expect(optionFlags.some(f => f.includes('--threshold-override'))).toBe(false);
     });
 
     it('query-graph has seeds, depth, and strategy options', () => {
@@ -434,7 +435,7 @@ describe('CLI program (commander)', () => {
         expect(JSON.parse(output.mock.calls.at(-1)![0] as string).data.queries).toEqual(['first query', 'second query']);
     });
 
-    it('rejects approval of an unverified result and returns quality diagnostics', async () => {
+    it('rejects approval of an unverified result and returns the session facts', async () => {
         const sessionDir = mkdtempSync(join(tmpdir(), 'sxng-cli-approval-test-'));
         appendSessionResults(sessionDir, [{
             url: 'https://example.com/summary', title: 'Summary', content: 'Search snippet only.', source: 'exa',
@@ -452,7 +453,8 @@ describe('CLI program (commander)', () => {
                 status: 'error',
                 error: { code: 'RESULT_NOT_VERIFIED' },
             });
-            expect(result.error.details.quality).toBeDefined();
+            expect(result.error.details.facts).toBeDefined();
+            expect(result.error.details.facts).not.toHaveProperty('verdict');
             expect(result.error.details.selectedResults).toEqual([
                 expect.objectContaining({ source: 'exa', verified: false }),
             ]);

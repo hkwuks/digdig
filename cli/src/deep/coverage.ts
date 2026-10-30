@@ -17,6 +17,7 @@
  */
 
 import type { SessionResult } from './session.js';
+import { sourceKey } from './dedupe.js';
 import { tokenize } from './tfidf.js';
 
 export interface RoundFacts {
@@ -85,8 +86,13 @@ const SPECIALIZED_SOURCES = [
     'hackernews.com',
 ];
 
-/** The round a result first appeared in. */
-function firstRound(result: SessionResult): number | undefined {
+/**
+ * The round a result first appeared in.
+ *
+ * Exported because the pending-facts report needs the same fact, and a second
+ * implementation of "first sighting" would eventually disagree with this one.
+ */
+export function firstRound(result: SessionResult): number | undefined {
     let earliest: number | undefined;
     for (const origin of result.origins ?? []) {
         const round = origin.round;
@@ -166,22 +172,15 @@ export function buildCoverage(
 /**
  * Which hosts the session has drawn from, and which specialized ones it has not.
  *
- * `file:` results are local documents and have no host; they contribute to
- * nothing here rather than being bucketed under an empty name.
+ * A `file:` result is a local document; its source is its path, so it counts
+ * like any other source rather than vanishing under an empty hostname.
  */
 function domainFactsOf(results: SessionResult[]): Pick<CoverageReport, 'domainsSeen' | 'untouchedSpecialized'> {
     const counts = new Map<string, number>();
     for (const result of results) {
-        let host: string;
-        try {
-            const parsed = new URL(result.url);
-            if (parsed.protocol === 'file:') continue;
-            host = parsed.hostname.replace(/^www\./, '').toLowerCase();
-        } catch {
-            continue;
-        }
-        if (!host) continue;
-        counts.set(host, (counts.get(host) ?? 0) + 1);
+        const source = sourceKey(result.url);
+        if (!source) continue;
+        counts.set(source, (counts.get(source) ?? 0) + 1);
     }
 
     const domainsSeen = [...counts.entries()]

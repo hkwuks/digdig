@@ -39,31 +39,31 @@ function buildSessionForAnalysis(): {
 
 describe('iteration-data', () => {
     describe('getSessionAnalysis', () => {
-        it('returns comprehensive analysis combining all modules', () => {
+        it('reports counted facts, strategy, and suggestions', () => {
             const { graph, results } = buildSessionForAnalysis();
-            const analysis = getSessionAnalysis(graph, results);
+            const analysis = getSessionAnalysis(graph, results, []);
 
-            expect(analysis.quality).toBeDefined();
-            expect(analysis.quality.verdict).toBeDefined();
+            expect(analysis.pending.total).toBe(results.length);
+            expect(analysis.pending.pending).toEqual([]);
             expect(analysis.strategy).toBeDefined();
             expect(analysis.strategy.currentStage).toBeDefined();
             expect(analysis.suggestions).toBeDefined();
             expect(analysis.suggestions.topEntities).toBeDefined();
-            expect(analysis.recovery).toBeDefined();
-            expect(analysis.recovery.qualityScore).toBeDefined();
         });
 
-        it('quality assessment is consistent with standalone call', () => {
+        it('carries no judgement of its own', () => {
+            // The point of removing the quality layer: nothing here says
+            // whether the session is going well.
             const { graph, results } = buildSessionForAnalysis();
-            const analysis = getSessionAnalysis(graph, results);
+            const analysis = getSessionAnalysis(graph, results, []);
 
-            // quality.verdict should be one of the valid values
-            expect(['good', 'acceptable', 'poor']).toContain(analysis.quality.verdict);
+            expect(analysis).not.toHaveProperty('quality');
+            expect(analysis).not.toHaveProperty('recovery');
         });
 
         it('strategy info reflects graph state', () => {
             const { graph, results } = buildSessionForAnalysis();
-            const analysis = getSessionAnalysis(graph, results);
+            const analysis = getSessionAnalysis(graph, results, []);
 
             expect(analysis.strategy.roundNumber).toBe(2);
             expect(analysis.strategy.recommendedEngines.length).toBeGreaterThan(0);
@@ -71,22 +71,22 @@ describe('iteration-data', () => {
 
         it('suggestions include top entities from graph', () => {
             const { graph, results } = buildSessionForAnalysis();
-            const analysis = getSessionAnalysis(graph, results);
+            const analysis = getSessionAnalysis(graph, results, []);
 
             expect(analysis.suggestions.topEntities.length).toBeGreaterThan(0);
             expect(analysis.suggestions.topEntities[0].label).toBe('tokio');
         });
 
-        it('recovery analysis includes quality history', () => {
+        it('counts the pending list it is given', () => {
             const { graph, results } = buildSessionForAnalysis();
-            const analysis = getSessionAnalysis(graph, results);
+            const analysis = getSessionAnalysis(graph, results, results);
 
-            expect(analysis.recovery.roundQualityHistory.length).toBeGreaterThan(0);
+            expect(analysis.pending.pending).toHaveLength(results.length);
         });
 
         it('accepts optional config overrides', () => {
             const { graph, results } = buildSessionForAnalysis();
-            const analysis = getSessionAnalysis(graph, results, {
+            const analysis = getSessionAnalysis(graph, results, [], {
                 strategyConfig: { broadRounds: 1, transitionThreshold: 0.1 },
             });
 

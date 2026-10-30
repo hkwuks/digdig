@@ -17,7 +17,6 @@ import { DirectedGraph } from 'graphology';
 import { tokenize, computeTfIdf } from '../../src/deep/tfidf.js';
 import { getEntityDegree } from '../../src/deep/degree-utils.js';
 import { sampleGraph } from '../../src/deep/graph-sampling.js';
-import { assessResultQuality } from '../../src/deep/quality-assess.js';
 import { checkQueryRedundancy } from '../../src/deep/query-redundancy.js';
 import {
     exploreSeedEntity,
@@ -143,21 +142,6 @@ describe('Performance Benchmarks', () => {
             expect(result).toBeDefined();
             expect(elapsed).toBeLessThan(5);
             console.log(`  Jaccard (50 history queries): ${elapsed.toFixed(3)}ms`);
-        });
-    });
-
-    describe('Quality assessment', () => {
-        it('assesses quality for 500 results in <500ms', () => {
-            const results = buildResults(500);
-            const graph = buildLargeGraph(200, 1);
-
-            const start = performance.now();
-            const quality = assessResultQuality(results, results, graph);
-            const elapsed = performance.now() - start;
-
-            expect(quality.verdict).toMatch(/good|acceptable|poor/);
-            expect(elapsed).toBeLessThan(500);
-            console.log(`  Quality assess (500 results): ${elapsed.toFixed(2)}ms, verdict=${quality.verdict}`);
         });
     });
 

@@ -29,14 +29,14 @@
 - 🔌 **Pluggable Backends** — SearXNG is the default; select Ollama web search or DeepSeek Search with `-e ollama` / `-e deepseek`. No backend is an automatic fallback for another.
 - 🔄 **Dynamic Discovery** — Auto-fetches available engines and categories from your SearXNG server
 - 📄 **Multiple Formats** — Markdown (LLM-optimized) or JSON output
-- 🧠 **Deep Search** — Multi-round iterative research with session accumulation, quality assessment, and recovery strategies
+- 🧠 **Deep Search** — Multi-round iterative research with session accumulation and counted coverage facts
 - 🔍 **Content Extraction** — Extract full article content from URLs or session results, with Obscura fallback and Agent-selected Jina Reader extraction
 - 🗂️ **Session Management** — Separates search discovery from extracted bodies; stable result IDs and revisions prevent stale approvals in parallel work
 - 🔗 **External Result Fusion** — Import external search or extraction output from session-scoped JSON files, without PowerShell inline-JSON escaping risks
-- ⭐ **Quality Assessment** — 3 independent indicators: content depth, source diversity, and novelty
+- ⭐ **Counted Facts, Not Verdicts** — `--quality` reports result counts, extraction state, sources, and per-result facts; the judgement stays with the Agent
 - 🕸️ **Knowledge Graph** — Structural (query→result→domain) + semantic (entity relations with approved result-ID provenance) graph layers
 - 🔄 **Query Redundancy Check** — Word-level or character-bigram Jaccard detects repeated queries
-- 💡 **Agent-First Design** — Outputs structured analysis data (quality, suggestions, recovery) for LLM Agent decision-making
+- 💡 **Agent-First Design** — Outputs structured analysis data (facts, suggestions, strategy) for LLM Agent decision-making
 - 📁 **Local Document Search** — Index and BM25-search local Markdown/text files; results auto-injected into the session pipeline as `source: "local"`
 - ✅ **Claim—Evidence—Review Pipeline** — L2/L3 only: submit atomic claims, auto-search evidence, verify with stance, then policy-aggregate by publisher-domain diversity for auto-approval or Agent review
 
@@ -118,11 +118,10 @@ obscura --version
 | `dg extract --obscura` | JS-rendering fallback for SPA pages |
 | `dg extract --urls <url> --session <name> --jina` | Agent-selected Jina Reader extraction for explicit URLs, merged into a session |
 | `dg --session new` | Create deep search session |
-| `dg --session <name> --quality` | Assess result quality, list pending results |
+| `dg --session <name> --quality` | List pending results with what the session has gathered, as counted facts |
 | `dg --session <name> --quality --approve-file <path>` | Approve verified pending results selected by `{id, revision}` JSON |
 | `dg suggest-queries <session>` | Get query suggestion data for Agent |
 | `dg strategy-info <session>` | Check current search stage |
-| `dg recovery-analysis <session>` | Get recovery strategies for poor quality |
 | `dg session-report <session>` | Full session analysis report |
 | `dg session-list` | List all sessions |
 | `dg session-delete <name>` | Delete a session |
@@ -164,10 +163,9 @@ obscura --version
 | `--owner <session-name>` | Session owner identifier |
 | `--desc <text>` | Session description |
 | `--redundancy <action>` | Query redundancy check: `warn`, `adjust`, `skip` |
-| `--quality` | Assess result quality (requires --session) |
+| `--quality` | List pending results and counted session facts (requires --session) |
 | `--approve-file <path>` | Approve `{id, revision}` selections from this session's `agent-inputs` directory |
 | `--skip-file <path>` / `--unskip-file <path>` | Skip or restore `{id, revision}` selections from this session's `agent-inputs` directory |
-| `--threshold-override <json>` | Override quality thresholds (JSON) |
 | `--merge <file>` | Merge new results with previous search JSON |
 
 ### Examples
@@ -245,7 +243,7 @@ Create `digdig.config.json`:
 
 ## 🧠 Deep Search
 
-Deep search enables multi-round iterative research with session accumulation, quality assessment, agent-controlled graph injection, and recovery strategies.
+Deep search enables multi-round iterative research with session accumulation, counted coverage facts, agent-controlled graph injection, and a Query Plan that records what is still missing.
 
 ### Workflow
 
@@ -268,10 +266,10 @@ dg extract --session ds_1712345678_abcdef
 # 3. Check extraction output: stats.success and session.updated identify
 #    results that received source text; failed URLs remain pending.
 
-# 4. Assess quality and see each result's verified state
+# 4. Review the pending facts and each result's verified state
 dg --session ds_1712345678_abcdef --quality
 
-# 5. Copy selected {id, revision} objects from quality output into
+# 5. Copy selected {id, revision} objects from the --quality output into
 #    .digdig/sessions/ds_1712345678_abcdef/agent-inputs/approve.json, then approve them.
 dg --session ds_1712345678_abcdef --quality --approve-file .\.digdig\sessions\ds_1712345678_abcdef\agent-inputs\approve.json
 
@@ -288,7 +286,7 @@ dg --session ds_1712345678_abcdef --queries "tokio vs async-std,benchmark 2026" 
 ### Quality and Evidence Semantics
 
 - Extracted web content is deduplicated by normalized URL, then by full-text character 5-gram Jaccard similarity. Query redundancy uses a separate word-level or character-bigram Jaccard check.
-- `--quality` assesses the newest recorded round against earlier approved results. A URL already seen in an earlier round is non-novel, even when it reappears in the newest round.
+- `--quality` reports counted facts: how many results the session holds, how many carry an extracted body, how many distinct sources, and each pending result's id, revision, source, body length, extraction and verification state, and the round that first saw it. It does not score them.
 - Quality is a diagnostic, not a fact verifier. A search discovery can be approved only after `extract` writes a non-empty body and extraction timestamp. An explicitly imported external body must provide non-empty `content` and an `extractor`; absent `extractedAt` is recorded as its import time.
 - Claim policy treats two normalized publisher domains as two sources. It does not infer corporate ownership, editorial relationships, or syndication across domains.
 
@@ -338,7 +336,7 @@ dg results-add <session-name> --kind search --tool exa --query "async runtime" `
   --data-file .\.digdig\sessions\<session-name>\agent-inputs\exa-search.json
 ```
 
-Search imports become `pending` and require `extract --session`; inspect `stats.success`, `stats.failed`, and `session.updated`, then approve only entries whose quality output reports `verified: true`. An external tool that already returned a body must instead use `--kind extracted` with non-empty `content` and `extractor`; it becomes pending approval without another extraction. A failed extraction remains pending and cannot enter the graph. `tool` and `query` record the discovery provenance.
+Search imports become `pending` and require `extract --session`; inspect `stats.success`, `stats.failed`, and `session.updated`, then approve only entries whose `--quality` output reports `verified: true`. An external tool that already returned a body must instead use `--kind extracted` with non-empty `content` and `extractor`; it becomes pending approval without another extraction. A failed extraction remains pending and cannot enter the graph. `tool` and `query` record the discovery provenance.
 
 ### Structured JSON Input
 
@@ -424,9 +422,9 @@ See the local, not-yet-published PRD-005 design-improvements document for the de
 
 ## 💡 Projects Using digdig
 
-digdig's deep search workflow (session accumulation, quality assessment, knowledge graph, claim–evidence–review) is used by projects that need persistent, multi-round research capabilities:
+digdig's deep search workflow (session accumulation, counted coverage facts, knowledge graph, claim–evidence–review) is used by projects that need persistent, multi-round research capabilities:
 
-- **[1052 OS](https://github.com/1052666/1052-OS)** — A personal AI operating system. Its `search-pack` integrates persistent research sessions, quality assessment, content extraction, and a claim–evidence–review pipeline, all powered by the same deep search concepts that drive digdig.
+- **[1052 OS](https://github.com/1052666/1052-OS)** — A personal AI operating system. Its `search-pack` integrates persistent research sessions, counted coverage facts, content extraction, and a claim–evidence–review pipeline, all powered by the same deep search concepts that drive digdig.
 
 > Open a PR to add your project here.
 

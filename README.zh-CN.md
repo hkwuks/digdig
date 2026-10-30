@@ -34,14 +34,14 @@
 - 🔌 **可插拔后端** — 默认 SearXNG；用 `-e ollama` / `-e deepseek` 切换到 Ollama 网页搜索或 DeepSeek Search。任一后端都不是另一个的自动回退。
 - 🔄 **动态发现** — 自动从 SearXNG 服务器获取可用引擎和分类
 - 📄 **多格式输出** — Markdown（LLM 优化）或 JSON 格式
-- 🧠 **深度搜索** — 多轮迭代研究，支持会话累积、质量评估和恢复策略
+- 🧠 **深度搜索** — 多轮迭代研究，支持会话累积与可数的覆盖事实
 - 🔍 **内容提取** — 从 URL 或会话结果中提取文章全文，支持 Obscura 回退和 Agent 选择的 Jina Reader 提取
 - 🗂️ **会话管理** — 明确区分搜索发现与已提取正文；稳定结果 ID 和版本号避免并行时审批错位
 - 🔗 **外部结果融合** — 从会话专属 JSON 文件导入外部搜索或提取结果，避免 PowerShell 内联 JSON 转义问题
-- ⭐ **质量评估** — 3 个独立指标：内容深度、来源多样性、新颖度
+- ⭐ **只报事实，不给裁定** — `--quality` 报告结果条数、提取状态、来源与每条结果的事实；判断交给 Agent
 - 🕸️ **知识图谱** — 结构层（查询→结果→域名）+ 语义层（带已审批结果 ID 来源的实体关系）双层图谱
 - 🔄 **查询冗余检查** — 基于词级或字符 bigram Jaccard 检测重复查询
-- 💡 **Agent 优先设计** — 输出结构化分析数据（质量、建议、恢复策略）供 LLM Agent 决策
+- 💡 **Agent 优先设计** — 输出结构化分析数据（事实、建议、策略）供 LLM Agent 决策
 - 📁 **本地文档搜索** — 对本地 Markdown/文本文件进行 BM25 全文索引和搜索，支持字段加权排序；每个索引分块保持独立的已提取会话结果
 - ✅ **陈述—证据—审核管线** — L2/L3 专用：提交原子化陈述、自动检索证据、验证立场，再按发布域名多样性进行策略聚合自动审批或标记待人工审核
 
@@ -873,11 +873,10 @@ obscura --version
 | `dg extract --obscura` | JS 渲染回退（用于 SPA 页面） |
 | `dg extract --urls <url> --jina` | Agent 为显式指定 URL 选择 Jina Reader 提取 |
 | `dg --session new` | 创建深度搜索会话 |
-| `dg --session <name> --quality` | 评估结果质量，列出待审结果 |
+| `dg --session <name> --quality` | 列出待审结果与本会话已累积的可数事实 |
 | `dg --session <name> --quality --approve-file <path>` | 从 `{id, revision}` JSON 文件审批已验证的待审结果 |
 | `dg suggest-queries <session>` | 获取查询建议数据（供 Agent 使用） |
 | `dg strategy-info <session>` | 查看当前搜索阶段 |
-| `dg recovery-analysis <session>` | 获取低质量恢复策略 |
 | `dg session-report <session>` | 完整会话分析报告 |
 | `dg coverage <session>` | 本会话已看过什么，以可数事实呈现（轮次、查询、新增与重复、轮内独有词） |
 | `dg session-list` | 列出所有会话 |
@@ -921,10 +920,9 @@ obscura --version
 | `--owner <session-name>` | 会话所有者标识 |
 | `--desc <text>` | 会话描述 |
 | `--redundancy <action>` | 查询冗余检查：`warn`、`adjust`、`skip` |
-| `--quality` | 评估结果质量（需配合 --session） |
+| `--quality` | 列出待审结果与可数事实（需配合 --session） |
 | `--approve-file <path>` | 从本会话 `agent-inputs` 目录的 `{id, revision}` 文件审批 |
 | `--skip-file <path>` / `--unskip-file <path>` | 从本会话 `agent-inputs` 目录跳过或恢复 `{id, revision}` 选择 |
-| `--threshold-override <json>` | 覆盖质量阈值（JSON） |
 | `--merge <file>` | 合并新的 JSON 搜索结果文件 |
 
 ### 示例
@@ -1014,12 +1012,12 @@ dg --categories-list
 
 ## 🧠 深度搜索
 
-深度搜索支持多轮迭代研究，具备会话累积、质量评估、Agent 控制图谱注入和恢复策略。
+深度搜索支持多轮迭代研究，具备会话累积、可数的覆盖事实、Agent 控制图谱注入，以及记录「还缺什么」的 Query Plan。
 
 ### 工作流
 
 ```
-搜索 → 提取 → 质量评估 → 审批 → 构建图谱 →（循环或探索）
+搜索 → 提取 → 审查事实 → 审批 → 构建图谱 →（循环或探索）
                                                                          ↓
                                           (L2/L3) 陈述—证据—审核管线 → 最终输出
 ```
@@ -1036,10 +1034,10 @@ dg extract --session <session-name>
 
 # 3. 检查提取输出：stats.success 和 session.updated 标识已取得正文的结果；失败 URL 保持待审。
 
-# 4. 评估质量并查看每条结果的 verified 状态
+# 4. 查看待审事实与每条结果的 verified 状态
 dg --session <session-name> --quality
 
-# 5. 将质量输出中选中的 {id, revision} 写入
+# 5. 将 --quality 输出中选中的 {id, revision} 写入
 #    .digdig/sessions/<session-name>/agent-inputs/approve.json，再审批。
 dg --session <session-name> --quality --approve-file .\.digdig\sessions\<session-name>\agent-inputs\approve.json
 
@@ -1064,8 +1062,8 @@ dg --session <session-name> --queries "tokio vs async-std,benchmark 2026" --redu
 ### 质量与证据语义
 
 - 提取后的网页内容先按规范化 URL 去重，再按全文字符 5-gram Jaccard 相似度去重；查询冗余则单独使用词级或字符 bigram Jaccard。
-- `--quality` 用最新已记录轮次与此前已批准的结果比较。此前轮次已经出现过的 URL 即使在最新轮次再次命中，也计为非新颖。
-- 质量评估是诊断，不是事实核验。搜索发现只有在 `extract` 写入非空正文和提取时间后才能审批。显式导入的外部正文必须提供非空 `content` 与 `extractor`；未提供 `extractedAt` 时，记录其导入时间。
+- `--quality` 报告可数事实：会话共有多少条结果、多少条带已提取正文、多少个不同来源，以及每条待审结果的 id、revision、来源、正文长度、是否已提取、是否可审批、首次出现的轮次。它不给这些数字打分。
+- 这些事实是诊断，不是事实核验。搜索发现只有在 `extract` 写入非空正文和提取时间后才能审批。显式导入的外部正文必须提供非空 `content` 与 `extractor`；未提供 `extractedAt` 时，记录其导入时间。
 - 陈述审核把两个不同的规范化发布域名视为两个来源；不会推断跨域名的公司归属、编辑关系或转载关系。
 
 ### 会话管理
@@ -1124,7 +1122,7 @@ dg results-add <session-name> --kind search --tool exa --query "async runtime" `
   --data-file .\.digdig\sessions\<session-name>\agent-inputs\exa-search.json
 ```
 
-搜索导入后结果标记为 `pending`，必须执行 `extract --session`；检查 `stats.success`、`stats.failed` 和 `session.updated`，只审批质量输出中 `verified: true` 的结果。如果外部工具已返回正文，必须使用 `--kind extracted` 并提供非空 `content` 和 `extractor`，它会直接等待审批而不再重复提取。提取失败的结果保持待审，不能进入图谱。`tool` 与 `query` 记录发现来源。
+搜索导入后结果标记为 `pending`，必须执行 `extract --session`；检查 `stats.success`、`stats.failed` 和 `session.updated`，只审批 `--quality` 输出中 `verified: true` 的结果。如果外部工具已返回正文，必须使用 `--kind extracted` 并提供非空 `content` 和 `extractor`，它会直接等待审批而不再重复提取。提取失败的结果保持待审，不能进入图谱。`tool` 与 `query` 记录发现来源。
 
 ### 结构化 JSON 输入
 
@@ -1188,7 +1186,7 @@ dg doc-search <session-name> "关键词" --path ./docs
 - 网络搜索结果不足以覆盖主题，且本地有相关文档
 - 主题涉及私有/内部信息，不便于网络搜索
 
-**质量评估注意：** 纯本地搜索的 `sourceDiversity` 指标值为 1，因为所有结果共享同一个无域名来源。应始终将本地结果与网络结果组合使用，以获得充分的来源多样性。
+**本地来源说明：** `file:` 结果按其路径计入来源，因此同一文档的两个分块算一个来源，第二个文件算第二个来源。纯本地会话会报出真实的来源数，而不是 0。仅靠本地结果是否足以回答这个问题，仍由你判断。
 
 ---
 
@@ -1296,9 +1294,9 @@ Session 融合时使用独立的 `fusionScore`。`publishedDate` 是来源发布
 
 ## 💡 使用 digdig 的项目
 
-digdig 的深度搜索工作流（会话积累、质量评估、知识图谱、声明-证据-审核）已被需要持久化、多轮研究能力的项目采用：
+digdig 的深度搜索工作流（会话积累、可数覆盖事实、知识图谱、声明-证据-审核）已被需要持久化、多轮研究能力的项目采用：
 
-- **[1052 OS](https://github.com/1052666/1052-OS)** — 个人 AI 操作系统。其 `search-pack` 集成了持久化研究会话、质量评估、内容提取和声明-证据-审核流程，这些功能均由与 digdig 相同的深度搜索理念驱动。
+- **[1052 OS](https://github.com/1052666/1052-OS)** — 个人 AI 操作系统。其 `search-pack` 集成了持久化研究会话、可数覆盖事实、内容提取和声明-证据-审核流程，这些功能均由与 digdig 相同的深度搜索理念驱动。
 
 > 欢迎提交 PR 添加你的项目。
 

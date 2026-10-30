@@ -1,6 +1,6 @@
 # SXNG DeepSearch SOP
 
-> **Proactive Deep Search**: When the user asks a question that requires multi-angle comparison, research, cross-validation, or any topic where simple search might not suffice, go straight to `--session` deep search. Do not start with simple search and "upgrade" later; creating a session from the first round costs nothing and gives you quality assessment, redundancy checks, and knowledge graph from the start. When uncertain between L1 and L2, choose L2.
+> **Proactive Deep Search**: When the user asks a question that requires multi-angle comparison, research, cross-validation, or any topic where simple search might not suffice, go straight to `--session` deep search. Do not start with simple search and "upgrade" later; creating a session from the first round costs nothing and gives you counted coverage facts, redundancy checks, and a knowledge graph from the start. When uncertain between L1 and L2, choose L2.
 >
 > **Before using this SOP**: Read `skills/digdig/references/pipeline.md` first; it explains the data flow (single pending pool, batch approval, graph injection order). This SOP assumes you understand that pipeline.
 
@@ -8,7 +8,7 @@
 
 ## 1. Core Philosophy
 
-**Search != Answer**. A single search returns raw information, not verified facts. This SOP ensures output quality through **multi-round iteration + knowledge graph + quality assessment + recovery strategies**.
+**Search != Answer**. A single search returns raw information, not verified facts. This SOP ensures output quality through **multi-round iteration + knowledge graph + counted coverage facts + a Query Plan that records what is still missing**.
 
 **Workflow**:
 
@@ -193,13 +193,13 @@ When adding edges, `source`/`target` must reference existing node IDs. Run `grap
 
 References to non-existent nodes are skipped and reported in `skippedEdges`.
 
-**External Search Results Integration**: When you use other search tools (tavily, exa, open-web-search, etc.) during a deep search session, use `results-add` to inject results. They go through the same pipeline as digdig-native results: **pending -> quality assessment -> approval -> graph injection**. Use `graph-add` only for entities/edges after approval.
+**External Search Results Integration**: When you use other search tools (tavily, exa, open-web-search, etc.) during a deep search session, use `results-add` to inject results. They go through the same pipeline as digdig-native results: **pending -> review -> approval -> graph injection**. Use `graph-add` only for entities/edges after approval.
 
 ```bash
 # Step 1: Save external discovery JSON under the session, then import it (becomes pending).
 dg results-add <session> --kind search --tool exa --query "external source query" --data-file .\.digdig\sessions\<session>\agent-inputs\external-search.json
 
-# Step 2: Extract, then run quality assessment and approve (injects into graph)
+# Step 2: Extract, then review the pending facts and approve (injects into graph)
 dg extract --session <session>
 dg --session <session> --quality
 dg --session <session> --quality --approve-file .\.digdig\sessions\<session>\agent-inputs\approve.json
@@ -208,29 +208,34 @@ dg --session <session> --quality --approve-file .\.digdig\sessions\<session>\age
 dg graph-add <session> --data-file .\.digdig\sessions\<session>\agent-inputs\graph.json
 ```
 
-The origin `tool` (`"digdig"` | `"tavily"` | `"exa"` | `"open-web-search"` | ...) records which tool produced each result. digdig-native results default to `"digdig"`. External results participate equally in quality assessment, path discovery, and domain diversity; the graph treats them identically regardless of source.
+The origin `tool` (`"digdig"` | `"tavily"` | `"exa"` | `"open-web-search"` | ...) records which tool produced each result. digdig-native results default to `"digdig"`. External results participate equally in review, path discovery, and source counting; the graph treats them identically regardless of source.
 
 > **Note**: `results-add --kind search` marks discoveries as `pending` and they require extraction. `--kind extracted` accepts an external body with `content` and `extractor`, then it awaits approval. Neither kind enters the graph until Agent approval via `--quality --approve-file`.
 
-> **Two-layer quality assessment:**
-> 1. **Programmatic pre-filter**: CLI computes 3 indicators (contentDepth, sourceDiversity, novelty) to flag obviously poor batches
-> 2. **Agent final review**: Agent sees each pending result's title, content preview, source, and domain; then decides which `{id, revision}` objects to keep
+> **No programmatic quality verdict.** The CLI used to compute three indicators
+> and reduce them to `good / acceptable / poor`. That label never blocked
+> anything, and it was wrong in ways the numbers could not show: its depth
+> indicator averaged only extracted results, its novelty indicator compared
+> titles because the body had not been fetched yet, and its thresholds were
+> failed by most real sessions. What `--quality` returns now is counted facts,
+> and the judgement is yours.
 >
-> Results are accumulated as `pending`; they are not in the knowledge graph until approved by the Agent via `--approve-file`. External results injected via `results-add` also go through pending first.
+> Results accumulate as `pending`; they are not in the knowledge graph until
+> approved by you via `--approve-file`. External results injected via
+> `results-add` go through the same pending first.
 
-3 independent indicators for programmatic pre-filter (each with its own threshold):
+What `--quality` reports:
 
-| Indicator | Purpose | Threshold |
-|-----------|---------|-----------|
-| contentDepth | Filter empty/very short extractions | >= 150 chars average |
-| sourceDiversity | Ensure not all from same domain | >= 3 distinct domains |
-| novelty | Prevent circular/redundant results | >= 30% novel (Jaccard) |
+| Field | Meaning |
+|-------|---------|
+| `total` / `extracted` / `unextracted` | Results stored, and how many carry a fetched body |
+| `sources` / `sourceList` | Distinct sources, with a local document counted under its path |
+| `pending[]` | Per result: `id`, `revision`, `source`, `domain`, `contentLength`, `extracted`, `verified`, `round` |
 
-| Verdict | Meaning | Agent Action |
-|---------|---------|-------------|
-| good | All pre-filters pass | Review and approve likely good results |
-| acceptable | 1 pre-filter failed | Review carefully; some results may still be valuable |
-| poor | >=2 pre-filters failed | Strong signal to reformulate query or adjust strategy |
+`extracted` and `verified` are separate facts: a record can carry readable
+text and still lack the extractor metadata approval requires. `round` is the
+round that first saw the result, and is absent on a session stored before
+round tracking existed.
 
 > **Agent decision criteria** (based on per-result data in `--quality` output):
 > - **Relevance**: Does the content preview address the query?
@@ -250,7 +255,6 @@ dg suggest-queries <session> --format json
 **Agent Decision Logic**:
 - `topEntities` has high degree x frequency but unexplored entities: search using them as keywords
 - `unexploredDomains` is non-empty: choose query terms related to new domains
-- `qualityLastRound.failedIndicators` contains "sourceDiversity": add `-e` flag to use different engines
 - Choose only a query that closes one recorded Query Plan gap. If no gap remains, stop rather than searching for more supporting material.
 - When the gap is an official source, target the official publisher; when it is independence, seek a non-cross-posted source; when it is a conflict, seek the primary record or retain the disagreement.
 
@@ -278,25 +282,24 @@ dg "follow-up query" --session <session> --redundancy warn
 
 Before this command, update the Query Plan and state which row and evidence gap the query addresses. Then return to Phase 2. Stop when all core rows are `covered`, the round budget is exhausted, or remaining core rows are explicitly `blocked` and will be disclosed.
 
-#### Phase 7: Recovery Analysis (when consecutive poor quality)
+#### Phase 7: Recovery (when a direction stops producing)
 
-```bash
-dg recovery-analysis <session> --format json
-```
+There is no `recovery-analysis` command. What it reported — how many results
+each round returned, and how many of those were already known — is in
+`dg coverage`, from Phase 6. Read those counts and choose the response
+yourself:
 
-| Strategy | Applicable Scenario | Agent Action |
-|----------|---------------------|-------------|
-| reformulate | Query too specific, too few results | Remove qualifiers, use broader terms |
-| engine_rotation | Current engine missed results | Switch engine combination (e.g., google -> arxiv+github) |
-| category_shift | Current category has poor results | Switch to different category (e.g., general -> it) |
-| backtrack | >=2 consecutive poor rounds | Return to last good quality round, explore different direction |
+| What you see in `coverage` | What it usually means |
+|----------------------------|-----------------------|
+| A round's `New` is 0 across several rounds | That direction is saturated; change aspect, not wording |
+| `repeated` URLs growing, few new ones | The same pages keep surfacing; their content is already in hand |
+| `domainsSeen` concentrated on one host | Add engines or use external search tools, then `results-add` |
+| `untouchedSpecialized` still lists likely primary sources | Target those hosts directly |
+| Many rounds, thin new-result counts | Widen the angle rather than deepening it |
 
-When `--quality` is consecutively `poor`, or `sourceDiversity` / `contentDepth`
-fails across multiple rounds, consider adding Tavily, Exa, or similar external
-search tools in addition to changing engines/categories, then inject those
-results into the current session with `results-add`.
-
-Also check search stage suggestions:
+When several rounds have added little, consider adding Tavily, Exa, or similar
+external search tools in addition to changing engines/categories, then inject
+those results into the current session with `results-add`.
 
 ```bash
 dg strategy-info <session> --format json
@@ -329,7 +332,7 @@ dg strategy-info <session> --format json
 
 **Rule**: A backend failure is NOT session corruption. The session stores state; it is decoupled from any single search source. Only abandon a session when its data files are actually corrupted (`results.json` unreadable), never because a backend returned errors.
 
-#### Phase 8: Graph Exploration (navigate knowledge space after quality is good)
+#### Phase 8: Graph Exploration (navigate the knowledge space once the graph is built)
 
 ```bash
 # Discover entities
@@ -422,7 +425,7 @@ Use `strategy-info` command to determine current stage.
 
 ### Quality Assessment Note
 
-Local-only results (`source: "local"`) will have `sourceDiversity: 1` because all results share the same domain-less source. This is correct behavior; pure local search is not diverse enough to pass quality. Always combine with web results for adequate source diversity.
+Local-only results (`source: "local"`) count under their file path, so two chunks of one document are one source and a second file is a second source. A pure local session therefore reports a real source count instead of zero. Whether local-only coverage answers the question is your judgement, not a threshold.
 
 ---
 
@@ -443,7 +446,7 @@ Before outputting final answer, verify:
 - [ ] Source disagreements show evidence from both sides (see [Conflict Resolution](evidence-standards.md#3-conflict-resolution))
 - [ ] Used `dg extract` to extract key page content
 - [ ] L2/L3 levels used `--session` and knowledge graph
-- [ ] L3 level used `--quality` assessment and decided next steps accordingly
+- [ ] L3 level read `dg coverage` and `--quality` facts and recorded which gap each further round closed
 - [ ] **L2/L3: ran `dg coverage` before choosing a later round's query** (a round with `New: 0` means that direction is saturated)
 - [ ] **L2/L3: ran Claim-Evidence-Review pipeline** (`claim-add` -> `evidence-verify` -> review)
 - [ ] **Final output only cites `approved` claims** (`needsReview` claims either dropped or marked as uncertain)

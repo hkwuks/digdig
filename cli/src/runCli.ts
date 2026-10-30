@@ -23,17 +23,16 @@ import { runDocIndex } from './commands/doc-index.js';
 import { runDocSearch } from './commands/doc-search.js';
 import { runGraphObfuscateCommand, GraphObfuscateOptions } from './commands/graph-obfuscate.js';
 import { ContentExtractor } from './deep/extractor.js';
-import { resultUrlKey } from './deep/dedupe.js';
+import { resultUrlKey, sourceKey } from './deep/dedupe.js';
 import { fuseResults, mergeEnvelopeMetadata } from './deep/fuse.js';
 import { deserializeGraph, graphStats, GraphNodeAttrs, GraphEdgeAttrs } from './deep/graph.js';
 import { initSessionDir, resolveSessionPath, appendSessionResults, loadSessionResults, loadSessionGraph, countPendingResults, getPendingResults, approveResults, injectApprovedResults, hasVerifiedContent, setSkipped } from './deep/session.js';
 import { runSessionList, runSessionDelete, getDefaultSessionRoot } from './commands/session.js';
 import { graphPreprocess } from './deep/graph-preprocess.js';
 import { checkQueryRedundancy, RedundancyConfig } from './deep/query-redundancy.js';
-import { assessLatestResultQuality, assessResultQuality, QualityThresholds } from './deep/quality-assess.js';
+import { buildPendingReport, describeResult, PendingReport } from './deep/pending-facts.js';
 import { generateQuerySuggestions } from './deep/query-suggest.js';
 import { determineSearchStage, getStrategyInfo } from './deep/search-strategy.js';
-import { analyzeRecoveryOptions, RecoveryAnalysis, RoundQuality } from './deep/recovery-analysis.js';
 import { getSessionAnalysis } from './deep/iteration-data.js';
 import { runCoverage } from './commands/coverage.js';
 import { runGraphExplore } from './commands/graph-explore.js';
@@ -178,37 +177,23 @@ function formatPreprocessAsMarkdown(data: any): string {
     return lines.join('\n');
 }
 
-function formatQualityAsMarkdown(data: any): string {
+function formatFactsAsMarkdown(facts: PendingReport): string {
     const lines: string[] = [];
-    lines.push('## Result Quality Assessment');
+    lines.push('## Session Facts');
     lines.push('');
-    const verdictEmoji: Record<string, string> = { good: '✓', acceptable: '△', poor: '✗' };
-    lines.push(`**Verdict:** ${data.verdict.toUpperCase()} ${verdictEmoji[data.verdict] || ''}`);
+    lines.push(`**Results:** ${facts.total} — ${facts.extracted} with an extracted body, ${facts.unextracted} without`);
+    lines.push(`**Sources:** ${facts.sources}`);
+    if (facts.sourceList.length) lines.push(`**Source list:** ${facts.sourceList.join(' · ')}`);
     lines.push('');
 
-    const breakdown = data.breakdown;
-    if (breakdown) {
-        lines.push('| Indicator | Value | Threshold | Pass |');
-        lines.push('|-----------|-------|-----------|------|');
-        const indicators = ['contentDepth', 'sourceDiversity', 'novelty'];
-        const labels: Record<string, string> = {
-            contentDepth: 'Content Depth',
-            sourceDiversity: 'Source Diversity',
-            novelty: 'Novelty',
-        };
-        for (const key of indicators) {
-            const ind = breakdown[key];
-            if (ind) {
-                const valueStr = key === 'novelty' ? ind.value.toFixed(2) : String(Math.round(ind.value * 100) / 100);
-                const thStr = key === 'novelty' ? ind.threshold.toFixed(2) : String(ind.threshold);
-                lines.push(`| ${labels[key] || key} | ${valueStr} | ${thStr} | ${ind.pass ? '✓' : '✗'} |`);
-            }
-        }
+    if (facts.pending.length) {
+        lines.push(`**Awaiting approval:** ${facts.pending.length}`);
         lines.push('');
-    }
-
-    if (data.failedIndicators?.length > 0) {
-        lines.push(`**Failed:** ${data.failedIndicators.join(', ')}`);
+        lines.push('| # | Source | Body | Verified | Round | Title |');
+        lines.push('|---|--------|------|----------|-------|-------|');
+        facts.pending.forEach((fact, index) => {
+            lines.push(`| ${index} | ${fact.domain || '-'} | ${fact.contentLength} | ${fact.verified ? '✓' : '✗'} | ${fact.round ?? '-'} | ${fact.title || fact.url} |`);
+        });
         lines.push('');
     }
 
@@ -253,14 +238,6 @@ function formatSuggestAsMarkdown(data: any): string {
         lines.push('');
     }
 
-    if (data.qualityLastRound) {
-        lines.push(`**Last Round Quality:** ${data.qualityLastRound.verdict}`);
-        if (data.qualityLastRound.failedIndicators?.length) {
-            lines.push(` (failed: ${data.qualityLastRound.failedIndicators.join(', ')})`);
-        }
-        lines.push('');
-    }
-
     return lines.join('\n');
 }
 
@@ -282,72 +259,20 @@ function formatStrategyAsMarkdown(data: any): string {
     return lines.join('\n');
 }
 
-function formatRecoveryAsMarkdown(data: RecoveryAnalysis): string {
-    const lines: string[] = [];
-    lines.push('## Recovery Analysis');
-    lines.push('');
-    const verdictEmoji: Record<string, string> = { good: '✓', acceptable: '△', poor: '✗' };
-    lines.push(`**Quality:** ${data.qualityScore.verdict.toUpperCase()} ${verdictEmoji[data.qualityScore.verdict] || ''}`);
-    lines.push(`**Consecutive Failures:** ${data.recentFailures}`);
-    lines.push('');
-
-    if (data.lastSuccessfulRound) {
-        lines.push(`**Last Successful Round:** Round ${data.lastSuccessfulRound.round} — "${data.lastSuccessfulRound.query}"`);
-        lines.push('');
-    }
-
-    if (data.availableStrategies.length > 0) {
-        lines.push('### Available Strategies');
-        lines.push('');
-        for (const s of data.availableStrategies) {
-            lines.push(`**${s.strategy}**`);
-            lines.push(`- Reason: ${s.reason}`);
-            lines.push(`- Suggestion: ${s.suggestion}`);
-            if (s.backtrackTo) {
-                lines.push(`- Backtrack to: Round ${s.backtrackTo.round} — "${s.backtrackTo.query}"`);
-            }
-            lines.push('');
-        }
-    }
-
-    if (data.roundQualityHistory.length > 0) {
-        lines.push('### Quality History');
-        lines.push('');
-        lines.push('| Round | Query | Verdict | Failed |');
-        lines.push('|-------|-------|---------|--------|');
-        for (const r of data.roundQualityHistory) {
-            lines.push(`| ${r.round} | ${r.query} | ${r.verdict} | ${r.failedIndicators.join(', ') || '-'} |`);
-        }
-        lines.push('');
-    }
-
-    return lines.join('\n');
-}
-
 function formatSessionReportAsMarkdown(data: any): string {
     const lines: string[] = [];
     lines.push('## Session Report');
     lines.push('');
 
-    // Quality summary
-    const q = data.quality;
-    const verdictEmoji: Record<string, string> = { good: '✓', acceptable: '△', poor: '✗' };
-    lines.push(`### Quality: ${q.verdict.toUpperCase()} ${verdictEmoji[q.verdict] || ''}`);
+    // What the session has gathered. The per-round view lives in `dg coverage`
+    // and the pending list in `dg --quality`; repeating them here would make
+    // three places to keep in step.
+    const p = data.pending;
+    lines.push(`### Gathered: ${p.total} results from ${p.sources} sources`);
+    lines.push(`- With an extracted body: ${p.extracted}`);
+    lines.push(`- Awaiting extraction: ${p.unextracted}`);
+    lines.push(`- Awaiting approval: ${p.pending.length}`);
     lines.push('');
-    if (q.breakdown) {
-        const indicators = ['contentDepth', 'sourceDiversity', 'novelty'];
-        const labels: Record<string, string> = {
-            contentDepth: 'Content Depth', sourceDiversity: 'Source Diversity', novelty: 'Novelty',
-        };
-        for (const key of indicators) {
-            const ind = q.breakdown[key];
-            if (ind) {
-                const valueStr = key === 'novelty' ? ind.value.toFixed(2) : String(Math.round(ind.value * 100) / 100);
-                lines.push(`- ${labels[key]}: ${valueStr} (threshold: ${ind.threshold}) ${ind.pass ? '✓' : '✗'}`);
-            }
-        }
-        lines.push('');
-    }
 
     // Strategy
     const s = data.strategy;
@@ -369,11 +294,8 @@ function formatSessionReportAsMarkdown(data: any): string {
         lines.push('');
     }
 
-    // Recovery hint
-    if (q.verdict !== 'good') {
-        lines.push(`> Recovery: ${data.recovery.availableStrategies.length} strategies available. Use \`dg recovery-analysis <session>\` for details.`);
-        lines.push('');
-    }
+    lines.push('For what each round looked at, run `dg coverage <session>`.');
+    lines.push('');
 
     return lines.join('\n');
 }
@@ -600,7 +522,7 @@ async function runSearch(
                             if (stats.entities >= 3) {
                                 // Graph has matured → deep graph-based advice
                                 const sessionResults = loadSessionResults(options.session);
-                                const analysis = getSessionAnalysis(graph, sessionResults);
+                                const analysis = getSessionAnalysis(graph, sessionResults, getPendingResults(options.session));
                                 const topLabels = analysis.suggestions.topEntities
                                     .slice(0, 3)
                                     .map(e => e.label);
@@ -721,7 +643,7 @@ async function runSearch(
             injectApprovedResults(options.session, sessionInfo.approvedResults);
             const pendingCount = countPendingResults(options.session);
             if (pendingCount >= 30) {
-                console.error(`[session] ${pendingCount} pending results awaiting Agent quality assessment. Run --quality to evaluate.`);
+                console.error(`[session] ${pendingCount} pending results awaiting Agent review. Run --quality to list them.`);
             }
         }
 
@@ -798,8 +720,7 @@ export function createProgram(argv: string[] = []): Command {
         .option('--desc <text>', 'Session description (stored in meta.json)')
         .option('--graph <file>', 'Save search result metadata to knowledge graph file')
         .option('--redundancy <action>', 'Query redundancy check: warn | adjust | skip')
-        .option('--quality', 'Assess result quality for current session')
-        .option('--threshold-override <json>', 'Override quality thresholds (JSON, e.g. \'{"contentDepth":100}\')')
+        .option('--quality', 'List pending results with what the session has gathered, as counted facts')
         .option('--approve-file <path>', 'UTF-8 approval JSON array under this session agent-inputs directory')
         .option('--skip-file <path>', 'UTF-8 skip JSON array under this session agent-inputs directory')
         .option('--unskip-file <path>', 'UTF-8 restore JSON array under this session agent-inputs directory')
@@ -1046,9 +967,8 @@ Examples:
             const graph = loadSessionGraph(sessionDir);
             const results = loadSessionResults(sessionDir);
             const stage = determineSearchStage(graph);
-            const quality = assessLatestResultQuality(results);
 
-            const data = generateQuerySuggestions(graph, results, stage, quality);
+            const data = generateQuerySuggestions(graph, results, stage);
 
             if (opts.format === 'md') {
                 console.log(formatSuggestAsMarkdown(data));
@@ -1087,34 +1007,9 @@ Examples:
         });
 
     program
-        .command('recovery-analysis')
-        .argument('<session>', 'Session directory or name')
-        .description('Output recovery strategy analysis for Agent decision-making')
-        .option('-f, --format <fmt>', 'Output format: json (default), md')
-        .addHelpText('after', `
-Examples:
-  dg recovery-analysis my-session
-  dg recovery-analysis my-session --format md`)
-        .action(async (session, opts) => {
-            const sessionDir = resolveSessionPath(session);
-            const graph = loadSessionGraph(sessionDir);
-            const results = loadSessionResults(sessionDir);
-            const quality = assessLatestResultQuality(results);
-
-            const analysis = analyzeRecoveryOptions(graph, results, quality);
-
-            if (opts.format === 'md') {
-                console.log(formatRecoveryAsMarkdown(analysis));
-            } else {
-                console.log(JSON.stringify(createSuccessEnvelope(analysis), null, 2));
-            }
-            process.exit(0);
-        });
-
-    program
         .command('session-report')
         .argument('<session>', 'Session directory or name')
-        .description('Show session quality history and stage progression')
+        .description('Show what the session has gathered and how far the search has moved')
         .option('-f, --format <fmt>', 'Output format: json (default), md')
         .addHelpText('after', `
 Examples:
@@ -1125,7 +1020,7 @@ Examples:
             const graph = loadSessionGraph(sessionDir);
             const results = loadSessionResults(sessionDir);
 
-            const analysis = getSessionAnalysis(graph, results);
+            const analysis = getSessionAnalysis(graph, results, getPendingResults(sessionDir));
 
             if (opts.format === 'md') {
                 console.log(formatSessionReportAsMarkdown(analysis));
@@ -1434,46 +1329,12 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                 return;
             }
 
-            let thresholdOverride: Partial<QualityThresholds> | undefined;
-            if (opts.thresholdOverride) {
-                try {
-                    thresholdOverride = JSON.parse(opts.thresholdOverride);
-                } catch {
-                    const envelope = createErrorEnvelope(
-                        'INVALID_THRESHOLD_OVERRIDE',
-                        '--threshold-override must be valid JSON',
-                        { hint: 'Example: \'{"contentDepth":100}\'' }
-                    );
-                    console.log(JSON.stringify(envelope, null, 2));
-                    process.exit(1);
-                    return;
-                }
-            }
-
             // Get pending results for Agent review
             const pending = getPendingResults(sessionDir);
+            const facts = buildPendingReport(sessionResults, pending);
 
-            // For novelty calculation, only compare against approved/historical results
-            const approvedResults = sessionResults.filter(r => r.status === 'approved' && !r.skippedAt && hasVerifiedContent(r));
-            const priorResults = approvedResults.length > 0 ? approvedResults : [];
-
-            const quality = assessResultQuality(
-                pending,
-                priorResults,
-                thresholdOverride
-            );
-            const describeResult = (result: typeof pending[number], index?: number) => ({
-                ...(index === undefined ? {} : { index }),
-                id: result.id,
-                revision: result.revision,
-                url: result.url,
-                source: result.source || 'digdig',
-                contentLength: result.content?.length ?? 0,
-                extractedAt: result.extractedAt,
-                verified: hasVerifiedContent(result),
-            });
-
-            // Approval is allowed only after reporting current quality and verification state.
+            // Approval is allowed only after reporting what is waiting and how
+            // much of it carries a body.
             if (opts.approveFile) {
                 const selections = readSelections('--approve-file', opts.approveFile);
                 if (!selections) {
@@ -1491,7 +1352,7 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                         approval.error.code,
                         approval.error.message,
                         {
-                            details: { quality, selectedResults, error: approval.error },
+                            details: { facts, selectedResults, error: approval.error },
                             hint: 'Run dg extract --session <session> for unverified results, then review and approve again.',
                         }
                     ), null, 2));
@@ -1507,7 +1368,7 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                     total: approval.total,
                     nodesAdded: injectInfo.nodesAdded,
                     edgesAdded: injectInfo.edgesAdded,
-                    quality,
+                    facts,
                     selectedResults,
                     message: `Approved ${approval.approved} results, injected into graph (+${injectInfo.nodesAdded} nodes, +${injectInfo.edgesAdded} edges)`,
                 }), null, 2));
@@ -1516,18 +1377,12 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
             }
 
             if (pending.length === 0) {
-                // No pending results, just show current quality
-                const quality = assessResultQuality(
-                    sessionResults,
-                    priorResults,
-                    thresholdOverride
-                );
-
+                // Nothing to approve: the counts still describe the session.
                 const outputFormat = (opts.format || config.defaultFormat) as 'json' | 'md';
                 if (outputFormat === 'md') {
-                    console.log(formatQualityAsMarkdown(quality));
+                    console.log(formatFactsAsMarkdown(facts));
                 } else {
-                    console.log(JSON.stringify(createSuccessEnvelope(quality), null, 2));
+                    console.log(JSON.stringify(createSuccessEnvelope(facts), null, 2));
                 }
                 process.exit(0);
                 return;
@@ -1535,38 +1390,25 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
 
             const outputFormat = (opts.format || config.defaultFormat) as 'json' | 'md';
             if (outputFormat === 'json') {
-                // JSON output includes pending results with indices for Agent
+                // The body under review, alongside the per-result facts. The
+                // preview is deliberately `content` and not the display
+                // fallback: this list exists so the Agent can read the
+                // extracted text before approving it.
                 console.log(JSON.stringify(createSuccessEnvelope({
-                    quality,
-                    pendingResults: pending.map((r, i) => ({
-                        index: i,
-                        id: r.id,
-                        revision: r.revision,
-                        title: r.title,
-                        url: r.url,
-                        source: r.source || 'digdig',
-                        status: r.status,
-                        // The body under review, deliberately not the display fallback:
-                        // this list exists so the Agent can read the extracted text
-                        // before approving it, and `excerpt` here is the page
-                        // description — the wrong text to judge an extraction by.
-                        contentPreview: r.content ? r.content.slice(0, 300) : undefined,
-                        contentLength: r.content?.length ?? 0,
-                        domain: (() => { try { return new URL(r.url).hostname; } catch { return ''; } })(),
-                        extractedAt: r.extractedAt,
-                        verified: hasVerifiedContent(r),
+                    ...facts,
+                    pending: facts.pending.map((fact, index) => ({
+                        ...fact,
+                        index,
+                        contentPreview: pending[index].content?.slice(0, 300),
                     })),
                     hint: 'Agent reviews content and approves with the id/revision objects returned here.',
                 }), null, 2));
             } else {
-                console.log(formatQualityAsMarkdown(quality));
+                console.log(formatFactsAsMarkdown(facts));
                 console.log('\n## Pending Results (awaiting Agent approval)\n');
                 for (let i = 0; i < pending.length; i++) {
                     const r = pending[i];
                     console.log(`${i}. [${r.title || 'No Title'}](${r.url}) [${r.source || 'digdig'}]`);
-                    // These are extracted results awaiting approval, so the text to
-                    // review is `content` — the body that will be cited — and not the
-                    // display fallback, which would surface the page description.
                     if (r.content) {
                         const preview = r.content.slice(0, 300).replace(/\s+/g, ' ');
                         console.log(`   Preview: ${preview}${r.content.length > 300 ? '...' : ''}`);
