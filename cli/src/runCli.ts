@@ -24,7 +24,7 @@ import { runDocSearch } from './commands/doc-search.js';
 import { runGraphObfuscateCommand, GraphObfuscateOptions } from './commands/graph-obfuscate.js';
 import { ContentExtractor } from './deep/extractor.js';
 import { rrf } from './deep/rrf.js';
-import { normalizeUrl, resultUrlKey } from './deep/dedupe.js';
+import { resultUrlKey } from './deep/dedupe.js';
 import { deserializeGraph, graphStats, GraphNodeAttrs, GraphEdgeAttrs } from './deep/graph.js';
 import { initSessionDir, resolveSessionPath, appendSessionResults, loadSessionResults, loadSessionGraph, countPendingResults, getPendingResults, approveResults, injectApprovedResults, hasVerifiedContent, setSkipped } from './deep/session.js';
 import { runSessionList, runSessionDelete, getDefaultSessionRoot } from './commands/session.js';
@@ -752,7 +752,7 @@ async function runSearch(
         }
 
         let rankings = allResponses.map(resp =>
-            resp.results.map((r: SearchResult) => ({ id: normalizeUrl(r.url), ...r }))
+            resp.results.map((r: SearchResult) => ({ id: resultUrlKey(r), ...r }))
         );
 
         let mergeData: any = null;
@@ -767,7 +767,7 @@ async function runSearch(
                 const historicalResults = (mergeResults.results || []);
                 if (historicalResults.length > 0) {
                     rankings.push(
-                        historicalResults.map((r: any) => ({ id: normalizeUrl(r.url), ...r }))
+                        historicalResults.map((r: any) => ({ id: resultUrlKey(r), ...r }))
                     );
                 }
             } catch (error) {
@@ -823,7 +823,7 @@ async function runSearch(
 
         const urlMap = new Map<string, SearchResult>();
         for (const r of allResults) {
-            const norm = normalizeUrl(r.url);
+            const norm = resultUrlKey(r);
             if (!urlMap.has(norm)) urlMap.set(norm, r);
         }
 
@@ -844,7 +844,7 @@ async function runSearch(
             const originsByUrl = new Map<string, Array<{ tool: string; engine?: string; query: string }>>();
             for (const response of allResponses) {
                 for (const result of response.results) {
-                    const key = normalizeUrl(result.url);
+                    const key = resultUrlKey(result);
                     const origins = originsByUrl.get(key) || [];
                     origins.push({ tool: originTool(result.engine), engine: result.engine, query: response.query });
                     originsByUrl.set(key, origins);
@@ -852,7 +852,7 @@ async function runSearch(
             }
             sessionInfo = appendSessionResults(options.session, fusedResults.map(result => ({
                 ...result,
-                origins: originsByUrl.get(normalizeUrl(result.url)),
+                origins: originsByUrl.get(resultUrlKey(result)),
             })));
             injectApprovedResults(options.session, sessionInfo.approvedResults);
             // Check pending count and warn if >= 30
