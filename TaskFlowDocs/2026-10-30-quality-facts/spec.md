@@ -1,7 +1,7 @@
 # Spec — 质量层退场：CLI 只报可数事实，好坏交给 LLM
 
 > Task version: v1
-> Status: in_progress
+> Status: checking
 
 ## Objective and Success Criteria
 
