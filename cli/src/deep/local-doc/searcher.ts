@@ -205,12 +205,11 @@ export async function docSearch(opts: DocSearchOptions): Promise<DocSearchResult
     });
   }
 
-  // Inject into session (skip round increment — merged with current web round)
+  // Local documents are extracted results, so they join the round already in
+  // progress instead of opening one — `needsRound` handles that on its own.
   const sessionDir = resolveSessionPath(opts.session);
   initSessionDir(sessionDir); // ensure meta.json exists
-  const { added, total, approvedResults } = appendSessionResults(sessionDir, results, {
-    skipRoundIncrement: true,
-  });
+  const { added, total, approvedResults } = appendSessionResults(sessionDir, results);
   injectApprovedResults(sessionDir, approvedResults);
 
   const pendingCount = getPendingResults(sessionDir).length;
