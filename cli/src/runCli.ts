@@ -35,6 +35,7 @@ import { generateQuerySuggestions } from './deep/query-suggest.js';
 import { determineSearchStage, getStrategyInfo } from './deep/search-strategy.js';
 import { analyzeRecoveryOptions, RecoveryAnalysis, RoundQuality } from './deep/recovery-analysis.js';
 import { getSessionAnalysis } from './deep/iteration-data.js';
+import { runCoverage } from './commands/coverage.js';
 import { runGraphExplore } from './commands/graph-explore.js';
 import { runGraphDrill } from './commands/graph-drill.js';
 import { runGraphTraverse } from './commands/graph-traverse.js';
@@ -461,6 +462,26 @@ function originTool(engine: string): string {
     return EXTERNAL_PROVIDERS.includes(engine as ExternalProvider) ? engine : 'digdig';
 }
 
+/**
+ * Resolve `--format` for a subcommand.
+ *
+ * The root program declares `-f, --format` too, and Commander assigns a flag to
+ * the program it appears *after* — but a subcommand's own `opts.format` then
+ * arrives as `undefined`, while the parent reports its default (`md`). Neither
+ * `opts` nor `command.rawArgs` (empty for a nested command) can answer, so the
+ * argv handed to `runCli` is carried through `createProgram` and read here.
+ */
+function subcommandFormat(argv: string[], command: string, fallback?: string): string | undefined {
+    const start = argv.indexOf(command);
+    if (start === -1) return fallback;
+
+    for (let i = start + 1; i < argv.length; i++) {
+        const arg = argv[i];
+        if (arg === '--format' || arg === '-f') return argv[i + 1];
+        if (arg.startsWith('--format=')) return arg.slice('--format='.length);
+    }
+    return fallback;
+}
 
 async function runSearch(
     service: SearXNGService,
@@ -989,6 +1010,26 @@ Examples:
                 console.log(JSON.stringify(createSuccessEnvelope(result), null, 2));
             }
             process.exit(0);
+        });
+
+    program
+        .command('coverage')
+        .argument('<session>', 'Session directory or name')
+        .description('Report what the session has looked at, as counted facts (rounds, queries, repetition, distinctive terms)')
+        .option('-f, --format <fmt>', 'Output format: json (default), md')
+        .addHelpText('after', `
+Reports what has been searched and what came back, without deciding what it means.
+Reads results.json only, so it works before any result has been approved.
+
+Examples:
+  dg coverage my-session
+  dg coverage my-session --format md`)
+        .action(async (session, opts, command: Command) => {
+            const code = await runCoverage({
+                session,
+                format: subcommandFormat(argv, command.name(), opts.format) === 'md' ? 'md' : 'json',
+            });
+            process.exit(code);
         });
 
     program
