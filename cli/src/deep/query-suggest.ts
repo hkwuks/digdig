@@ -10,6 +10,7 @@ import { DirectedGraph } from 'graphology';
 import { GraphNodeAttrs, GraphEdgeAttrs } from './graph.js';
 import { SessionResult } from './session.js';
 import { getEntityDegree } from './degree-utils.js';
+import { sourceKey } from './dedupe.js';
 import { QualityScore } from './quality-assess.js';
 
 // ── Types ─────────────────────────────────────────────────────────
@@ -56,14 +57,6 @@ const SPECIALIZED_DOMAINS = [
     'hackernews.com',
 ];
 
-function extractDomain(url: string): string {
-    try {
-        return new URL(url).hostname;
-    } catch {
-        return '';
-    }
-}
-
 // ── Suggestion generation ─────────────────────────────────────────
 
 /** Generate query suggestion data from session context.
@@ -80,7 +73,7 @@ export function generateQuerySuggestions(
     // Detect unexplored domains
     const exploredDomains = new Set<string>();
     for (const r of sessionResults) {
-        const domain = extractDomain(r.url);
+        const domain = sourceKey(r.url);
         if (domain) exploredDomains.add(domain);
     }
     const unexploredDomains = SPECIALIZED_DOMAINS.filter(d => !exploredDomains.has(d));

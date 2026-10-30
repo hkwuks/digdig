@@ -23,7 +23,7 @@ import { runDocIndex } from './commands/doc-index.js';
 import { runDocSearch } from './commands/doc-search.js';
 import { runGraphObfuscateCommand, GraphObfuscateOptions } from './commands/graph-obfuscate.js';
 import { ContentExtractor } from './deep/extractor.js';
-import { resultUrlKey } from './deep/dedupe.js';
+import { resultUrlKey, sourceKey } from './deep/dedupe.js';
 import { fuseResults, mergeEnvelopeMetadata } from './deep/fuse.js';
 import { deserializeGraph, graphStats, GraphNodeAttrs, GraphEdgeAttrs } from './deep/graph.js';
 import { initSessionDir, resolveSessionPath, appendSessionResults, loadSessionResults, loadSessionGraph, countPendingResults, getPendingResults, approveResults, injectApprovedResults, hasVerifiedContent, setSkipped } from './deep/session.js';
@@ -1552,7 +1552,7 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                         // description — the wrong text to judge an extraction by.
                         contentPreview: r.content ? r.content.slice(0, 300) : undefined,
                         contentLength: r.content?.length ?? 0,
-                        domain: (() => { try { return new URL(r.url).hostname; } catch { return ''; } })(),
+                        domain: sourceKey(r.url),
                         extractedAt: r.extractedAt,
                         verified: hasVerifiedContent(r),
                     })),

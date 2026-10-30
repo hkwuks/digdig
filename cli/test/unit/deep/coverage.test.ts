@@ -139,7 +139,7 @@ describe('buildCoverage', () => {
         expect(report.distinctiveTerms.map(t => t.term)).not.toContain('tokio');
     });
 
-    it('lists the hosts it drew from and the specialized ones it never touched', () => {
+    it('lists the sources it drew from and the specialized ones it never touched', () => {
         const report = buildCoverage([
             result('https://www.example.com/a', 1),
             result('https://example.com/b', 1),
@@ -147,14 +147,32 @@ describe('buildCoverage', () => {
             result('file:///docs/local.md#chunk-0', 2),
         ], 2);
 
-        // `www.` folds, and a `file:` result has no host to report.
+        // `www.` folds, and a local document counts as a source under its path
+        // rather than vanishing for having no host.
         expect(report.domainsSeen).toEqual([
             { domain: 'example.com', results: 2 },
+            { domain: '/docs/local.md', results: 1 },
             { domain: 'github.com', results: 1 },
         ]);
         // github.com is touched, everything else on the list is not.
         expect(report.untouchedSpecialized).not.toContain('github.com');
         expect(report.untouchedSpecialized).toContain('arxiv.org');
+    });
+
+    it('counts each local document as its own source', () => {
+        // Two chunks of one file share a path, so they are one source; a second
+        // file is a second source. Before this, every `file:` URL was dropped
+        // and a pure local session reported zero sources.
+        const report = buildCoverage([
+            result('file:///docs/a.md#chunk-0', 1),
+            result('file:///docs/a.md#chunk-1', 1),
+            result('file:///docs/b.md#chunk-0', 2),
+        ], 2);
+
+        expect(report.domainsSeen).toEqual([
+            { domain: '/docs/a.md', results: 2 },
+            { domain: '/docs/b.md', results: 1 },
+        ]);
     });
 
     it('handles a session with no round information', () => {

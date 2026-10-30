@@ -33,6 +33,24 @@ export function resultUrlKey(result: { url: string; source?: string }): string {
     }
 }
 
+/**
+ * The source a result came from, for counting distinct sources.
+ *
+ * Distinct from `resultUrlKey`, which identifies the result itself. A `file:`
+ * URL has no host, and returning an empty string for it — as the hand-rolled
+ * copies of this logic variously did — made a pure local session report zero
+ * sources. A local document's source is its path.
+ */
+export function sourceKey(url: string): string | undefined {
+    try {
+        const parsed = new URL(url);
+        if (parsed.protocol === 'file:') return parsed.pathname || undefined;
+        return parsed.hostname.replace(/^www\./, '').toLowerCase() || undefined;
+    } catch {
+        return undefined;
+    }
+}
+
 export function dedupeByUrl<T extends DedupItem>(items: T[]): T[] {
     const seen = new Map<string, T>();
 
