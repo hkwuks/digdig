@@ -4,7 +4,7 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import { runResultsAdd } from '../../src/commands/results-add.js';
 import { initSessionDir, loadSessionResults, loadSessionRounds } from '../../src/deep/session.js';
-import { assessLatestResultQuality } from '../../src/deep/quality-assess.js';
+import { buildPendingReport } from '../../src/deep/pending-facts.js';
 
 describe('results-add command', () => {
   let sessionDir: string;
@@ -95,16 +95,11 @@ describe('results-add command', () => {
       expect(loadSessionRounds(sessionDir)).toBe(2);
     });
 
-    it('does not make the quality verdict worse when an extraction lands', async () => {
-      // The defect AC4 targets is extraction opening a thin round of its own,
-      // which assessed only the extracted subset and read as a drop. After the
-      // round fix the extracted body joins the round that found it, so the
-      // assessed set is unchanged and contentDepth can only rise.
-      //
-      // The verdict is therefore not required to stay *identical* — writing a
-      // body genuinely improves contentDepth. What must hold is that extraction
-      // never makes it worse.
-      const rank = { poor: 0, acceptable: 1, good: 2 } as const;
+    it('records a landed extraction against the round that found the result', async () => {
+      // An extraction used to open a thin round of its own, so the report
+      // assessed only the extracted subset. The body now joins the round that
+      // found the result, so that round's count goes up rather than a new one
+      // appearing.
       const searchFile = join(sessionDir, 'agent-inputs', 'quality-before.json');
       writeFileSync(searchFile, JSON.stringify([
         { url: 'https://a.example.com/1', title: 'A1', excerpt: 'blurb one '.repeat(40) },
@@ -113,7 +108,8 @@ describe('results-add command', () => {
       ]), 'utf8');
       await runResultsAdd({ session: sessionDir, kind: 'search', dataFile: searchFile, tool: 'exa', query: 'q' });
 
-      const before = assessLatestResultQuality(loadSessionResults(sessionDir));
+      const beforeResults = loadSessionResults(sessionDir);
+      const before = buildPendingReport(beforeResults, beforeResults);
       const roundsBefore = loadSessionRounds(sessionDir);
 
       const bodyFile = join(sessionDir, 'agent-inputs', 'quality-body.json');
@@ -122,9 +118,13 @@ describe('results-add command', () => {
       ]), 'utf8');
       await runResultsAdd({ session: sessionDir, kind: 'extracted', dataFile: bodyFile, tool: 'defuddle', query: 'q' });
 
-      const after = assessLatestResultQuality(loadSessionResults(sessionDir));
+      const afterResults = loadSessionResults(sessionDir);
+      const after = buildPendingReport(afterResults, afterResults);
       expect(loadSessionRounds(sessionDir)).toBe(roundsBefore);
-      expect(rank[after.verdict]).toBeGreaterThanOrEqual(rank[before.verdict]);
+      expect(after.extracted).toBe(before.extracted + 1);
+      expect(after.total).toBe(before.total);
+      expect(after.pending.find(f => f.url === 'https://a.example.com/1')!.round)
+        .toBe(before.pending.find(f => f.url === 'https://a.example.com/1')!.round);
       // And the body really landed — this is not a no-op passing trivially.
       expect(loadSessionResults(sessionDir).find(r => r.url === 'https://a.example.com/1')!.content)
         .toContain('Extracted body one.');

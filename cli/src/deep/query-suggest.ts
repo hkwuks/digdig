@@ -11,7 +11,6 @@ import { GraphNodeAttrs, GraphEdgeAttrs } from './graph.js';
 import { SessionResult } from './session.js';
 import { getEntityDegree } from './degree-utils.js';
 import { sourceKey } from './dedupe.js';
-import { QualityScore } from './quality-assess.js';
 
 // ── Types ─────────────────────────────────────────────────────────
 
@@ -36,7 +35,6 @@ export interface QuerySuggestionData {
     unexploredDomains: string[];
     currentStage: SearchStage;
     roundHistory: RoundHistoryEntry[];
-    qualityLastRound?: QualityScore;
 }
 
 // ── Domain extraction ─────────────────────────────────────────────
@@ -64,8 +62,7 @@ const SPECIALIZED_DOMAINS = [
 export function generateQuerySuggestions(
     graph: DirectedGraph<GraphNodeAttrs, GraphEdgeAttrs>,
     sessionResults: SessionResult[],
-    currentStage: SearchStage,
-    qualityLastRound?: QualityScore
+    currentStage: SearchStage
 ): QuerySuggestionData {
     // Collect top entities sorted by degree × frequency descending
     const topEntities = collectTopEntities(graph);
@@ -86,7 +83,6 @@ export function generateQuerySuggestions(
         unexploredDomains,
         currentStage,
         roundHistory,
-        qualityLastRound,
     };
 }
 

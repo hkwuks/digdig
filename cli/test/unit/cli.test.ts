@@ -41,7 +41,7 @@ describe('CLI program (commander)', () => {
         expect(commandNames).toContain('graph-obfuscate');
         expect(commandNames).toContain('suggest-queries');
         expect(commandNames).toContain('strategy-info');
-        expect(commandNames).toContain('recovery-analysis');
+        expect(commandNames).not.toContain('recovery-analysis');
         expect(commandNames).toContain('session-report');
         expect(commandNames).toContain('graph-explore');
         expect(commandNames).toContain('graph-drill');
@@ -62,6 +62,7 @@ describe('CLI program (commander)', () => {
         expect(optionFlags.some(f => f.includes('--categories-list'))).toBe(true);
         expect(optionFlags.some(f => f.includes('--redundancy'))).toBe(true);
         expect(optionFlags.some(f => f.includes('--quality'))).toBe(true);
+        expect(optionFlags.some(f => f.includes('--threshold-override'))).toBe(false);
     });
 
     it('query-graph has seeds, depth, and strategy options', () => {

@@ -89,17 +89,26 @@
 - Dependencies: Step 2。
 - Files: `cli/src/deep/quality-assess.ts`（删）、`cli/src/deep/recovery-analysis.ts`（删）、`cli/src/deep/iteration-data.ts`、`cli/src/deep/query-suggest.ts`、`cli/src/runCli.ts`、`cli/test/calibrate-thresholds.ts`（删）、`cli/test/unit/deep/quality-assess.test.ts`（删）、`cli/test/unit/deep/recovery-analysis.test.ts`（删）
 - Implementation checklist:
-  - [ ] `query-suggest.ts` 删除 `qualityLastRound` 字段、构造参数与返回赋值；`generateQuerySuggestions` 签名减为三参。
-  - [ ] `iteration-data.ts` 的 `SessionAnalysis` 改为 `{ strategy, suggestions, pending }`；删掉 `quality` / `recovery` 字段与对应调用；`qualityThresholds` 选项删除。
-  - [ ] `runCli.ts` 删除 `recovery-analysis` 子命令、`formatRecoveryAsMarkdown`、`formatSuggestAsMarkdown` 的 quality 段、`formatSessionReportAsMarkdown` 的 quality 段与 `> Recovery:` 提示。
-  - [ ] `runCli.ts` 的 `session-report` 改为 strategy + topEntities + 指向 `dg coverage` / `dg --quality` 的提示，不自己算任何质量数字（AC8）。
-  - [ ] `runCli.ts` 的 `suggest-queries` 命令删除 `assessLatestResultQuality` 调用。
-  - [ ] `runCli.ts` 的搜索期 `advice` 块（`stats.entities >= 3` 分支）改为只读 `analysis.suggestions` 与 `analysis.strategy`。
-  - [ ] 删除 `quality-assess.ts`、`recovery-analysis.ts`、`calibrate-thresholds.ts` 及两个已失去被测对象的单测文件。
-  - [ ] 同步 `test/unit/deep/iteration-data.test.ts`（去掉 `analysis.quality` 断言）、`test/unit/deep/query-suggest.test.ts`、`test/unit/cli.test.ts`（`commandNames` 不含 `recovery-analysis`、`--threshold-override` 不存在）、`test/integration/results-add.test.ts`（两条质量测试改为断言事实而非 verdict）、`test/benchmark/performance.bench.ts`（删 `assessResultQuality` 调用）。
+  - [x] `query-suggest.ts` 删除 `qualityLastRound` 字段、构造参数与返回赋值；`generateQuerySuggestions` 签名减为三参。
+  - [x] `iteration-data.ts` 的 `SessionAnalysis` 改为 `{ strategy, suggestions, pending }`；删掉 `quality` / `recovery` 字段与对应调用；`qualityThresholds` 选项删除。
+  - [x] `runCli.ts` 删除 `recovery-analysis` 子命令、`formatRecoveryAsMarkdown`、`formatSuggestAsMarkdown` 的 quality 段、`formatSessionReportAsMarkdown` 的 quality 段与 `> Recovery:` 提示。
+  - [x] `runCli.ts` 的 `session-report` 改为 strategy + topEntities + 指向 `dg coverage` / `dg --quality` 的提示，不自己算任何质量数字（AC8）。
+  - [x] `runCli.ts` 的 `suggest-queries` 命令删除 `assessLatestResultQuality` 调用。
+  - [x] `runCli.ts` 的搜索期 `advice` 块（`stats.entities >= 3` 分支）改为只读 `analysis.suggestions` 与 `analysis.strategy`。
+  - [x] 删除 `quality-assess.ts`、`recovery-analysis.ts`、`calibrate-thresholds.ts` 及两个已失去被测对象的单测文件。
+  - [x] 同步 `test/unit/deep/iteration-data.test.ts`（去掉 `analysis.quality` 断言）、`test/unit/deep/query-suggest.test.ts`、`test/unit/cli.test.ts`（`commandNames` 不含 `recovery-analysis`、`--threshold-override` 不存在）、`test/integration/results-add.test.ts`（两条质量测试改为断言事实而非 verdict）、`test/benchmark/performance.bench.ts`（删 `assessResultQuality` 调用）。
 - Acceptance: AC1、AC2、AC7、AC8 通过；全量测试绿。
 - Verification: `npx tsc --noEmit`；`npx vitest run`；`grep -rn "verdict\|failedIndicators\|threshold-override" cli/src cli/test`（应只剩 `claims/` 与其测试）。
 - Rollback: 判断层是本步唯一删除代码的步骤，`git revert` 本步提交即可把三个文件与两个命令恢复。
+
+- Actual: `tsc --noEmit` = 0；全量 37 files / 519 tests passed。删除 `quality-assess.ts`、`recovery-analysis.ts`、`calibrate-thresholds.ts` 及两个失去被测对象的单测，共 5 个文件。
+  - AC1：`grep -rn verdict src/` 只剩 `claims/` 与它自己的命令/测试（证据裁定，与搜索质量无关）。
+  - AC2：`grep -rn "threshold-override\|thresholdOverride" src/` 零命中；`src/deep` 下的 `threshold` 只剩 `dedupe.ts` 的 Jaccard 去重与 `co-occurrence.ts` 的共现窗口，两者都是检索参数不是质量阈值。
+  - AC7：`dg --help` 不再列 `recovery-analysis`，直接调用报 "too many arguments"。
+  - AC8：`session-report` 现在只报 `pending` 计数 + strategy + topEntities，并指向 `dg coverage`，不再自算任何质量数字。
+- Deviation: `getSessionAnalysis` 的签名从 `(graph, results, options?)` 改为 `(graph, results, pending, options?)`，待审批列表由调用方读盘传入，避免这个纯分析函数自己做起文件 I/O。
+- Follow-up found: 子命令与父命令同名 flag（`-f/--format`）时 commander 把值给父命令，子命令 `opts.format` 为空 —— `session-report`、`suggest-queries`、`strategy-info` 的 `--format md` 都不生效。`coverage` 用 `subcommandFormat(argv, ...)` 绕开了这个问题。这是既有缺陷（`main` 上行为相同），不在本任务范围，记入 Follow-ups。
+- Status: done
 
 ### Checkpoint A — 代码完成，文档未动
 

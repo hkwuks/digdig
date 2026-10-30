@@ -30,11 +30,9 @@ import { initSessionDir, resolveSessionPath, appendSessionResults, loadSessionRe
 import { runSessionList, runSessionDelete, getDefaultSessionRoot } from './commands/session.js';
 import { graphPreprocess } from './deep/graph-preprocess.js';
 import { checkQueryRedundancy, RedundancyConfig } from './deep/query-redundancy.js';
-import { assessLatestResultQuality } from './deep/quality-assess.js';
 import { buildPendingReport, describeResult, PendingReport } from './deep/pending-facts.js';
 import { generateQuerySuggestions } from './deep/query-suggest.js';
 import { determineSearchStage, getStrategyInfo } from './deep/search-strategy.js';
-import { analyzeRecoveryOptions, RecoveryAnalysis, RoundQuality } from './deep/recovery-analysis.js';
 import { getSessionAnalysis } from './deep/iteration-data.js';
 import { runCoverage } from './commands/coverage.js';
 import { runGraphExplore } from './commands/graph-explore.js';
@@ -240,14 +238,6 @@ function formatSuggestAsMarkdown(data: any): string {
         lines.push('');
     }
 
-    if (data.qualityLastRound) {
-        lines.push(`**Last Round Quality:** ${data.qualityLastRound.verdict}`);
-        if (data.qualityLastRound.failedIndicators?.length) {
-            lines.push(` (failed: ${data.qualityLastRound.failedIndicators.join(', ')})`);
-        }
-        lines.push('');
-    }
-
     return lines.join('\n');
 }
 
@@ -269,72 +259,20 @@ function formatStrategyAsMarkdown(data: any): string {
     return lines.join('\n');
 }
 
-function formatRecoveryAsMarkdown(data: RecoveryAnalysis): string {
-    const lines: string[] = [];
-    lines.push('## Recovery Analysis');
-    lines.push('');
-    const verdictEmoji: Record<string, string> = { good: '✓', acceptable: '△', poor: '✗' };
-    lines.push(`**Quality:** ${data.qualityScore.verdict.toUpperCase()} ${verdictEmoji[data.qualityScore.verdict] || ''}`);
-    lines.push(`**Consecutive Failures:** ${data.recentFailures}`);
-    lines.push('');
-
-    if (data.lastSuccessfulRound) {
-        lines.push(`**Last Successful Round:** Round ${data.lastSuccessfulRound.round} — "${data.lastSuccessfulRound.query}"`);
-        lines.push('');
-    }
-
-    if (data.availableStrategies.length > 0) {
-        lines.push('### Available Strategies');
-        lines.push('');
-        for (const s of data.availableStrategies) {
-            lines.push(`**${s.strategy}**`);
-            lines.push(`- Reason: ${s.reason}`);
-            lines.push(`- Suggestion: ${s.suggestion}`);
-            if (s.backtrackTo) {
-                lines.push(`- Backtrack to: Round ${s.backtrackTo.round} — "${s.backtrackTo.query}"`);
-            }
-            lines.push('');
-        }
-    }
-
-    if (data.roundQualityHistory.length > 0) {
-        lines.push('### Quality History');
-        lines.push('');
-        lines.push('| Round | Query | Verdict | Failed |');
-        lines.push('|-------|-------|---------|--------|');
-        for (const r of data.roundQualityHistory) {
-            lines.push(`| ${r.round} | ${r.query} | ${r.verdict} | ${r.failedIndicators.join(', ') || '-'} |`);
-        }
-        lines.push('');
-    }
-
-    return lines.join('\n');
-}
-
 function formatSessionReportAsMarkdown(data: any): string {
     const lines: string[] = [];
     lines.push('## Session Report');
     lines.push('');
 
-    // Quality summary
-    const q = data.quality;
-    const verdictEmoji: Record<string, string> = { good: '✓', acceptable: '△', poor: '✗' };
-    lines.push(`### Quality: ${q.verdict.toUpperCase()} ${verdictEmoji[q.verdict] || ''}`);
+    // What the session has gathered. The per-round view lives in `dg coverage`
+    // and the pending list in `dg --quality`; repeating them here would make
+    // three places to keep in step.
+    const p = data.pending;
+    lines.push(`### Gathered: ${p.total} results from ${p.sources} sources`);
+    lines.push(`- With an extracted body: ${p.extracted}`);
+    lines.push(`- Awaiting extraction: ${p.unextracted}`);
+    lines.push(`- Awaiting approval: ${p.pending.length}`);
     lines.push('');
-    if (q.breakdown) {
-        const indicators = ['contentDepth', 'sourceDiversity', 'novelty'];
-        const labels: Record<string, string> = {
-            contentDepth: 'Content Depth', sourceDiversity: 'Source Diversity', novelty: 'Novelty',
-        };
-        for (const key of indicators) {
-            const ind = q.breakdown[key];
-            if (ind) {
-                const valueStr = key === 'novelty' ? ind.value.toFixed(2) : String(Math.round(ind.value * 100) / 100);
-                lines.push(`- ${labels[key]}: ${valueStr} (threshold: ${ind.threshold}) ${ind.pass ? '✓' : '✗'}`);
-            }
-        }
-        lines.push('');
-    }
 
     // Strategy
     const s = data.strategy;
@@ -356,11 +294,8 @@ function formatSessionReportAsMarkdown(data: any): string {
         lines.push('');
     }
 
-    // Recovery hint
-    if (q.verdict !== 'good') {
-        lines.push(`> Recovery: ${data.recovery.availableStrategies.length} strategies available. Use \`dg recovery-analysis <session>\` for details.`);
-        lines.push('');
-    }
+    lines.push('For what each round looked at, run `dg coverage <session>`.');
+    lines.push('');
 
     return lines.join('\n');
 }
@@ -587,7 +522,7 @@ async function runSearch(
                             if (stats.entities >= 3) {
                                 // Graph has matured → deep graph-based advice
                                 const sessionResults = loadSessionResults(options.session);
-                                const analysis = getSessionAnalysis(graph, sessionResults);
+                                const analysis = getSessionAnalysis(graph, sessionResults, getPendingResults(options.session));
                                 const topLabels = analysis.suggestions.topEntities
                                     .slice(0, 3)
                                     .map(e => e.label);
@@ -1032,9 +967,8 @@ Examples:
             const graph = loadSessionGraph(sessionDir);
             const results = loadSessionResults(sessionDir);
             const stage = determineSearchStage(graph);
-            const quality = assessLatestResultQuality(results);
 
-            const data = generateQuerySuggestions(graph, results, stage, quality);
+            const data = generateQuerySuggestions(graph, results, stage);
 
             if (opts.format === 'md') {
                 console.log(formatSuggestAsMarkdown(data));
@@ -1073,34 +1007,9 @@ Examples:
         });
 
     program
-        .command('recovery-analysis')
-        .argument('<session>', 'Session directory or name')
-        .description('Output recovery strategy analysis for Agent decision-making')
-        .option('-f, --format <fmt>', 'Output format: json (default), md')
-        .addHelpText('after', `
-Examples:
-  dg recovery-analysis my-session
-  dg recovery-analysis my-session --format md`)
-        .action(async (session, opts) => {
-            const sessionDir = resolveSessionPath(session);
-            const graph = loadSessionGraph(sessionDir);
-            const results = loadSessionResults(sessionDir);
-            const quality = assessLatestResultQuality(results);
-
-            const analysis = analyzeRecoveryOptions(graph, results, quality);
-
-            if (opts.format === 'md') {
-                console.log(formatRecoveryAsMarkdown(analysis));
-            } else {
-                console.log(JSON.stringify(createSuccessEnvelope(analysis), null, 2));
-            }
-            process.exit(0);
-        });
-
-    program
         .command('session-report')
         .argument('<session>', 'Session directory or name')
-        .description('Show session quality history and stage progression')
+        .description('Show what the session has gathered and how far the search has moved')
         .option('-f, --format <fmt>', 'Output format: json (default), md')
         .addHelpText('after', `
 Examples:
@@ -1111,7 +1020,7 @@ Examples:
             const graph = loadSessionGraph(sessionDir);
             const results = loadSessionResults(sessionDir);
 
-            const analysis = getSessionAnalysis(graph, results);
+            const analysis = getSessionAnalysis(graph, results, getPendingResults(sessionDir));
 
             if (opts.format === 'md') {
                 console.log(formatSessionReportAsMarkdown(analysis));

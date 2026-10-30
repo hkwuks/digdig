@@ -139,18 +139,12 @@ describe('query-suggest', () => {
             expect(data.currentStage).toBe('targeted_deep_dive');
         });
 
-        it('includes quality last round when provided', () => {
+        it('carries no quality judgement', () => {
             const graph = buildGraphWithEntitiesAndQueries();
-            const quality = {
-                verdict: 'good' as const,
-                breakdown: {} as any,
-                failedIndicators: [],
-            };
 
-            const data = generateQuerySuggestions(graph, [], 'broad_exploration', quality);
+            const data = generateQuerySuggestions(graph, [], 'broad_exploration');
 
-            expect(data.qualityLastRound).toBeDefined();
-            expect(data.qualityLastRound?.verdict).toBe('good');
+            expect(data).not.toHaveProperty('qualityLastRound');
         });
 
         it('handles empty graph gracefully', () => {
