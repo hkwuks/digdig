@@ -41,7 +41,7 @@ L2/L3 only
 
 ## Accumulation & Batch Processing
 
-Results accumulate as pending. A warning fires at **>=30 pending results**, prompting quality assessment. This batch approach:
+Results accumulate as pending. A warning fires at **>=30 pending results**, prompting a review pass. This batch approach:
 
 - Reduces token spend (one assessment per batch, not per result)
 - Gives the Agent more context for quality decisions (sees all pending together)
@@ -49,12 +49,16 @@ Results accumulate as pending. A warning fires at **>=30 pending results**, prom
 
 There is no hard upper limit; the Agent decides when to assess. The 30-count is a warning, not a block.
 
-## Quality Assessment
+## Pending Review
 
-`dg --session <session> --quality` outputs:
+`dg --session <session> --quality` outputs counted facts:
 
-1. **Quality score**: 3 programmatic indicators (contentDepth, sourceDiversity, novelty) with verdict (good/acceptable/poor)
-2. **Pending results list**: each with stable `id`, `revision`, title, URL, source, content preview, domain, and verification state
+1. **Session counts**: `total`, `extracted`, `unextracted`, `sources`, `sourceList`
+2. **Pending results list**: each with stable `id`, `revision`, title, URL, source, domain, body length, whether it is extracted, whether it is verified, and the round that first saw it
+
+There is no score and no verdict. `extracted` and `verified` are separate
+facts: a record can carry readable text and still lack the extractor metadata
+approval requires.
 
 The Agent examines the pending list and writes selected `{id, revision}` objects to the approval file. Do not approve by index.
 
@@ -97,7 +101,7 @@ See [Claim-Evidence-Review Audit](claim-evidence-review.md) for the full procedu
 `dg extract --session <session>` reads only unextracted, unskipped URLs with fewer than two failures, fetches page content, and writes it back. It does NOT add new results. Explicit session URLs can be re-extracted. This means:
 
 - Extract at any time, even before approval
-- After extraction, quality assessment has richer content data
+- After extraction, the review has richer content data
 - Do not re-extract an already captured body unless the Agent explicitly selects that URL
 
 ## Session-Scoped JSON Input

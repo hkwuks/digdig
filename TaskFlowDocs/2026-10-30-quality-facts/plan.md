@@ -123,14 +123,20 @@
 - Dependencies: Step 3（命令面已定稿）。
 - Files: `CLAUDE.md`（本地、不入库）、`skills/digdig/SKILL.md`、`skills/digdig/references/SOP.md`、`README.md`、`README.zh-CN.md`
 - Implementation checklist:
-  - [ ] `skills/digdig/SKILL.md`：删除 `--threshold-override` 行；`--quality` 描述改为"待审批清单 + 计数事实"；删掉 `recovery-analysis` 命令与其章节；第 229 行"Returns 3 independent diagnostics… Verdict: good/acceptable/poor" 整段替换；第 253 行 `qualityLastRound.failedIndicators` 决策条目删除或改为读 `coverage`。
-  - [ ] `skills/digdig/references/SOP.md`：Phase 4 的两层质量评估表（三指标 + 阈值表 + verdict 表）整段替换为事实说明；Phase 5 的 `failedIndicators` 决策条目删除；Phase 7 Recovery Analysis 整节删除并重编号后续 Phase。
-  - [ ] `CLAUDE.md`（本地）：`--quality` 段落改为事实清单；`Session Commands` 表删 `recovery-analysis` 行；验证 `grep -c "verdict"` 归零。**保持 untracked，不 `git add`。**
-  - [ ] `README.md`：第 45 行特性描述、第 899 行命令表、第 946 行 `--threshold-override`、第 1202 行 "Quality note" 段落。
-  - [ ] `README.zh-CN.md`：同步对应位置。
+  - [x] `skills/digdig/SKILL.md`：删除 `--threshold-override` 行；`--quality` 描述改为"待审批清单 + 计数事实"；删掉 `recovery-analysis` 命令与其章节；第 229 行"Returns 3 independent diagnostics… Verdict: good/acceptable/poor" 整段替换；第 253 行 `qualityLastRound.failedIndicators` 决策条目删除或改为读 `coverage`。
+  - [x] `skills/digdig/references/SOP.md`：Phase 4 的两层质量评估表（三指标 + 阈值表 + verdict 表）整段替换为事实说明；Phase 5 的 `failedIndicators` 决策条目删除；Phase 7 Recovery Analysis 整节删除并重编号后续 Phase。
+  - [x] `CLAUDE.md`（本地）：`--quality` 段落改为事实清单；`Session Commands` 表删 `recovery-analysis` 行；验证 `grep -c "verdict"` 归零。**保持 untracked，不 `git add`。**
+  - [x] `README.md`：第 45 行特性描述、第 899 行命令表、第 946 行 `--threshold-override`、第 1202 行 "Quality note" 段落。
+  - [x] `README.zh-CN.md`：同步对应位置。
 - Acceptance: `grep -rn "recovery-analysis\|threshold-override\|failedIndicators\|good / acceptable / poor"` 在 `skills/` 与两份 README 上除历史 changelog 外无命中；`CLAUDE.md` 仍为 untracked。
 - Verification: `git status --porcelain`（`CLAUDE.md` 必须显示 `??`）；`grep -rn` 逐项核对。
 - Rollback: 文档是纯文本改动，逐文件 `git checkout --` 即可；`CLAUDE.md` 不在版本控制内，改前先备份到 `/tmp`。
+
+- Actual: `tsc --noEmit` = 0；全量 37 files / 519 tests passed。
+  - 扫描过程中发现计划里漏列了三个文件：`cli/README.md`、`skills/digdig/references/pipeline.md`、`skills/digdig/references/appendix.md`，均有 `recovery-analysis` / `--threshold-override` / 三指标表述，已一并更新。
+  - `CLAUDE.md` 改前备份到 `/tmp/digdig-claude-md-backup/CLAUDE.md.1793368519`；改后 `git status --porcelain CLAUDE.md` 仍为 `??`。
+  - 全仓库（排除 `TaskFlowDocs/`）`grep -rn "recovery-analysis|threshold-override|failedIndicators|contentDepth|sourceDiversity|novelty"` 只剩 `SOP.md` 两处：一处是新写的"没有 recovery-analysis 命令"说明，一处是解释旧指标为何被移除。均为刻意保留。
+- Status: done
 
 ### Step 5 — 全量验收与 AC 逐条核对
 

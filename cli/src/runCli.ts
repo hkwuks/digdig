@@ -643,7 +643,7 @@ async function runSearch(
             injectApprovedResults(options.session, sessionInfo.approvedResults);
             const pendingCount = countPendingResults(options.session);
             if (pendingCount >= 30) {
-                console.error(`[session] ${pendingCount} pending results awaiting Agent quality assessment. Run --quality to evaluate.`);
+                console.error(`[session] ${pendingCount} pending results awaiting Agent review. Run --quality to list them.`);
             }
         }
 
