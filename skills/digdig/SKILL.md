@@ -59,6 +59,7 @@ dg --session <session> --quality  # Assess result quality & list pending
 # Save selected {id, revision} objects from quality output, then approve them.
 dg --session <session> --quality --approve-file .\.digdig\sessions\<session>\agent-inputs\approve.json
 dg suggest-queries <session>    # Get query suggestions
+dg coverage <session>           # What this session has looked at, as counted facts
 dg strategy-info <session>      # Check search stage
 dg recovery-analysis <session>  # Get recovery strategies
 dg session-report <session>     # Full session report
@@ -322,6 +323,7 @@ See SOP for detailed L1/L2/L3 complexity guidelines.
 | `dg graph-traverse` | Traverse reasoning path |
 | `dg graph-obfuscate` | Entity obfuscation (experimental) |
 | `dg suggest-queries` | Query suggestions for next round |
+| `dg coverage` | Whole-session view: rounds, queries, new vs repeated, round-local terms, untouched primary sources |
 | `dg strategy-info` | Current search stage |
 | `dg recovery-analysis` | Recovery strategy analysis |
 | `dg session-report` | Full session history |

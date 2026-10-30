@@ -8,7 +8,7 @@ export interface DedupItem {
     content: string;
 }
 
-export function normalizeUrl(url: string): string {
+function normalizeUrl(url: string): string {
     try {
         const u = new URL(url);
         // Remove trailing slash, sort params, strip fragments
@@ -37,7 +37,7 @@ export function dedupeByUrl<T extends DedupItem>(items: T[]): T[] {
     const seen = new Map<string, T>();
 
     for (const item of items) {
-        const norm = normalizeUrl(item.url);
+        const norm = resultUrlKey(item);
         if (!seen.has(norm)) {
             seen.set(norm, item);
         }

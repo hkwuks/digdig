@@ -3,7 +3,7 @@
 import { ContentExtractor, ExtractedContent } from '../deep/extractor.js';
 import { createErrorEnvelope, createSuccessEnvelope } from '../protocol.js';
 import { getPendingExtractionResults, loadSessionResults, recordExtractionOutcome, resolveSessionPath } from '../deep/session.js';
-import { dedupe } from '../deep/dedupe.js';
+import { dedupe, resultUrlKey } from '../deep/dedupe.js';
 
 export interface ExtractOptions {
     urls?: string[];
@@ -30,8 +30,8 @@ export async function runExtract(extractor: ContentExtractor, options: ExtractOp
     const sessionDir = options.session ? resolveSessionPath(options.session) : undefined;
     let urls = options.urls ?? [];
     if (sessionDir && options.urls?.length) {
-        const known = new Set(loadSessionResults(sessionDir).map(result => result.url));
-        const unknown = options.urls.find(url => !known.has(url));
+        const known = new Set(loadSessionResults(sessionDir).map(result => resultUrlKey(result)));
+        const unknown = options.urls.find(url => !known.has(resultUrlKey({ url })));
         if (unknown) {
             console.log(JSON.stringify(createErrorEnvelope('UNKNOWN_SESSION_URL', `URL is not a result in this session: ${unknown}`), null, 2));
             return 1;
@@ -53,9 +53,9 @@ export async function runExtract(extractor: ContentExtractor, options: ExtractOp
         const responses = await extractor.extractBatch(urls);
         const valid = responses.filter(response => !failureFrom(response));
         const extracted = dedupe(valid);
-        const retained = new Set(extracted.map(response => response.url));
+        const retained = new Set(extracted.map(response => resultUrlKey(response)));
         const outcomes = responses.map(response => {
-            const failure = failureFrom(response) ?? (retained.has(response.url) ? undefined : { code: 'tool' as const, message: 'Duplicate extracted body' });
+            const failure = failureFrom(response) ?? (retained.has(resultUrlKey(response)) ? undefined : { code: 'tool' as const, message: 'Duplicate extracted body' });
             return failure ? { url: response.url, failure } : { ...response, extractor: options.jina ? 'jina' : options.obscura ? 'obscura' : 'default' };
         });
         const session = sessionDir ? recordExtractionOutcome(sessionDir, outcomes) : undefined;

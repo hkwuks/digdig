@@ -23,8 +23,8 @@ import { runDocIndex } from './commands/doc-index.js';
 import { runDocSearch } from './commands/doc-search.js';
 import { runGraphObfuscateCommand, GraphObfuscateOptions } from './commands/graph-obfuscate.js';
 import { ContentExtractor } from './deep/extractor.js';
-import { rrf } from './deep/rrf.js';
-import { normalizeUrl, resultUrlKey } from './deep/dedupe.js';
+import { resultUrlKey } from './deep/dedupe.js';
+import { fuseResults, mergeEnvelopeMetadata } from './deep/fuse.js';
 import { deserializeGraph, graphStats, GraphNodeAttrs, GraphEdgeAttrs } from './deep/graph.js';
 import { initSessionDir, resolveSessionPath, appendSessionResults, loadSessionResults, loadSessionGraph, countPendingResults, getPendingResults, approveResults, injectApprovedResults, hasVerifiedContent, setSkipped } from './deep/session.js';
 import { runSessionList, runSessionDelete, getDefaultSessionRoot } from './commands/session.js';
@@ -35,6 +35,7 @@ import { generateQuerySuggestions } from './deep/query-suggest.js';
 import { determineSearchStage, getStrategyInfo } from './deep/search-strategy.js';
 import { analyzeRecoveryOptions, RecoveryAnalysis, RoundQuality } from './deep/recovery-analysis.js';
 import { getSessionAnalysis } from './deep/iteration-data.js';
+import { runCoverage } from './commands/coverage.js';
 import { runGraphExplore } from './commands/graph-explore.js';
 import { runGraphDrill } from './commands/graph-drill.js';
 import { runGraphTraverse } from './commands/graph-traverse.js';
@@ -334,10 +335,9 @@ function formatSessionReportAsMarkdown(data: any): string {
     lines.push(`### Quality: ${q.verdict.toUpperCase()} ${verdictEmoji[q.verdict] || ''}`);
     lines.push('');
     if (q.breakdown) {
-        const indicators = ['contentDepth', 'entityRichness', 'sourceDiversity', 'novelty'];
+        const indicators = ['contentDepth', 'sourceDiversity', 'novelty'];
         const labels: Record<string, string> = {
-            contentDepth: 'Content Depth',
-            entityRichness: 'Entity Richness', sourceDiversity: 'Source Diversity', novelty: 'Novelty',
+            contentDepth: 'Content Depth', sourceDiversity: 'Source Diversity', novelty: 'Novelty',
         };
         for (const key of indicators) {
             const ind = q.breakdown[key];
@@ -457,28 +457,30 @@ async function searchOneQuery(
     return { providerResponses, sxngResponse };
 }
 
-/** Merge provider and SearXNG responses into the single response shape callers expect. */
-function mergeResponses(
-    providerResponses: SearchResponse[],
-    sxngResponse: SearchResponse | null
-): SearchResponse {
-    if (providerResponses.length === 0 && sxngResponse) return sxngResponse;
-    if (providerResponses.length === 1 && !sxngResponse) return providerResponses[0]!;
-
-    // SearXNG's envelope carries the query suggestions and answers, so it is the
-    // base whenever it ran; provider-only searches fall back to the first provider.
-    const all = sxngResponse ? [...providerResponses, sxngResponse] : providerResponses;
-    const base = sxngResponse ?? providerResponses[0]!;
-    return {
-        ...base,
-        results: all.flatMap(r => r.results),
-        numberOfResults: all.reduce((sum, r) => sum + r.numberOfResults, 0),
-    };
-}
-
 /** Attribute a result to the tool that produced it, for session origin records. */
 function originTool(engine: string): string {
     return EXTERNAL_PROVIDERS.includes(engine as ExternalProvider) ? engine : 'digdig';
+}
+
+/**
+ * Resolve `--format` for a subcommand.
+ *
+ * The root program declares `-f, --format` too, and Commander assigns a flag to
+ * the program it appears *after* — but a subcommand's own `opts.format` then
+ * arrives as `undefined`, while the parent reports its default (`md`). Neither
+ * `opts` nor `command.rawArgs` (empty for a nested command) can answer, so the
+ * argv handed to `runCli` is carried through `createProgram` and read here.
+ */
+function subcommandFormat(argv: string[], command: string, fallback?: string): string | undefined {
+    const start = argv.indexOf(command);
+    if (start === -1) return fallback;
+
+    for (let i = start + 1; i < argv.length; i++) {
+        const arg = argv[i];
+        if (arg === '--format' || arg === '-f') return argv[i + 1];
+        if (arg.startsWith('--format=')) return arg.slice('--format='.length);
+    }
+    return fallback;
 }
 
 async function runSearch(
@@ -654,225 +656,94 @@ async function runSearch(
     }
 
     try {
-        if (queries.length === 1 && !options.merge) {
-            const searchOptions: SearchOptions = {
-                query: queries[0],
-                engines: options.engines,
-                categories: options.categories,
-                limit,
-                page: options.page,
-                language: options.language,
-                timeRange: options.timeRange as any,
-            };
-
-            const plan = planProviderSearch(searchOptions.engines ?? []);
-            const { providerResponses, sxngResponse } = await searchOneQuery(service, plan, searchOptions, limit);
-            const results = mergeResponses(providerResponses, sxngResponse);
-
-            let sessionInfo: ReturnType<typeof appendSessionResults> | null = null;
-            if (options.session) {
-                sessionInfo = appendSessionResults(options.session, results.results.map(result => ({
-                    ...result,
-                    origins: [{ tool: originTool(result.engine), engine: result.engine, query: queries[0] }],
-                })));
-                injectApprovedResults(options.session, sessionInfo.approvedResults);
-                // Check pending count and warn if >= 30
-                const pendingCount = countPendingResults(options.session);
-                if (pendingCount >= 30) {
-                    console.error(`[session] ${pendingCount} pending results awaiting Agent quality assessment. Run --quality to evaluate.`);
-                }
-            }
-
-            const outputFormat = (options.format || config.defaultFormat) as 'json' | 'md';
-
-            let displayResults = results.results;
-            if (options.session) {
-                const allSessionResults = loadSessionResults(options.session);
-                const rankings = [
-                    results.results.map(r => ({ ...r, id: resultUrlKey(r) })),
-                    allSessionResults.map(r => ({ ...r, id: resultUrlKey(r) })),
-                ];
-                const fused = rrf(rankings);
-                const urlMap = new Map<string, SearchResult>();
-                for (const r of allSessionResults) urlMap.set(resultUrlKey(r), r as SearchResult);
-                // Keep current search content when it overlaps with older session data.
-                for (const r of results.results) urlMap.set(resultUrlKey(r), r);
-                displayResults = fused
-                    .map(item => {
-                        const original = urlMap.get(item.id);
-                        return original ? { ...original, fusionScore: item.score } : null;
-                    })
-                    .filter(Boolean) as SearchResult[];
-                if (limit > 0) displayResults = displayResults.slice(0, limit);
-            }
-
-            const displayData = {
-                query: results.query,
-                totalResults: results.numberOfResults,
-                results: displayResults,
-                answers: results.answers,
-                suggestions: results.suggestions,
-                unresponsiveEngines: results.unresponsiveEngines,
-                ...(sessionInfo ? { session: { dir: options.session, added: sessionInfo.added, total: sessionInfo.total } } : {}),
-            };
-
-            if (outputFormat === 'md') {
-                console.log(formatOutput(displayData, 'md'));
-            } else {
-                console.log(JSON.stringify(createSuccessEnvelope({
-                    ...displayData,
-                    returnedResults: displayResults.length,
-                }), null, 2));
-            }
-
-            // Results are now managed by session (pending -> approved -> graph)
-            // Do NOT auto-inject into graph. Use --quality --approve for Agent-controlled injection.
-
-            return 0;
-        }
-
-        const allResponses: SearchResponse[] = [];
-        const engines = options.engines ?? [];
-        const plan = planProviderSearch(engines);
-
-        for (const query of queries) {
-            const searchOptions: SearchOptions = {
-                query,
-                engines: plan.sxngEngines.length > 0 ? plan.sxngEngines : engines,
-                categories: options.categories,
-                limit,
-                page: options.page,
-                language: options.language,
-                timeRange: options.timeRange as any,
-            };
-
-            const { providerResponses, sxngResponse } = await searchOneQuery(service, plan, searchOptions, limit);
-            allResponses.push(...providerResponses);
-            if (sxngResponse) allResponses.push(sxngResponse);
-        }
-
-        let rankings = allResponses.map(resp =>
-            resp.results.map((r: SearchResult) => ({ id: normalizeUrl(r.url), ...r }))
-        );
-
-        let mergeData: any = null;
+        // Read the merge file before anything writes, so a bad path cannot leave
+        // half a session behind.
+        let mergeResults: SearchResult[] | undefined;
+        let mergeMeta: { suggestions?: string[]; answers?: string[] } = {};
         if (options.merge) {
             try {
-                const raw = readFileSync(options.merge, 'utf-8');
-                mergeData = JSON.parse(raw);
-                let mergeResults = mergeData;
-                if (mergeData.status === 'ok' && mergeData.data) {
-                    mergeResults = mergeData.data;
-                }
-                const historicalResults = (mergeResults.results || []);
-                if (historicalResults.length > 0) {
-                    rankings.push(
-                        historicalResults.map((r: any) => ({ id: normalizeUrl(r.url), ...r }))
-                    );
-                }
-            } catch (error) {
-                const envelope = createErrorEnvelope(
+                const parsed = JSON.parse(readFileSync(options.merge, 'utf-8'));
+                const payload = parsed.status === 'ok' && parsed.data ? parsed.data : parsed;
+                mergeResults = (payload.results || []) as SearchResult[];
+                mergeMeta = { suggestions: payload.suggestions, answers: payload.answers };
+            } catch {
+                console.log(JSON.stringify(createErrorEnvelope(
                     'MERGE_FILE_FAILED',
                     `Failed to read merge file: ${options.merge}`,
                     { hint: 'Ensure the file exists and contains valid search results JSON' }
-                );
-                console.log(JSON.stringify(envelope, null, 2));
+                ), null, 2));
                 return 1;
             }
         }
 
-        const rrfFused = rrf(rankings);
-
-        const allResults: SearchResult[] = [];
-        const allSuggestions: string[] = [];
-        const allAnswers: string[] = [];
-        const allUnresponsive: string[] = [];
-
-        for (const resp of allResponses) {
-            allResults.push(...resp.results);
-            for (const s of resp.suggestions) {
-                if (!allSuggestions.includes(s)) allSuggestions.push(s);
-            }
-            for (const a of resp.answers) {
-                if (!allAnswers.includes(a)) allAnswers.push(a);
-            }
-            for (const u of resp.unresponsiveEngines) {
-                const name = Array.isArray(u) ? u[0] : u;
-                if (!allUnresponsive.includes(name)) allUnresponsive.push(name);
-            }
+        // One invocation, N queries: the only difference from a single query is
+        // how many responses land in the array.
+        const engines = options.engines ?? [];
+        const plan = planProviderSearch(engines);
+        const responses: SearchResponse[] = [];
+        for (const query of queries) {
+            const searchOptions: SearchOptions = {
+                query,
+                engines,
+                categories: options.categories,
+                limit,
+                page: options.page,
+                language: options.language,
+                timeRange: options.timeRange as any,
+            };
+            const { providerResponses, sxngResponse } = await searchOneQuery(service, plan, searchOptions, limit);
+            responses.push(...providerResponses);
+            if (sxngResponse) responses.push(sxngResponse);
         }
 
-        if (mergeData) {
-            let mergeResults = mergeData;
-            if (mergeData.status === 'ok' && mergeData.data) {
-                mergeResults = mergeData.data;
-            }
-            const historical = mergeResults.results || [];
-            allResults.push(...historical);
-            if (mergeResults.suggestions) {
-                for (const s of mergeResults.suggestions) {
-                    if (!allSuggestions.includes(s)) allSuggestions.push(s);
-                }
-            }
-            if (mergeResults.answers) {
-                for (const a of mergeResults.answers) {
-                    if (!allAnswers.includes(a)) allAnswers.push(a);
-                }
-            }
-        }
+        // Snapshot before writing: history must not include this invocation's own
+        // results, or every current result votes for itself a second time.
+        const sessionSnapshot = options.session ? loadSessionResults(options.session) : undefined;
 
-        const urlMap = new Map<string, SearchResult>();
-        for (const r of allResults) {
-            const norm = normalizeUrl(r.url);
-            if (!urlMap.has(norm)) urlMap.set(norm, r);
-        }
-
-        let fusedResults = rrfFused
-            .map((item: { id: string; score: number }) => {
-                const original = urlMap.get(item.id);
-                if (!original) return null;
-                return { ...original, fusionScore: item.score };
-            })
-            .filter(Boolean) as SearchResult[];
-
-        if (limit > 0) {
-            fusedResults = fusedResults.slice(0, limit);
-        }
+        const fusion = fuseResults({
+            responses,
+            mergeResults,
+            sessionSnapshot,
+            onlyCurrent: Boolean(options.session),
+            limit,
+            toolFor: engine => originTool(engine),
+        });
 
         let sessionInfo: ReturnType<typeof appendSessionResults> | null = null;
         if (options.session) {
-            const originsByUrl = new Map<string, Array<{ tool: string; engine?: string; query: string }>>();
-            for (const response of allResponses) {
-                for (const result of response.results) {
-                    const key = normalizeUrl(result.url);
-                    const origins = originsByUrl.get(key) || [];
-                    origins.push({ tool: originTool(result.engine), engine: result.engine, query: response.query });
-                    originsByUrl.set(key, origins);
-                }
-            }
-            sessionInfo = appendSessionResults(options.session, fusedResults.map(result => ({
+            sessionInfo = appendSessionResults(options.session, fusion.display.map((result, index) => ({
                 ...result,
-                origins: originsByUrl.get(normalizeUrl(result.url)),
+                // The fused position, so `rank` and `fusionScore` describe the same
+                // order instead of one provider's and one RRF's.
+                rank: index + 1,
+                origins: fusion.originsByKey.get(resultUrlKey(result)),
             })));
             injectApprovedResults(options.session, sessionInfo.approvedResults);
-            // Check pending count and warn if >= 30
             const pendingCount = countPendingResults(options.session);
             if (pendingCount >= 30) {
                 console.error(`[session] ${pendingCount} pending results awaiting Agent quality assessment. Run --quality to evaluate.`);
             }
         }
 
-        const displayQuery = queries.length > 1 ? queries.join(' · ') : queries[0];
-        const outputFormat = (options.format || config.defaultFormat) as 'json' | 'md';
+        const meta = mergeEnvelopeMetadata(responses, null);
+        for (const suggestion of mergeMeta.suggestions ?? []) {
+            if (!meta.suggestions.includes(suggestion)) meta.suggestions.push(suggestion);
+        }
+        for (const answer of mergeMeta.answers ?? []) {
+            if (!meta.answers.includes(answer)) meta.answers.push(answer);
+        }
 
+        const outputFormat = (options.format || config.defaultFormat) as 'json' | 'md';
         const displayData = {
-            query: displayQuery,
+            query: queries.length > 1 ? queries.join(' · ') : queries[0],
             queries,
-            totalResults: allResults.length,
-            results: fusedResults,
-            answers: allAnswers,
-            suggestions: allSuggestions,
-            unresponsiveEngines: allUnresponsive,
+            // The deduplicated candidate pool, not a sum of provider self-reports
+            // and not the pre-dedup array length.
+            totalResults: fusion.fused.length,
+            results: fusion.display,
+            answers: meta.answers,
+            suggestions: meta.suggestions,
+            unresponsiveEngines: meta.unresponsiveEngines,
             ...(sessionInfo ? { session: { dir: options.session, added: sessionInfo.added, total: sessionInfo.total } } : {}),
         };
 
@@ -881,7 +752,7 @@ async function runSearch(
         } else if (outputFormat === 'json') {
             console.log(JSON.stringify(createSuccessEnvelope({
                 ...displayData,
-                returnedResults: fusedResults.length,
+                returnedResults: fusion.display.length,
             }), null, 2));
         } else {
             console.log(formatOutput(displayData, outputFormat));
@@ -905,7 +776,7 @@ async function runSearch(
     }
 }
 
-export function createProgram(): Command {
+export function createProgram(argv: string[] = []): Command {
     const program = new Command();
 
     program
@@ -1139,6 +1010,26 @@ Examples:
                 console.log(JSON.stringify(createSuccessEnvelope(result), null, 2));
             }
             process.exit(0);
+        });
+
+    program
+        .command('coverage')
+        .argument('<session>', 'Session directory or name')
+        .description('Report what the session has looked at, as counted facts (rounds, queries, repetition, distinctive terms)')
+        .option('-f, --format <fmt>', 'Output format: json (default), md')
+        .addHelpText('after', `
+Reports what has been searched and what came back, without deciding what it means.
+Reads results.json only, so it works before any result has been approved.
+
+Examples:
+  dg coverage my-session
+  dg coverage my-session --format md`)
+        .action(async (session, opts, command: Command) => {
+            const code = await runCoverage({
+                session,
+                format: subcommandFormat(argv, command.name(), opts.format) === 'md' ? 'md' : 'json',
+            });
+            process.exit(code);
         });
 
     program
@@ -1467,7 +1358,7 @@ Examples:
 }
 
 export async function runCli(args: string[], service: SearXNGService): Promise<number | null> {
-    const program = createProgram();
+    const program = createProgram(args);
 
     // Custom action for default command (search)
     // Commander passes the [query] argument as first param, then opts

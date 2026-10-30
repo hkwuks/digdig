@@ -188,7 +188,7 @@ describe('CLI program (commander)', () => {
         }
     });
 
-    it('shows a stored search result body from excerpt when the session is merged into the display', async () => {
+    it('shows only this invocation results when a session is attached', async () => {
         const sessionDir = mkdtempSync(join(tmpdir(), 'sxng-cli-excerpt-display-test-'));
         // A stored search result: its body lives in `excerpt`, not `content`.
         appendSessionResults(sessionDir, [{
@@ -200,8 +200,8 @@ describe('CLI program (commander)', () => {
         vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
 
         try {
-            // A fresh search for an unrelated URL; the stored one enters the display
-            // only through the session's RRF merge, where it is a SessionResult.
+            // History contributes a vote to the ranking but is never displayed, so a
+            // second search shows what it found rather than everything it has seen.
             await runCli(['fresh query', '--session', sessionDir, '--format', 'md'], {
                 search: vi.fn().mockResolvedValue({
                     query: 'fresh query', numberOfResults: 1,
@@ -214,7 +214,112 @@ describe('CLI program (commander)', () => {
             } as any);
 
             const md = output.mock.calls.at(-1)![0] as string;
-            expect(md).toContain('the stored search body');
+            expect(md).toContain('fresh body');
+            expect(md).not.toContain('the stored search body');
+        } finally {
+            rmSync(sessionDir, { recursive: true, force: true });
+        }
+    });
+
+    it('keeps history out of the result list but still stores what this run found', async () => {
+        const sessionDir = mkdtempSync(join(tmpdir(), 'sxng-cli-history-test-'));
+        appendSessionResults(sessionDir, [{
+            url: 'https://example.com/old', title: 'Old', content: 'old body',
+            origins: [{ tool: 'sxng', query: 'previous' }],
+        }]);
+        const output = vi.spyOn(console, 'log').mockImplementation(() => {});
+        vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+
+        try {
+            await runCli(['second query', '--session', sessionDir, '--format', 'json'], {
+                search: vi.fn().mockResolvedValue({
+                    query: 'second query', numberOfResults: 1,
+                    results: [{
+                        url: 'https://example.com/new', title: 'New', content: 'new body',
+                        engine: 'test', category: 'general',
+                    }],
+                    suggestions: [], answers: [], corrections: [], infoboxes: [], unresponsiveEngines: [],
+                }),
+            } as any);
+
+            const result = JSON.parse(output.mock.calls.at(-1)![0] as string);
+            expect(result.data.results.map((r: any) => r.url)).toEqual(['https://example.com/new']);
+            expect(loadSessionResults(sessionDir).map(r => r.url).sort())
+                .toEqual(['https://example.com/new', 'https://example.com/old']);
+        } finally {
+            rmSync(sessionDir, { recursive: true, force: true });
+        }
+    });
+
+    it('reaches the same result set whether the queries arrive in one call or two', async () => {
+        // AC2: `--session a "q1"` then `"q2"` must agree in key set with
+        // `--session b --queries "q1,q2"` once. Order may differ because the
+        // fusion rankings differ, but "what did this session find" must not.
+        const responses: Record<string, any> = {
+            'q1': {
+                query: 'q1', numberOfResults: 2,
+                results: [
+                    { url: 'https://a.test/1', title: 'A1', content: 'a1', engine: 'test', category: 'general' },
+                    { url: 'https://shared.test/page', title: 'Shared', content: 's', engine: 'test', category: 'general' },
+                ],
+                suggestions: [], answers: [], corrections: [], infoboxes: [], unresponsiveEngines: [],
+            },
+            'q2': {
+                query: 'q2', numberOfResults: 2,
+                results: [
+                    { url: 'https://b.test/2', title: 'B2', content: 'b2', engine: 'test', category: 'general' },
+                    // Same page as q1 returned, different fragment spelling.
+                    { url: 'https://shared.test/page#x', title: 'Shared', content: 's', engine: 'test', category: 'general' },
+                ],
+                suggestions: [], answers: [], corrections: [], infoboxes: [], unresponsiveEngines: [],
+            },
+        };
+        const service = { search: vi.fn(async ({ query }: any) => responses[query]) } as any;
+        const seqDir = mkdtempSync(join(tmpdir(), 'sxng-ac2-seq-'));
+        const batchDir = mkdtempSync(join(tmpdir(), 'sxng-ac2-batch-'));
+        const output = vi.spyOn(console, 'log').mockImplementation(() => {});
+        vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+
+        try {
+            await runCli(['q1', '--session', seqDir, '--format', 'json'], service);
+            await runCli(['q2', '--session', seqDir, '--format', 'json'], service);
+            await runCli(['--queries', 'q1,q2', '--session', batchDir, '--format', 'json'], service);
+
+            const keysOf = (dir: string) => loadSessionResults(dir).map(r => r.url).sort();
+            expect(keysOf(seqDir)).toEqual(keysOf(batchDir));
+            // And the fragment-collapsed shared page is one result, not two.
+            expect(keysOf(seqDir)).toHaveLength(3);
+        } finally {
+            rmSync(seqDir, { recursive: true, force: true });
+            rmSync(batchDir, { recursive: true, force: true });
+        }
+    });
+
+    it('reports totalResults as every fused candidate and returnedResults as what it printed', async () => {
+        // AC9: totalResults is the deduplicated candidate pool; returnedResults is
+        // the truncation actually shown. They were previously both the display
+        // length, so `--limit 2` over four candidates looked like a pool of two.
+        const sessionDir = mkdtempSync(join(tmpdir(), 'sxng-ac9-counts-'));
+        const output = vi.spyOn(console, 'log').mockImplementation(() => {});
+        vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+
+        try {
+            await runCli(['counted query', '--limit', '2', '--session', sessionDir, '--format', 'json'], {
+                search: vi.fn().mockResolvedValue({
+                    query: 'q', numberOfResults: 4,
+                    results: [1, 2, 3, 4].map(i => ({
+                        url: `https://counts.test/${i}`, title: `T${i}`, content: `c${i}`,
+                        engine: 'test', category: 'general',
+                    })),
+                    suggestions: [], answers: [], corrections: [], infoboxes: [], unresponsiveEngines: [],
+                }),
+            } as any);
+
+            const result = JSON.parse(output.mock.calls.at(-1)![0] as string).data;
+            expect(result.results).toHaveLength(2);
+            expect(result.returnedResults).toBe(2);
+            expect(result.totalResults).toBe(4);
+            expect(result.totalResults).toBeGreaterThanOrEqual(result.returnedResults);
         } finally {
             rmSync(sessionDir, { recursive: true, force: true });
         }

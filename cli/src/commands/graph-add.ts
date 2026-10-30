@@ -1,7 +1,7 @@
 /** Persist Agent-authored semantic graph data against approved session results. */
 
 import { createErrorEnvelope, createSuccessEnvelope } from '../protocol.js';
-import { entityId, GraphEdgeAttrs, GraphNodeAttrs, resultId } from '../deep/graph.js';
+import { entityId, GraphEdgeAttrs, GraphNodeAttrs } from '../deep/graph.js';
 import { initSessionDir, mutateSessionGraph, resolveSessionPath } from '../deep/session.js';
 import { isJsonObject, readSessionJsonInput } from './json-input.js';
 

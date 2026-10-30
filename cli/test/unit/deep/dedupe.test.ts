@@ -1,27 +1,49 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeUrl, dedupeByUrl, dedupeByJaccard, dedupe } from '../../src/deep/dedupe.js';
+import { resultUrlKey, dedupeByUrl, dedupeByJaccard, dedupe } from '../../src/deep/dedupe.js';
 import type { DedupItem } from '../../src/deep/dedupe.js';
 
 describe('dedupe', () => {
-    describe('normalizeUrl', () => {
+    describe('resultUrlKey', () => {
         it('removes trailing slash', () => {
-            expect(normalizeUrl('https://example.com/')).toBe('https://example.com/');
-            expect(normalizeUrl('https://example.com/path/')).toBe('https://example.com/path');
+            expect(resultUrlKey({ url: 'https://example.com/' })).toBe('https://example.com/');
+            expect(resultUrlKey({ url: 'https://example.com/path/' })).toBe('https://example.com/path');
         });
 
-        it('strips hash fragments', () => {
-            const norm = normalizeUrl('https://example.com/page#section');
-            expect(norm).not.toContain('#');
+        it('strips hash fragments from web URLs', () => {
+            expect(resultUrlKey({ url: 'https://example.com/page#section' })).not.toContain('#');
+        });
+
+        it('keeps the fragment on local document chunks', () => {
+            expect(resultUrlKey({ url: 'file:///docs/a.md#chunk-0' })).toBe('file:///docs/a.md#chunk-0');
+            expect(resultUrlKey({ url: 'file:///docs/a.md#chunk-7' })).not.toBe(resultUrlKey({ url: 'file:///docs/a.md#chunk-0' }));
+        });
+
+        it('keeps the fragment when the result is tagged local even without a file: URL', () => {
+            const a = { url: 'https://example.com/doc#chunk-0', source: 'local' };
+            const b = { url: 'https://example.com/doc#chunk-1', source: 'local' };
+            expect(resultUrlKey(a)).not.toBe(resultUrlKey(b));
+        });
+
+        it('collapses different fragments of the same web page', () => {
+            expect(resultUrlKey({ url: 'https://x.com/a#s' })).toBe(resultUrlKey({ url: 'https://x.com/a#t' }));
         });
 
         it('sorts query parameters', () => {
-            const norm = normalizeUrl('https://example.com?b=2&a=1');
+            const norm = resultUrlKey({ url: 'https://example.com?b=2&a=1' });
             expect(norm).toContain('a=1');
             expect(norm.indexOf('a=1')).toBeLessThan(norm.indexOf('b=2'));
         });
 
         it('returns original string for invalid URLs', () => {
-            expect(normalizeUrl('not-a-url')).toBe('not-a-url');
+            expect(resultUrlKey({ url: 'not-a-url' })).toBe('not-a-url');
+        });
+
+        it('is idempotent', () => {
+            const urls = ['https://example.com/a/', 'https://x.com/p?b=2&a=1', 'file:///docs/a.md#chunk-3', 'not-a-url'];
+            for (const url of urls) {
+                const once = resultUrlKey({ url });
+                expect(resultUrlKey({ url: once })).toBe(once);
+            }
         });
     });
 
@@ -43,6 +65,14 @@ describe('dedupe', () => {
             ];
             const result = dedupeByUrl(items);
             expect(result[0].title).toBe('First');
+        });
+
+        it('keeps distinct local document chunks apart', () => {
+            const items: DedupItem[] = [
+                { url: 'file:///docs/a.md#chunk-0', title: 'a', content: 'first chunk' },
+                { url: 'file:///docs/a.md#chunk-7', title: 'a', content: 'another chunk' },
+            ];
+            expect(dedupeByUrl(items)).toHaveLength(2);
         });
     });
 

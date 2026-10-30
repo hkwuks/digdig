@@ -898,6 +898,7 @@ No extra npm dependencies needed — Obscura is called via CLI. Auto-detected fr
 | `dg strategy-info <session>` | Check current search stage |
 | `dg recovery-analysis <session>` | Get recovery strategies for poor quality |
 | `dg session-report <session>` | Full session analysis report |
+| `dg coverage <session>` | What the session has looked at so far, as counted facts (rounds, queries, new vs repeated, round-local terms) |
 | `dg session-list` | List all sessions |
 | `dg session-delete <session-name>` | Delete a session |
 | `dg graph-preprocess <session>` | TF-IDF + co-occurrence + result provenance analysis |
@@ -1071,6 +1072,14 @@ dg graph-add <session-name> --data-file .\.digdig\sessions\<session-name>\agent-
 # 8. Continue research with redundancy check
 dg --session <session-name> --queries "tokio vs async-std,benchmark 2026" --redundancy warn
 ```
+
+### Session Coverage
+
+A `--session` search shows only what that invocation found; earlier rounds still contribute to the fusion score but do not appear in the output. `dg coverage <session>` restores the whole-session view on demand, from `results.json` alone — no graph, no approval, no extraction required.
+
+It reports counted facts, not conclusions: rounds with their queries and engines, how many results each round first introduced, how many it returned that an earlier round had already seen, which URLs recur across rounds, per round the terms confined to that round, which hosts the session actually drew from, and which of the common primary-source hosts (arXiv, GitHub, Stack Overflow, package registries) it has not touched. A round whose every result was already known is the clearest saturation signal. Terms spanning every round are the session's subject and are excluded, so each round is named by what it actually added.
+
+Deciding which aspects are covered and which are missing is the Agent's job. `dg coverage` supplies the numbers.
 
 ### Quality and Evidence Semantics
 

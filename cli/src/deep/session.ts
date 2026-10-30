@@ -182,7 +182,15 @@ function isDirectOrigin(origin: ResultOrigin): boolean {
     return origin.tool === 'user' || origin.tool === 'agent';
 }
 
+/**
+ * Only a new discovery opens a round. An extracted body is a completion of a
+ * result that a search already found, so it belongs to the round that found it
+ * — it must not advance the counter, or every extraction would look like a
+ * fresh search round to the quality and strategy readers that key off the
+ * latest round.
+ */
 function needsRound(result: SessionResultInput): boolean {
+    if (inferredContentType(result) !== 'search') return false;
     return (result.origins ?? []).some(origin => !isDirectOrigin(origin) && origin.round === undefined);
 }
 
@@ -374,14 +382,13 @@ export function loadSessionRounds(sessionDir: string): number {
 
 export function appendSessionResults(
     sessionDir: string,
-    newResults: SessionResultInput[],
-    options?: { skipRoundIncrement?: boolean }
+    newResults: SessionResultInput[]
 ): { added: number; updated: number; total: number; round: number; approvedResults: SessionResult[] } {
     return withSessionLock(sessionDir, () => {
         const state = readResultsFile(sessionDir);
         const results = state?.data.results ?? [];
         const currentRounds = state?.data.rounds ?? 0;
-        const incrementRound = !options?.skipRoundIncrement && newResults.some(needsRound);
+        const incrementRound = newResults.some(needsRound);
         const round = incrementRound ? currentRounds + 1 : currentRounds;
         const byKey = new Map(results.map(result => [resultUrlKey(result), result]));
         let added = 0;
@@ -391,7 +398,10 @@ export function appendSessionResults(
         for (const input of newResults) {
             const key = resultUrlKey(input);
             const existing = byKey.get(key);
-            const importRound = needsRound(input) ? Math.max(1, round) : undefined;
+            // Every origin records a round, so no reader has to guess what an
+            // absent one means. A discovery carries the round it opened; an
+            // extracted body carries the round that discovered it.
+            const importRound = Math.max(1, round);
             if (!existing) {
                 const created = makeResult(input, importRound);
                 byKey.set(key, created);
@@ -474,17 +484,27 @@ export function appendSessionResults(
     });
 }
 
-export function getPendingExtractionResults(sessionDir: string): SessionResult[] {
-    return loadSessionResults(sessionDir).filter(result => result.contentType === 'search'
+/** A search result still waiting for a body, and not yet given up on. */
+export function isPendingExtraction(result: SessionResult): boolean {
+    return result.contentType === 'search'
         && !result.skippedAt
-        && (result.failureCount ?? 0) < 2);
+        && (result.failureCount ?? 0) < 2;
+}
+
+/** An extracted record awaiting an approval decision. */
+export function isPendingApproval(result: SessionResult): boolean {
+    return result.status === 'pending'
+        && !result.skippedAt
+        && hasVerifiedContent(result);
+}
+
+export function getPendingExtractionResults(sessionDir: string): SessionResult[] {
+    return loadSessionResults(sessionDir).filter(isPendingExtraction);
 }
 
 /** Extracted records awaiting an approval decision. */
 export function getPendingResults(sessionDir: string): SessionResult[] {
-    return loadSessionResults(sessionDir).filter(result => result.status === 'pending'
-        && !result.skippedAt
-        && hasVerifiedContent(result));
+    return loadSessionResults(sessionDir).filter(isPendingApproval);
 }
 
 export function getApprovedResults(sessionDir: string): SessionResult[] {
