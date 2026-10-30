@@ -256,6 +256,22 @@ dg suggest-queries <session> --format json
 
 #### Phase 6: Continue Search (with Redundancy Check)
 
+A session search shows only what that invocation found; earlier rounds feed the fusion score but stay out of the output. Before deciding the next query, get the whole-session view:
+
+```bash
+dg coverage <session>
+```
+
+It works from round 2 onward with no approval and no extraction. Read it as evidence about your own search so far, not as a score:
+
+- **A round whose `New` is 0** — every result was already known. That direction is saturated; repeating it in different words will not help. Move to a different aspect or a different source type.
+- **`repeated` URLs across rounds** — the same pages keep surfacing. Whatever those pages say is already in hand.
+- **`distinctiveTerms` per round** — what each round actually added, with the session's shared subject terms already filtered out. Terms missing from every round are aspects you have not searched.
+- **`untouchedSpecialized`** — primary-source hosts (arXiv, GitHub, Stack Overflow, package registries) nothing has come from yet. If the question needs an official record, a reference implementation, or a version-pinned answer, this is where the next round should point.
+- **A long thin table** — many rounds, few new results each. Widen the angle rather than deepening it.
+
+Which aspects those rows mean, and which gaps matter for the question at hand, is your judgement. The command gives counts; the Query Plan records the conclusion.
+
 ```bash
 dg "follow-up query" --session <session> --redundancy warn
 ```
@@ -428,6 +444,7 @@ Before outputting final answer, verify:
 - [ ] Used `dg extract` to extract key page content
 - [ ] L2/L3 levels used `--session` and knowledge graph
 - [ ] L3 level used `--quality` assessment and decided next steps accordingly
+- [ ] **L2/L3: ran `dg coverage` before choosing a later round's query** (a round with `New: 0` means that direction is saturated)
 - [ ] **L2/L3: ran Claim-Evidence-Review pipeline** (`claim-add` -> `evidence-verify` -> review)
 - [ ] **Final output only cites `approved` claims** (`needsReview` claims either dropped or marked as uncertain)
 - [ ] No evidence-free phrases like "it is generally believed" / "reports indicate"

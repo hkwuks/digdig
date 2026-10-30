@@ -879,6 +879,7 @@ obscura --version
 | `dg strategy-info <session>` | 查看当前搜索阶段 |
 | `dg recovery-analysis <session>` | 获取低质量恢复策略 |
 | `dg session-report <session>` | 完整会话分析报告 |
+| `dg coverage <session>` | 本会话已看过什么，以可数事实呈现（轮次、查询、新增与重复、轮内独有词） |
 | `dg session-list` | 列出所有会话 |
 | `dg session-delete <session-name>` | 删除指定会话 |
 | `dg graph-preprocess <session>` | TF-IDF + 共现分析 + 结果来源轮次 |
@@ -1051,6 +1052,14 @@ dg graph-add <session-name> --data-file .\.digdig\sessions\<session-name>\agent-
 # 8. 继续研究（带冗余检查）
 dg --session <session-name> --queries "tokio vs async-std,benchmark 2026" --redundancy warn
 ```
+
+### 会话覆盖度
+
+带 `--session` 的搜索只显示本次调用找到的结果；此前轮次仍参与融合打分，但不进入输出。`dg coverage <session>` 按需恢复全会话视野，只读 `results.json` —— 不需要图谱、不需要审批、不需要抽取。
+
+它报的是可数事实而不是结论：每轮的查询与引擎、每轮首次引入了多少结果、有多少条是更早轮次已见过的、哪些 URL 跨轮重复出现、每一轮独有（不跨轮）的词、实际用到的域名，以及常用一手来源站（arXiv、GitHub、Stack Overflow、各类包仓库）里还没碰过哪些。某一轮的全部结果都是旧的就说明该方向已经饱和。跨所有轮次出现的词属于会话主题，会被排除，因此每轮由它真正新增的内容来命名。
+
+判断"哪些方面已覆盖、哪些还缺"是 Agent 的职责，`dg coverage` 只提供数字。
 
 ### 质量与证据语义
 
