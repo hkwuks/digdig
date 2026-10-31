@@ -7,6 +7,7 @@
 
 import axios, { AxiosInstance } from 'axios';
 import { SearchResult, SearchResponse } from './service.js';
+import { SearchError, searchErrorFromStatus } from './errors.js';
 
 export interface DeepSeekServiceOptions {
   apiKey: string;
@@ -55,16 +56,23 @@ export class DeepSeekService {
         const status = error.response?.status;
         if (status !== undefined) {
           const statusText = error.response?.statusText;
-          throw new Error(`DeepSeek search failed: HTTP ${status}${statusText ? ` ${statusText}` : ''}`);
+          // The message stays byte-identical to what tests assert; the status
+          // now also travels on the error so the envelope can classify it.
+          throw searchErrorFromStatus(
+            'deepseek',
+            status,
+            `DeepSeek search failed: HTTP ${status}${statusText ? ` ${statusText}` : ''}`,
+          );
         }
-        throw new Error(`DeepSeek search failed: ${error.message}`);
+        throw new SearchError('NETWORK_ERROR', `DeepSeek search failed: ${error.message}`, 'deepseek');
       }
       throw error;
     }
 
     const raw = payload?.results;
     if (!Array.isArray(raw)) {
-      throw new Error('DeepSeek search returned an unexpected response body');
+      // A 200 whose body has no results array. Retrying returns the same body.
+      throw new SearchError('BAD_RESPONSE', 'DeepSeek search returned an unexpected response body', 'deepseek');
     }
 
     const retrievedAt = Date.now();
