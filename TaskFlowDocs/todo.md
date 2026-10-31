@@ -107,26 +107,10 @@ Measured with `ollama` as the provider stand-in, since no `DEEPSEEK_API_KEY` is 
 ## Add repository governance and CI
 
 - ID: TF-20261017-bfc96d
-- Status: in_progress
-- Priority: normal
-- Owner: Claude
-- Source: user-request
-- Added: 2026-10-17
-- Updated: 2026-10-31
+- Status: done
 - Goal: Configure the GitHub repo with code standards, a contribution flow, and CI: `CONTRIBUTING.md` (branch prefixes, commit format, PR flow), `CODE_STYLE.md`, PR and issue templates, `CODEOWNERS`, and GitHub Actions running build + tests on push and PR.
-- Task: `TaskFlowDocs/2026-10-30-repo-governance/`
-- Next action: Complete PRD / Spec / Plan and request approval.
-
-  **Correction (2026-10-31)**: this entry used to end its Goal with "TaskFlow's merge driver and `todo-merge-audit` check expect a `.github/workflows/hooks.yml` job (see `TaskFlowDocs/repository-docs/index.md`)". That claim did not hold: `index.md` contains no mention of `hooks.yml`, and this repository holds no TaskFlow hook scripts at all (`git ls-files | grep -c hooks/` → 0). The `Hooks` workflow it described belongs to the TaskFlow plugin's own repository. The sentence was removed rather than left in the Goal, and the entry no longer asks for that job.
-- 用户 2026-10-30 再次要求：需要给仓库配置规则、code style、contributing 等。实测当前状态：`.github/` 目录不存在，没有 PR 模板、没有 CODEOWNERS、没有 CI workflow；`CONTRIBUTING.md`、`CODE_STYLE.md`、`ROADMAP.md` 均缺失（`TaskFlowDocs/repository-docs/index.md` 已登记为 missing）。现有约定只能从 `git log` 反推：`type(scope): 中文摘要` + 正文，分支 `<type>/<日期>-<slug>`，合并走 GitHub PR。promote 时应把这些反推出来的实践写成文档，并让 TaskFlow 的 `repository-docs-context` hook 能识别。
-
-### Two things the CI job has to solve, found 2026-10-18
-
-**The repo is not installable as checked out.** `cli/.gitignore` ignores `node_modules/` and there is no root `.gitignore`, but `node_modules/` exists at the repo root (102 MB) and is untracked — so a fresh clone has no root dependencies at all. `cli/sxng.config.example.json` and `README.md` both sit above the only package. Decide where the package root actually is (and whether the stray root `node_modules/` was ever meant to exist) before writing a workflow that runs `npm ci` — otherwise the job's first step is already ambiguous.
-
-**`npm test` cannot run in the main checkout as it stands.** `npm run build` (plain `tsc`) succeeds, but `npm test` (`vitest`) fails at startup with `Cannot find module '.../rolldown-binding.linux-x64-gnu.node'`: `cli/node_modules/@rolldown/` holds only `binding-win32-x64-msvc`, i.e. Windows binaries installed from a Windows shell. The WSL worktree has the correct `binding-linux-x64-gnu`. This is an environment fact, not a code defect — but a CI job on Linux will pass while a local Windows/WSL mixed checkout fails, which is worth stating explicitly so it is not mistaken for a code failure later.
-
-**`TaskFlowDocs/repository-docs/index.md` is not tracked.** TaskFlow's contract is that this index *is* committed while `personal.md` beside it is not, and the host hook maintains it. `git ls-files TaskFlowDocs/repository-docs/` returns nothing, so the routing record every session reads exists only on this machine. It also still lists `CODE_STYLE.md` as `missing`, which is what this task is for. Commit it as part of the governance work — and note its `Exists: local` row for the personal rule is deliberately not a committed fact.
+- Task: `TaskFlowDocs/achieved/2026-10-30-repo-governance/`
+- Next action: None — completed and archived.
 
 ## Search-time body content is discarded before the session sees it
 

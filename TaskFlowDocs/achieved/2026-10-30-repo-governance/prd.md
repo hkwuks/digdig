@@ -1,6 +1,6 @@
 # 仓库规范与 CI：把已经在做的事写下来
 > Task version: v1
-> Status: in_progress
+> Status: completed
 
 ## Goal
 
