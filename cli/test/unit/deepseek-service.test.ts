@@ -147,4 +147,48 @@ describe('DeepSeekService', () => {
         await expect(new DeepSeekService({ apiKey: 'k' }).search({ query: 'q' }))
             .rejects.toThrow('DeepSeek search returned an unexpected response body');
     });
+
+    // The three tests above assert message text and must keep passing unchanged
+    // — that is what proves the message contract survived. These assert the new
+    // fact the message used to swallow: the classification.
+    it('classifies a 401 as AUTH_FAILED, not retryable', async () => {
+        mockPostReject(axiosError(401, 'Unauthorized'));
+
+        const error = await new DeepSeekService({ apiKey: 'k' }).search({ query: 'q' }).catch(e => e);
+
+        expect(error.name).toBe('SearchError');
+        expect(error.code).toBe('AUTH_FAILED');
+        expect(error.status).toBe(401);
+        expect(error.retryable).toBe(false);
+        expect(error.hint).toContain('DEEPSEEK_API_KEY');
+        expect(error.hint).not.toContain('SearXNG');
+    });
+
+    it('classifies 429 as RATE_LIMITED and retryable', async () => {
+        mockPostReject(axiosError(429, 'Too Many Requests'));
+
+        const error = await new DeepSeekService({ apiKey: 'k' }).search({ query: 'q' }).catch(e => e);
+
+        expect(error.code).toBe('RATE_LIMITED');
+        expect(error.retryable).toBe(true);
+    });
+
+    it('classifies a transport failure as NETWORK_ERROR, retryable, with no status', async () => {
+        mockPostReject(axiosTransportError('timeout of 15000ms exceeded'));
+
+        const error = await new DeepSeekService({ apiKey: 'k' }).search({ query: 'q' }).catch(e => e);
+
+        expect(error.code).toBe('NETWORK_ERROR');
+        expect(error.retryable).toBe(true);
+        expect(error.status).toBeUndefined();
+    });
+
+    it('classifies a body without a results array as BAD_RESPONSE, not retryable', async () => {
+        mockPost({});
+
+        const error = await new DeepSeekService({ apiKey: 'k' }).search({ query: 'q' }).catch(e => e);
+
+        expect(error.code).toBe('BAD_RESPONSE');
+        expect(error.retryable).toBe(false);
+    });
 });
