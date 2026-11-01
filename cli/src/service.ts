@@ -87,28 +87,28 @@ export class SearXNGService {
         this.client = axios.create(axiosConfig);
     }
 
+    /**
+     * The server's enabled engine names.
+     *
+     * This used to catch its own failure, log to stderr, and return `[]` — which
+     * a caller cannot tell apart from "the server listed no engines". That
+     * ambiguity is why `--engines-list` reported success with exit 0 against an
+     * unreachable server whenever a local provider happened to be configured.
+     * A failure now propagates; the caller decides what to report.
+     */
     async getEngines(): Promise<string[]> {
-        try {
-            const response = await this.client.get('/config');
-            const engines = response.data.engines || [];
-            return engines
-                .filter((e: any) => e.enabled)
-                .map((e: any) => e.name);
-        } catch (error) {
-            console.error(`Failed to fetch engines: ${error instanceof Error ? error.message : String(error)}`);
-            return [];
-        }
+        const response = await this.client.get('/config');
+        const engines = response.data.engines || [];
+        return engines
+            .filter((e: any) => e.enabled)
+            .map((e: any) => e.name);
     }
 
+    /** The server's categories. Same contract as `getEngines`: failure throws. */
     async getCategories(): Promise<string[]> {
-        try {
-            const response = await this.client.get('/config');
-            const categories = response.data.categories || [];
-            return categories.map((c: any) => typeof c === 'string' ? c : c?.name).filter(Boolean);
-        } catch (error) {
-            console.error(`Failed to fetch categories: ${error instanceof Error ? error.message : String(error)}`);
-            return [];
-        }
+        const response = await this.client.get('/config');
+        const categories = response.data.categories || [];
+        return categories.map((c: any) => typeof c === 'string' ? c : c?.name).filter(Boolean);
     }
 
     async search(options: SearchOptions): Promise<SearchResponse> {
