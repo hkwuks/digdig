@@ -243,6 +243,25 @@ export async function buildIndex(
  * Build an index incrementally. Each yielded batch is released after insertion.
  * The persisted index remains usable when the memory budget ends the scan early.
  */
+/**
+ * Heap growth since `initialHeapBytes`, never negative.
+ *
+ * This is two `process.memoryUsage()` samples subtracted, and a GC between them
+ * makes the second one smaller than the first — so the raw difference goes
+ * negative, which upstream read as "this loop has used less than nothing
+ * against the budget". A negative value then relaxes the `batchBytes * 4`
+ * check by its own magnitude, letting a batch through that the budget should
+ * have refused, so callers saw an index built where they expected
+ * MEMORY_LIMIT_REACHED.
+ *
+ * Measured on Node 24: 4 of 30 samples came out negative, worst -758,888
+ * bytes. Zero is the honest floor — if the collector reclaimed memory, this
+ * loop has added nothing on net.
+ */
+function heapGrowthBytes(initialHeapBytes: number): number {
+  return Math.max(0, process.memoryUsage().heapUsed - initialHeapBytes);
+}
+
 export async function buildIndexFromBatches(
   rootPath: string,
   batches: Iterable<ScannedChunk[]>,
@@ -261,7 +280,7 @@ export async function buildIndexFromBatches(
   for (const batch of batches) {
     const batchBytes = batch.reduce((total, item) =>
       total + Buffer.byteLength(item.content, 'utf-8'), 0);
-    const heapUsed = process.memoryUsage().heapUsed - initialHeapBytes;
+    const heapUsed = heapGrowthBytes(initialHeapBytes);
 
     if (heapUsed >= memoryBudgetBytes || heapUsed + batchBytes * 4 > memoryBudgetBytes) {
       partial = true;
@@ -317,7 +336,7 @@ export async function buildIndexFromScannedFiles(
   for (const file of files) {
     const fileBytes = file.chunks.reduce((total, chunk) =>
       total + Buffer.byteLength(chunk.content, 'utf-8'), 0);
-    const heapUsed = process.memoryUsage().heapUsed - initialHeapBytes;
+    const heapUsed = heapGrowthBytes(initialHeapBytes);
     if (heapUsed >= memoryBudgetBytes || heapUsed + fileBytes * 4 > memoryBudgetBytes) {
       partial = true;
       break;
@@ -365,7 +384,7 @@ function exceedsMemoryBudget(
 ): boolean {
   const fileBytes = file.chunks.reduce((total, chunk) =>
     total + Buffer.byteLength(chunk.content, 'utf-8'), 0);
-  const heapUsed = process.memoryUsage().heapUsed - initialHeapBytes;
+  const heapUsed = heapGrowthBytes(initialHeapBytes);
   return heapUsed >= memoryBudgetBytes || heapUsed + fileBytes * 4 > memoryBudgetBytes;
 }
 
