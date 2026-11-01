@@ -141,15 +141,39 @@ CI 失败时先看是哪一格：只有 18.x 的 `build` 挂通常意味着用�
 
 ### 发一个版本
 
+发布是**权限分层的**：有 `main` 推送权限的人可以直接在 `main` 上改版本号并打 tag；没有这个权限的人走分支 + PR，合并后再打 tag。两条路的产物是一样的 —— tag 都落在 `main` 的提交上。
+
+**有 `main` 推送权限**
+
 ```bash
+git checkout main && git pull
 cd cli
 npm version patch        # 或 minor / major
 git push --follow-tags
 ```
 
-`npm version` 会同时改 `cli/package.json` 的 `version` 并在该提交上打 `v<version>` 标签，所以两者不会漂。`--follow-tags` 把标签一起推上去，推送触发 workflow。
+`npm version` 会同时改 `cli/package.json` 的 `version`、同步 `package-lock.json`、并在该提交上打 `v<version>` 标签。`--follow-tags` 把标签一起推上去，推送触发 workflow。
 
-**不要手改 `package.json` 的版本号再自己打 tag。** 两个动作分开做就有写错的机会；`npm version` 把它们合成一步。真写错了 workflow 也会拦（见下），但那时已经多绕一圈。
+**没有 `main` 推送权限**
+
+```bash
+cd cli
+npm version patch --no-git-tag-version   # 只改版本号，不打 tag
+git checkout -b chore/release-<version>
+git commit -am "chore(release): 版本升到 <version>"
+git push -u origin chore/release-<version>
+```
+
+然后开 PR。**合并之后**再打 tag —— tag 必须落在 `main` 上，落在分支提交上会让已经合并的分支多一个游离标签：
+
+```bash
+git checkout main && git pull
+git tag v<version> && git push origin v<version>
+```
+
+注意 `--no-git-tag-version`：`npm version` 默认会在当前分支的提交上打 tag，而分支提交还不该有 tag。等合并到 `main` 再打。
+
+**不要手改 `package.json` 的版本号再自己打 tag。** `npm version` 同时处理 `package.json`、`package-lock.json` 两处版本字段和 tag，手改容易漏掉 lockfile，而 tag 和版本号对不上时 workflow 会拦（见下），那时已经多绕一圈。
 
 ### workflow 做了什么
 
@@ -203,7 +227,7 @@ npx vitest run test/unit/deep/dedupe.test.ts
 
 ## 不要做的事
 
-- 不要在 `main` 上直接提交 —— 走分支和 PR。
+- 不要在 `main` 上直接提交 —— 走分支和 PR。**例外：发布时的版本号提交**，有 `main` 推送权限的人可以直接提交（见「发布」一节）。
 - 不要提交 `.digdig/` 下的 session 数据 —— 已在 `.gitignore` 里。
 - 不要提交密钥或 token。配置优先级见 `README.md`，密钥放环境变量或本地 config 文件。
 - 不要为了让 CI 变绿而删测试或放宽断言。修代码，或者说明为什么测试本身是错的。
