@@ -1256,7 +1256,7 @@ Use `dg --engines-list` and `dg --categories-list` to see what's available on yo
 
 The CLI supports multiple output formats:
 
-- **Markdown (default)** - Compact, readable output for both humans and LLMs
+- **Markdown (default)** - About 25% fewer tokens than JSON on typical SearXNG results; the gap narrows as body text grows
 - **JSON** - Structured envelope format for programmatic use
 
 <details>

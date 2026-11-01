@@ -1245,7 +1245,7 @@ dg extract --urls "https://complex-page.com" --session <session-name> --jina
 
 CLI 支持多种输出格式：
 
-- **Markdown（默认）** — 紧凑易读，人和 LLM 都能直接看
+- **Markdown（默认）** — 典型 SearXNG 结果下比 JSON 少约 25% token；正文越长差距越小
 - **JSON** — 结构化信封格式，适合程序化使用
 
 <details>
