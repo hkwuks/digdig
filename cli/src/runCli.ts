@@ -1434,9 +1434,15 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
 
         if (opts.enginesList) {
             try {
-                const engines = await service.getEngines();
+                const serverEngines = await service.getEngines();
                 const configuredProviders = EXTERNAL_PROVIDERS.filter(p => PROVIDER_IMPLS[p].configured());
-                if (engines.length === 0 && configuredProviders.length === 0) {
+
+                // Both empty is a legitimate-looking but useless answer: nothing
+                // this CLI can search with. Reaching here already means the
+                // server answered (a failed fetch throws), so `serverEngines`
+                // being empty now says exactly one thing — the server has no
+                // enabled engines — and the `&&` reads correctly.
+                if (serverEngines.length === 0 && configuredProviders.length === 0) {
                     const envelope = createErrorEnvelope(
                         'ENGINES_FETCH_EMPTY',
                         'No engines returned from SearXNG server',
@@ -1446,15 +1452,23 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                     process.exitCode = 1;
                     return;
                 }
-                engines.push(...configuredProviders);
-                const envelope = createSuccessEnvelope({ engines, source: 'server' });
+
+                // `source: 'server'` used to be a literal, so a provider name
+                // configured locally was reported as if the server had returned
+                // it. The breakdown cannot make that claim: each name is listed
+                // under where it actually came from. `engines` stays flat so a
+                // consumer reading the list is unaffected.
+                const envelope = createSuccessEnvelope({
+                    engines: [...serverEngines, ...configuredProviders],
+                    sources: { server: serverEngines, local: configuredProviders },
+                });
                 console.log(JSON.stringify(envelope, null, 2));
                 process.exitCode = 0;
             } catch (error) {
                 const envelope = createErrorEnvelope(
                     'ENGINES_FETCH_FAILED',
                     error instanceof Error ? error.message : 'Failed to fetch engines',
-                    { hint: 'Check your network connection and SearXNG server status' }
+                    { retryable: true, hint: `Could not reach the SearXNG server at ${config.baseUrl}. Check that it is running and that the base URL is correct.` }
                 );
                 console.log(JSON.stringify(envelope, null, 2));
                 process.exitCode = 1;

@@ -335,3 +335,10 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Task: `TaskFlowDocs/achieved/2026-10-28-result-identity-pipeline/`
 - Next action: None — completed and archived.
 
+## dg --engines-list 在 SearXNG 不可达时仍报告 status ok 与 exit 0，且 s
+
+- ID: TF-20261101-8ef67f
+- Status: done
+- Goal: dg --engines-list 在 SearXNG 不可达时仍报告 status ok 与 exit 0，且 source 字段把所有条目都标成 server
+- Task: `TaskFlowDocs/achieved/2026-11-01-engines-list-exit/`
+- Next action: None — completed and archived.

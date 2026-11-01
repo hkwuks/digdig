@@ -1256,7 +1256,7 @@ Use `dg --engines-list` and `dg --categories-list` to see what's available on yo
 
 The CLI supports multiple output formats:
 
-- **Markdown (default)** - Optimized for LLM context windows, saves ~50% tokens vs JSON
+- **Markdown (default)** - Compact, readable output for both humans and LLMs
 - **JSON** - Structured envelope format for programmatic use
 
 <details>

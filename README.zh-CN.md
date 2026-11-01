@@ -1245,7 +1245,7 @@ dg extract --urls "https://complex-page.com" --session <session-name> --jina
 
 CLI 支持多种输出格式：
 
-- **Markdown（默认）** — 针对 LLM 上下文窗口优化，比 JSON 节省约 50% token
+- **Markdown（默认）** — 紧凑易读，人和 LLM 都能直接看
 - **JSON** — 结构化信封格式，适合程序化使用
 
 <details>
