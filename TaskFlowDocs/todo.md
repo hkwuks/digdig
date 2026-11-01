@@ -72,15 +72,39 @@ Measured with `ollama` as the provider stand-in, since no `DEEPSEEK_API_KEY` is 
 ## Rename sxng-cli to digdig
 
 - ID: TF-20261017-20f05a
-- Status: inbox
+- Status: done
 - Priority: normal
 - Owner: Claude
 - Source: user-request
 - Added: 2026-10-17
-- Updated: 2026-10-17
+- Updated: 2026-11-01
 - Goal: Rename the project to `digdig` and publish under the npm package `digdig` (https://www.npmjs.com/package/digdig). Scope to settle: `package.json` `name`/`bin` (`sxng` → `digdig`, and whether a `sxng` alias is kept), README/README.zh-CN/CLAUDE.md/skills references, the repository URL, the placeholder already staged at `npm-reserve-digdig/`, and a deprecation path for the existing `sxng-cli` package.
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: `TaskFlowDocs/achieved/2026-10-19-rename-digdig/`
+- Next action: None — completed 2026-10-19 and archived. Closed 2026-11-01 after re-verifying the scope.
+
+### Re-verified 2026-11-01, and why the entry stayed `inbox` until now
+
+Every item in the Goal is settled. Measured on `main` @ `8766b54`:
+
+| Item | State |
+|---|---|
+| `package.json` `name` | `digdig` |
+| Published package | `digdig@0.0.2` on npm |
+| Old package `sxng-cli` | frozen at `1.3.3`, migration notice as commit `91e689c` |
+| Repository URL / homepage | `github.com/hkwuks/digdig` |
+| `README.md`, `README.zh-CN.md`, `skills/` | renamed |
+| `npm-reserve-digdig/` placeholder | gone — removed after the package was secured |
+| Task directory | `TaskFlowDocs/achieved/2026-10-19-rename-digdig/`, PRD and Plan both `Status: completed` |
+
+**The `sxng` remnants are a deliberate transition, not unfinished work**, and each names its own removal condition:
+
+- `cli/src/sxng.ts` — the pre-rename bin entry; header says "Removed in 0.5.0 along with the `sxng` entry in package.json and `legacy.ts`".
+- `cli/src/legacy.ts` — reads `sxng.config.json` and the `sxng-cli/` state directory, warning on each hit that "(support is removed in 0.5.0)".
+- `README.md:735` / `README.zh-CN.md:728` — tell the user the `sxng` alias exists for the transition.
+
+This entry's metadata simply never followed its task into `achieved/`; the work itself was done on 2026-10-19. Closing it so the next reader does not conclude the rename still needs doing.
+
+**Residual, not part of this entry**: internal identifiers in `runCli.ts` still spell the old name — `sxngResponse`, `sxngEngines` (`:342`, `:350`, `:365`, `:371-379`, `:616-618`). They are private variable names with no user-visible effect, so the rename left them; renaming them is cosmetic cleanup with no deadline.
 
 ## Add repository governance and CI
 
@@ -310,3 +334,4 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Goal: 统一搜索结果身份与排序流转：URL 身份收拢到单一函数（canonicalUrl/resultKey），让 dedupe/session/graph/RRF 复用同一 key；抽取不再递增 round；RRF 前对每份 ranking 去重、append 移到融合之后，使单查询与多查询路径语义一致
 - Task: `TaskFlowDocs/achieved/2026-10-28-result-identity-pipeline/`
 - Next action: None — completed and archived.
+
