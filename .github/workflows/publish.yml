@@ -1,0 +1,66 @@
+name: Publish
+
+# Publishing hangs off the tag, not off `main`. `npm version patch` writes the
+# version into cli/package.json and creates the matching tag in one command, so
+# the two cannot drift; a push-to-main trigger would publish whatever landed
+# last and leave the version number to be set by hand somewhere else.
+on:
+  push:
+    tags: ['v*']
+
+# Trusted publishing authenticates over OIDC instead of a stored token: npm
+# accepts a publish when the caller proves it is this workflow in this
+# repository. `id-token: write` is what mints that proof, and it is also what
+# makes provenance automatic — with OIDC, npm attaches the attestation without
+# a `--provenance` flag. There is no NPM_TOKEN anywhere in this workflow, and
+# that is the point: a stored write token is the thing an attacker wants and
+# the thing somebody eventually leaks.
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Node 24 rather than the package's own floor (engines.node >= 18):
+      # trusted publishing needs Node >= 22.14 and npm CLI >= 11.5.1, and this
+      # is the runner's runtime, not a claim about what the package requires.
+      #
+      # No `cache:` here on purpose. A poisoned dependency cache ships into the
+      # tarball, and a published version cannot be retracted. The extra minute
+      # per release is cheaper than that.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+          registry-url: 'https://registry.npmjs.org'
+
+      # npm publish is irreversible, so the mismatch has to fail here rather
+      # than produce a correct-looking release under the wrong version.
+      - name: Check tag matches package version
+        working-directory: cli
+        run: |
+          tagged="v$(node -p "require('./package.json').version")"
+          if [ "$tagged" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match cli/package.json version ($tagged)"
+            exit 1
+          fi
+
+      - name: Install
+        working-directory: cli
+        run: npm ci
+
+      # Before publish, never after: a failure above this line can be fixed and
+      # the tag rebuilt, while a failure below it means shipping a new version.
+      - name: Test
+        working-directory: cli
+        run: npm test
+
+      # `prepublishOnly` in cli/package.json runs the build, so there is no
+      # separate build step. No --provenance (automatic under OIDC) and no
+      # --access public (the package is unscoped and already published).
+      - name: Publish
+        working-directory: cli
+        run: npm publish

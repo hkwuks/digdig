@@ -114,6 +114,69 @@ npx vitest run       → 37 文件 / 519 测试通过
 
 CI 失败时先看是哪一格：只有 18.x 的 `build` 挂通常意味着用了 18 不支持的语法，这时的正确处置是改代码或调 `engines`，**不是把 18.x 从矩阵里删掉**。
 
+## 发布
+
+发布由 tag 触发，`.github/workflows/publish.yml` 负责构建、测试并上传到 npm。认证走 npm 的 trusted publishing（OIDC），**仓库里没有任何 npm 写权限凭据**，也不需要 `npm login`。
+
+### 一次性配置（只能在网页做）
+
+**没有这一步，workflow 是死的** —— tag 推上去会在认证阶段失败。每个包只需配一次：
+
+1. 打开 <https://www.npmjs.com/package/digdig> → **Settings** → **Trusted Publisher** → 选 GitHub Actions
+
+2. 填四个字段：
+
+   | 字段 | 值 |
+   |---|---|
+   | Organization or user | `hkwuks` |
+   | Repository | `digdig` |
+   | Workflow filename | `publish.yml` |
+   | Environment name | 留空 |
+
+3. **Workflow filename 只写文件名本身**，不带 `.github/workflows/` 前缀，且必须与 `.github/workflows/` 下的实际文件**完全一致**。填 `npm-publish.yml` 而文件叫 `publish.yml`，匹配不上，报错信息也不会直说是哪个字段错了。
+
+4. 在 Allowed actions 里勾上 `npm publish`。
+
+配好之后建议顺手做一件事：Settings → **Publishing access** → 选「Require two-factor authentication and disallow tokens」。这会把传统的 token 发布路径彻底关掉，而 trusted publisher 不受影响 —— 它用的是 OIDC，不是 token。
+
+### 发一个版本
+
+```bash
+cd cli
+npm version patch        # 或 minor / major
+git push --follow-tags
+```
+
+`npm version` 会同时改 `cli/package.json` 的 `version` 并在该提交上打 `v<version>` 标签，所以两者不会漂。`--follow-tags` 把标签一起推上去，推送触发 workflow。
+
+**不要手改 `package.json` 的版本号再自己打 tag。** 两个动作分开做就有写错的机会；`npm version` 把它们合成一步。真写错了 workflow 也会拦（见下），但那时已经多绕一圈。
+
+### workflow 做了什么
+
+| 步骤 | 作用 |
+|---|---|
+| 版本校验 | tag 与 `cli/package.json` 的 `version` 不一致时立即失败 |
+| `npm ci` | 按 lockfile 装依赖 |
+| `npm test` | 全量测试 |
+| `npm publish` | 构建（`prepublishOnly`）并上传，自动带 provenance 证明 |
+
+**版本校验必须在 `npm publish` 之前**，因为它不可逆：`npm publish` 一旦成功，那个版本号就永久占用了，撤不回来。前面的步骤失败还能修完重来，发布之后的失败只能发新版本号。
+
+### 发布失败了怎么办
+
+| 失败在哪 | 怎么处理 |
+|---|---|
+| `npm publish` **之前** | 修好代码，删掉 tag 重新打同一个版本号，再推。`git tag -d v0.0.3 && git push origin :refs/tags/v0.0.3` |
+| `npm publish` **之后** | 版本号已被占用，同一个号再发会 `EPUBLISHCONFLICT`。只能发一个新版本号。 |
+
+workflow 把测试和版本校验都排在发布前面，就是为了让 `npm publish` 尽量成为最后一个可能失败的步骤。
+
+### 为什么不用 token
+
+长期写权限 token 有两个问题：会被泄漏，需要轮换。OIDC 换来的凭据是每次发布现签的，只对这一个 workflow 有效，用完即弃。顺带的好处是 provenance —— npm 会自动附上一份签名证明，说明这个 tarball 由哪个仓库的哪次提交构建而来，用户可以用 `npm audit signatures` 验证。
+
+真要用 token 的话，注意 classic **Publish** 类型的 token 在 CI 里必然失败（`EOTP`，runner 没法输入一次性密码），得用 **Automation** 类型或带读写权限的 granular token。这条路不推荐 —— trusted publishing 已经能用了。
+
 ## 本地验证
 
 提交前至少跑一遍：
