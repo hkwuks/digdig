@@ -1,6 +1,6 @@
 # 修复 local-doc 索引内存预算判定的 flaky
 > Task version: v1
-> Status: planning
+> Status: completed
 
 ## Goal
 
