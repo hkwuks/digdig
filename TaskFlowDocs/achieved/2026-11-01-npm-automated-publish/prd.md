@@ -1,6 +1,6 @@
 # 给 digdig 加 npm 自动发布：打 v* tag 触发 GitHub Actions，用 npm tru
 > Task version: v1
-> Status: planning
+> Status: completed
 
 ## Goal
 

@@ -1,6 +1,6 @@
 # Plan — 修复 local-doc 索引内存预算判定的 flaky：heapUsed 采样可能为负
 > Task version: v1
-> Status: planning
+> Status: completed
 
 No spec required — small, self-contained task.
 

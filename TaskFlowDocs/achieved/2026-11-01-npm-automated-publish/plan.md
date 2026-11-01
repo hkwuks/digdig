@@ -1,6 +1,6 @@
 # Plan — 给 digdig 加 npm 自动发布：打 v* tag 触发 GitHub Actions，用 npm tru
 > Task version: v1
-> Status: planning
+> Status: completed
 
 No spec required — small, self-contained task.
 
@@ -64,7 +64,7 @@ No spec required — small, self-contained task.
   - **`npm publish --dry-run` 实测**：在 `cli/` 下跑，确认 tarball 内容正确（`dist/`、`digdig.config.example.json`、`README.md`），且 `prepublishOnly` 真的触发了构建
   - **不实测的**：真正的 OIDC 认证与上传。原因见 Risks —— npmjs.com 上的 trusted publisher 配置只能在网页做，且只有真正的 `v*` tag 才会触发 workflow。这两项在合并后第一次发版时验证，PR 里如实写明这一点，不假装验证过。
 - Rollback: 删掉 `.github/workflows/publish.yml`。没有 tag 时它不会被触发，放着也无影响。
-- Status: pending
+- Status: done
 
 ### Step 2 — CONTRIBUTING.md 补发布小节
 
@@ -82,7 +82,7 @@ No spec required — small, self-contained task.
 - Acceptance: AC6
 - Verification: 按文档里的命令序列实际走一遍到 `npm version --no-git-tag-version` 为止（不真的 commit/tag），确认命令本身成立、路径正确
 - Rollback: 还原 `CONTRIBUTING.md`。
-- Status: pending
+- Status: done
 
 ## Checkpoints
 
@@ -96,6 +96,10 @@ No spec required — small, self-contained task.
 - [x] 未经实测的部分（OIDC 上传）在 PR 描述里如实标注
 
 ## Verification / Review
+
+- 2026-11-01 Step 2: CONTRIBUTING.md 发布小节已补
+
+- 2026-11-01 Step 1: YAML 可解析；版本校验三组输入实测；npm publish --dry-run 触发构建，tarball 干净；全量测试 555/41
 
 - 全量测试：`cd cli && npm test`（当前基线 555 passed / 41 files）
 - 本任务不改任何 `cli/src/` 下的代码，测试数字预期不变 —— 若变了说明改错了地方

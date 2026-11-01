@@ -346,25 +346,15 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## 给 digdig 加 npm 自动发布：打 v* tag 触发 GitHub Actions，用 npm tru
 
 - ID: TF-20261101-5c6346
-- Status: promoted
-- Priority: normal
-- Owner: Claude
-- Source: direct user request
-- Added: 2026-11-01
-- Updated: 2026-11-01
+- Status: done
 - Goal: 给 digdig 加 npm 自动发布：打 v* tag 触发 GitHub Actions，用 npm trusted publishing (OIDC) 发布，零长期 token，自动生成 provenance
-- Task: `TaskFlowDocs/2026-11-01-npm-automated-publish/`
-- Next action: Complete PRD / Spec / Plan and request approval.
+- Task: `TaskFlowDocs/achieved/2026-11-01-npm-automated-publish/`
+- Next action: None — completed and archived.
 
 ## 修复 local-doc 索引内存预算判定的 flaky：heapUsed 采样可能为负
 
 - ID: TF-20261101-692612
-- Status: promoted
-- Priority: normal
-- Owner: Claude
-- Source: direct user request
-- Added: 2026-11-01
-- Updated: 2026-11-01
+- Status: done
 - Goal: 修复 local-doc 索引内存预算判定的 flaky：heapUsed 采样可能为负
-- Task: `TaskFlowDocs/2026-11-01-heap-budget-negative/`
-- Next action: Complete PRD / Spec / Plan and request approval.
+- Task: `TaskFlowDocs/achieved/2026-11-01-heap-budget-negative/`
+- Next action: None — completed and archived.
