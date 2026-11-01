@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync, readFileSync } from 'fs';
 import { execFileSync } from 'child_process';
 import { join, dirname, resolve } from 'path';
@@ -189,6 +189,37 @@ describe('local-doc indexer', () => {
         await expect(buildIndexFromBatches(testDir, batches, 1024 * 1024)).rejects.toMatchObject({
             code: 'MEMORY_LIMIT_REACHED',
         });
+    });
+
+    // The budget check subtracts two heap samples, and a GC between them made
+    // the result negative — which relaxed the check by its own magnitude and let
+    // a batch through that the budget should have refused. It surfaced as this
+    // suite failing intermittently on CI while passing locally, because whether
+    // a GC lands between the two samples is not under the test's control.
+    //
+    // Forcing the sample negative makes it deterministic. Without the floor in
+    // heapGrowthBytes this rejects nothing and fails every run, which is the
+    // point: the old code passed or failed depending on the weather.
+    it('rejects an oversized batch even when the heap sample swings negative', async () => {
+        const batches = [
+            [{ id: 'one', filePath: 'one.txt', title: 'one', content: 'a'.repeat(300_000), headings: [], chunkIndex: 0, totalChunks: 1 }],
+        ];
+        const realUsage = process.memoryUsage.bind(process);
+
+        // First call is the baseline, then every sample reads 800 KB below it.
+        let call = 0;
+        vi.spyOn(process, 'memoryUsage').mockImplementation((() => {
+            const usage = realUsage();
+            return call++ === 0 ? usage : { ...usage, heapUsed: usage.heapUsed - 800_000 };
+        }) as typeof process.memoryUsage);
+
+        try {
+            await expect(buildIndexFromBatches(testDir, batches, 1024 * 1024)).rejects.toMatchObject({
+                code: 'MEMORY_LIMIT_REACHED',
+            });
+        } finally {
+            vi.restoreAllMocks();
+        }
     });
 
     it('builds index from scanned chunks', async () => {
