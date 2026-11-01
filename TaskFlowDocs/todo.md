@@ -45,32 +45,10 @@ Both are in `runCli.ts:1669-1697`, found while verifying the above, and neither 
 ## F5 — Reclassify search errors by cause
 
 - ID: TF-20261017-4f3dbb
-- Status: inbox
-- Priority: normal
-- Owner: Claude
-- Source: follow-up:F5
-- Added: 2026-10-17
-- Updated: 2026-10-30
+- Status: done
 - Goal: The `runSearch` top-level catch (`runCli.ts:880-891`) marks every failure `retryable: true` with `hint: 'Check your network connection and SearXNG server status'`, so a real DeepSeek 401 is reported as retryable and blamed on the wrong subsystem. Give provider errors a discriminable type (the repo already has `SessionStateError` with a `code` field) and let the catch derive `retryable` and `hint` from it.
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
-
-### Verified 2026-10-18 against the merged `main` build
-
-A real DeepSeek 401 (invalid key, live endpoint) returns:
-
-```json
-{ "status": "error", "error": { "code": "SEARCH_FAILED",
-  "message": "DeepSeek search failed: HTTP 401 Authorization Required",
-  "retryable": true },
-  "hint": "Check your network connection and SearXNG server status" }
-```
-
-Two things wrong: an auth failure is not retryable, and SearXNG is not involved. A genuine network failure (unreachable `baseUrl`) returns the same envelope, so today the two are indistinguishable — which is the actual defect, not just the wording.
-
-### The same path loses the provider name entirely for Ollama
-
-`-e ollama` with an invalid key yields `message: "Request failed with status code 401"` — no provider named, and the hint again points at SearXNG. `DeepSeekService` wraps its errors (`DeepSeek search failed: …`, `deepseek-service.ts:58,60`); `OllamaService` does not wrap at all, so the caller gets raw axios text. Any fix that derives `retryable`/`hint` from a typed error should cover both providers, and the missing wrap on the Ollama side is part of the same change.
+- Task: `TaskFlowDocs/achieved/2026-10-31-error-classification/`
+- Next action: None — completed and archived.
 
 ## F6 — Apply RRF fusion to merged multi-provider results
 

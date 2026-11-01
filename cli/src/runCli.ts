@@ -11,6 +11,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf-8'));
 import { SearXNGService, SearchOptions, SearchResult, SearchResponse } from './service.js';
 import { createSuccessEnvelope, createErrorEnvelope } from './protocol.js';
+import { SearchError } from './errors.js';
 import { config } from './config.js';
 import { OllamaService } from './ollama-service.js';
 import { DeepSeekService } from './deepseek-service.js';
@@ -685,13 +686,24 @@ async function runSearch(
 
         return 0;
     } catch (error) {
+        // `retryable` and the hint come from the error, not from this block.
+        // They used to be the literals `true` and a SearXNG hint, which meant a
+        // DeepSeek 401 was reported as retryable and blamed on a server the
+        // request never touched. An unclassified error now reports neither:
+        // calling it retryable is a claim this catch cannot support.
+        if (error instanceof SearchError) {
+            const envelope = createErrorEnvelope(error.code, error.message, {
+                retryable: error.retryable,
+                hint: error.hint,
+                details: { provider: error.provider, ...(error.status === undefined ? {} : { status: error.status }) },
+            });
+            console.log(JSON.stringify(envelope, null, 2));
+            return 1;
+        }
+
         const envelope = createErrorEnvelope(
             'SEARCH_FAILED',
             error instanceof Error ? error.message : 'Search request failed',
-            {
-                retryable: true,
-                hint: 'Check your network connection and SearXNG server status'
-            }
         );
         console.log(JSON.stringify(envelope, null, 2));
         return 1;

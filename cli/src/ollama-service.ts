@@ -7,6 +7,7 @@
 
 import axios, { AxiosInstance } from 'axios';
 import { SearchResult, SearchResponse } from './service.js';
+import { SearchError, searchErrorFromStatus } from './errors.js';
 
 export interface OllamaServiceOptions {
   apiKey: string;
@@ -30,12 +31,31 @@ export class OllamaService {
   async search(options: { query: string; limit?: number }): Promise<SearchResponse> {
     const maxResults = Math.min(options.limit ?? 5, 10);
 
-    const response = await this.client.post('/api/web_search', {
-      query: options.query,
-      max_results: maxResults,
-    }, {
-      headers: { Authorization: `Bearer ${this.apiKey}` },
-    });
+    // This method used to have no try/catch at all, so axios's raw AxiosError
+    // escaped to the caller, which reported it as `Request failed with status
+    // code 401` — axios's wording, and with no way to tell an auth failure from
+    // a rate limit. The other two providers flatten the status into a message;
+    // this one wraps it in the same type so the three agree on shape.
+    let response;
+    try {
+      response = await this.client.post('/api/web_search', {
+        query: options.query,
+        max_results: maxResults,
+      }, {
+        headers: { Authorization: `Bearer ${this.apiKey}` },
+      });
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status;
+        const message = status === undefined
+          ? `Ollama search failed: ${error.message}`
+          : `Ollama search failed: HTTP ${status}${error.response?.statusText ? ` ${error.response.statusText}` : ''}`;
+        throw status === undefined
+          ? new SearchError('NETWORK_ERROR', message, 'ollama')
+          : searchErrorFromStatus('ollama', status, message);
+      }
+      throw error;
+    }
 
     const raw: Array<{ title?: string; url?: string; content?: string }> =
       response.data?.results ?? [];

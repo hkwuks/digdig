@@ -6,6 +6,7 @@ import axios, { AxiosInstance } from 'axios';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import { config } from './config.js';
 import { dedupe } from './deep/dedupe.js';
+import { SearchError, searchErrorFromStatus } from './errors.js';
 
 export interface SearchOptions {
     query: string;
@@ -178,7 +179,14 @@ export class SearXNGService {
             return searchResponse;
         } catch (error) {
             if (axios.isAxiosError(error)) {
-                throw new Error(`Search failed: ${error.response?.statusText || error.message}`);
+                const message = `Search failed: ${error.response?.statusText || error.message}`;
+                // The status used to be spent on the message and dropped. It is
+                // the only fact that tells an auth failure from a rate limit, so
+                // it travels on the error instead of inside the sentence.
+                const status = error.response?.status;
+                throw status === undefined
+                    ? new SearchError('NETWORK_ERROR', message, 'searxng')
+                    : searchErrorFromStatus('searxng', status, message);
             }
             throw error;
         }
