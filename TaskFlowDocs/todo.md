@@ -342,3 +342,16 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Goal: dg --engines-list 在 SearXNG 不可达时仍报告 status ok 与 exit 0，且 source 字段把所有条目都标成 server
 - Task: `TaskFlowDocs/achieved/2026-11-01-engines-list-exit/`
 - Next action: None — completed and archived.
+
+## 给 digdig 加 npm 自动发布：打 v* tag 触发 GitHub Actions，用 npm tru
+
+- ID: TF-20261101-5c6346
+- Status: promoted
+- Priority: normal
+- Owner: Claude
+- Source: direct user request
+- Added: 2026-11-01
+- Updated: 2026-11-01
+- Goal: 给 digdig 加 npm 自动发布：打 v* tag 触发 GitHub Actions，用 npm trusted publishing (OIDC) 发布，零长期 token，自动生成 provenance
+- Task: `TaskFlowDocs/2026-11-01-npm-automated-publish/`
+- Next action: Complete PRD / Spec / Plan and request approval.
