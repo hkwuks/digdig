@@ -358,3 +358,16 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Goal: 修复 local-doc 索引内存预算判定的 flaky：heapUsed 采样可能为负
 - Task: `TaskFlowDocs/achieved/2026-11-01-heap-budget-negative/`
 - Next action: None — completed and archived.
+
+## 修正 CONTRIBUTING.md 的发布流程：按 main 推送权限分层，有权限
+
+- ID: TF-20261101-19eb71
+- Status: promoted
+- Priority: normal
+- Owner: Claude
+- Source: direct user request
+- Added: 2026-11-01
+- Updated: 2026-11-01
+- Goal: 修正 CONTRIBUTING.md 的发布流程：按 main 推送权限分层，有权限直推、无权限走 PR，并说明两种情况下 tag 打在哪
+- Task: `TaskFlowDocs/2026-11-01-release-permissions/`
+- Next action: Complete PRD / Spec / Plan and request approval.
