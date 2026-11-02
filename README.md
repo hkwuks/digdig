@@ -1309,6 +1309,7 @@ while `retrievedAt` records when digdig received the result.
 digdig's deep search workflow (session accumulation, counted coverage facts, knowledge graph, claim–evidence–review) is used by projects that need persistent, multi-round research capabilities:
 
 - **[1052 OS](https://github.com/1052666/1052-OS)** — A personal AI operating system. Its `search-pack` integrates persistent research sessions, counted coverage facts, content extraction, and a claim–evidence–review pipeline, all powered by the same deep search concepts that drive digdig.
+- **[Mimir](https://github.com/1692775560/dsh-Mimir-Academic-research)**  一站式科研工作台插件：LaTeX 论文边写边编译、arXiv 文献管理、实验追踪、指标图表、GPU 服务器 SSH 任务编排，管理科研全周期。An open-source research workbench plugin for the whole research cycle.
 
 > Open a PR to add your project here.
 
