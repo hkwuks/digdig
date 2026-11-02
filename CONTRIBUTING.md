@@ -79,6 +79,28 @@ refactor(deep): 质量判断层退场，CLI 只报可数事实
 4. 等 CI 绿。
 5. 合并 —— **保留合并提交**（不要 squash、不要 rebase）。历史上的 PR 全部是 `Merge pull request #N from <branch>`，分支上的提交在合并后仍可逐个查看和 bisect。
 
+### 什么不用走 PR
+
+**有 `main` 推送权限的人，仓库杂务直接推 `main`，不开 PR。**
+
+具体包括：
+
+- TaskFlow 任务归档（`TaskFlowDocs/<task>/` → `TaskFlowDocs/achieved/<task>/`，以及 `todo.md` 的状态更新）
+- 发布时的版本号提交（见「发布」一节）
+
+这两类提交的共同点：**产物本身没什么可审的，而且改动是机械的**。归档只是移动文件，版本号只是改三处 `version`。为它们开 PR 意味着跑一整轮 CI（5 个 job）去验证「几个 markdown 文件换了目录」，代价明显超过收益。
+
+```bash
+# 归档：确认 main 最新、工作区干净，然后直接推
+git checkout main && git pull
+git add -A && git commit -m "chore(taskflow): 归档 <task>"
+git push origin main
+```
+
+**没有 `main` 推送权限的人，这些同样走分支 + PR** —— 权限分层，不是分类分层。
+
+除此之外的改动一律走 PR：功能、修复、重构、文档内容修改、CI 配置。**判断标准不是「改动小不小」，是「有没有需要第二个人看的东西」。** 归档没有，所以不走。
+
 ### PR 正文
 
 五节，`.github/pull_request_template.md` 会预填：
@@ -141,7 +163,7 @@ CI 失败时先看是哪一格：只有 18.x 的 `build` 挂通常意味着用�
 
 ### 发一个版本
 
-发布是**权限分层的**：有 `main` 推送权限的人可以直接在 `main` 上改版本号并打 tag；没有这个权限的人走分支 + PR，合并后再打 tag。两条路的产物是一样的 —— tag 都落在 `main` 的提交上。
+发布是**权限分层的**：有 `main` 推送权限的人可以直接在 `main` 上改版本号并打 tag；没有这个权限的人走分支 + PR，合并后再打 tag。两条路的产物是一样的 —— tag 都落在 `main` 的提交上。这与「Pull Request → 什么不用走 PR」是同一条规则。
 
 **两条路都显式打 tag，不用 `npm version` 的自动打 tag。** 原因见本节末尾。
 
@@ -246,7 +268,7 @@ npx vitest run test/unit/deep/dedupe.test.ts
 
 ## 不要做的事
 
-- 不要在 `main` 上直接提交 —— 走分支和 PR。**例外：发布时的版本号提交**，有 `main` 推送权限的人可以直接提交（见「发布」一节）。
+- 不要在 `main` 上直接提交 —— 走分支和 PR。**例外见「Pull Request → 什么不用走 PR」**：仓库杂务（归档、版本号）对有 `main` 推送权限的人直接推。
 - 不要提交 `.digdig/` 下的 session 数据 —— 已在 `.gitignore` 里。
 - 不要提交密钥或 token。配置优先级见 `README.md`，密钥放环境变量或本地 config 文件。
 - 不要为了让 CI 变绿而删测试或放宽断言。修代码，或者说明为什么测试本身是错的。
