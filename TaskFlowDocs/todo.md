@@ -370,12 +370,7 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## 融合结果可解释化：暴露 SearXNG 已有的 engines/positions 做 votes
 
 - ID: TF-20261102-efa659
-- Status: promoted
-- Priority: normal
-- Owner: Claude
-- Source: direct user request
-- Added: 2026-11-02
-- Updated: 2026-11-02
+- Status: done
 - Goal: 融合结果可解释化：暴露 SearXNG 已有的 engines/positions 做 votes 分解，并对未响应的引擎与可能失效的过滤条件显式标记
-- Task: `TaskFlowDocs/2026-11-02-result-explainability/`
-- Next action: Complete PRD / Spec / Plan and request approval.
+- Task: `TaskFlowDocs/achieved/2026-11-02-result-explainability/`
+- Next action: None — completed and archived.
