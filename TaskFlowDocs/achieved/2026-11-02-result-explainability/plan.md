@@ -1,6 +1,6 @@
 # Plan — 融合结果可解释化：暴露 votes 分解与约束失效标记
 > Task version: v1
-> Status: planning
+> Status: completed
 
 No spec required — small, self-contained task.
 
