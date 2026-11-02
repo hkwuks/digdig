@@ -62,6 +62,36 @@ function displayText(result: { snippet?: string; excerpt?: string; content?: str
     return result.snippet || result.excerpt || result.content || '';
 }
 
+/**
+ * How many engines returned this result, naming each and its rank.
+ *
+ * Only shown when more than one engine agreed. A single-engine result is the
+ * common case and saying "1 engine" on every line is noise; two engines
+ * independently placing a URL is the thing worth surfacing, because it is the
+ * only part of the ordering a reader can check against its own judgement.
+ */
+function agreementLabel(votes: SearchResult['votes']): string {
+    if (!votes || votes.length < 2) return '';
+    const parts = votes.map(vote => `${vote.engine} #${vote.position}`);
+    return ` [${votes.length} engines: ${parts.join(', ')}]`;
+}
+
+/**
+ * Says so when a filter was asked for but no per-engine confirmation exists.
+ *
+ * `--time` and `--lang` go to SearXNG as one request parameter, and which
+ * engines honour them is the server's business — the payload never reports
+ * per-engine filter support. Printing a filtered-looking result set without this
+ * note would let a caller assume the constraint held everywhere.
+ */
+function filterScopeNote(data: any): string {
+    const requested: string[] = [];
+    if (data.timeRange) requested.push(`time=${data.timeRange}`);
+    if (data.language) requested.push(`lang=${data.language}`);
+    if (requested.length === 0) return '';
+    return `*Filter (${requested.join(', ')}) was sent as one request parameter; whether every engine applied it is not reported.*`;
+}
+
 function formatAsMarkdown(data: any): string {
     const lines: string[] = [];
 
@@ -79,7 +109,7 @@ function formatAsMarkdown(data: any): string {
             if (r.score !== undefined && r.score !== null) {
                 scoreIndicator = ` [Source score: ${r.score}]`;
             }
-            lines.push(`### ${i + 1}. [${r.title || 'No Title'}](${r.url || '#'})${scoreIndicator}`);
+            lines.push(`### ${i + 1}. [${r.title || 'No Title'}](${r.url || '#'})${scoreIndicator}${agreementLabel(r.votes)}`);
             lines.push('');
 
             if (displayText(r)) {
@@ -103,10 +133,20 @@ function formatAsMarkdown(data: any): string {
     }
 
     if (data.unresponsiveEngines && data.unresponsiveEngines.length > 0) {
-        const unresponsive = data.unresponsiveEngines.map((item: any) =>
-            Array.isArray(item) ? item[0] : item
-        ).join(', ');
+        // The reason travels with the name: "google" alone reads as a blip,
+        // "google (Suspended: access denied)" reads as a reason to stop asking.
+        const unresponsive = data.unresponsiveEngines.map((entry: any) => {
+            const engine = typeof entry === 'string' ? entry : entry?.engine ?? '';
+            const reason = typeof entry === 'string' ? '' : entry?.reason ?? '';
+            return reason ? `${engine} (${reason})` : engine;
+        }).filter(Boolean).join(', ');
         lines.push(`*Unresponsive: ${unresponsive}*`);
+        lines.push('');
+    }
+
+    const note = filterScopeNote(data);
+    if (note) {
+        lines.push(note);
         lines.push('');
     }
 
@@ -667,6 +707,11 @@ async function runSearch(
             answers: meta.answers,
             suggestions: meta.suggestions,
             unresponsiveEngines: meta.unresponsiveEngines,
+            // Carried so the display layer can say the filter's reach is
+            // unconfirmed. Not part of the result ranking — it describes the
+            // request, not any individual result.
+            ...(options.timeRange ? { timeRange: options.timeRange } : {}),
+            ...(options.language ? { language: options.language } : {}),
             ...(sessionInfo ? { session: { dir: options.session, added: sessionInfo.added, total: sessionInfo.total } } : {}),
         };
 

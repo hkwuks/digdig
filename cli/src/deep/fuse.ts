@@ -127,19 +127,32 @@ export function mergeEnvelopeMetadata(
 ): Pick<SearchResponse, 'answers' | 'suggestions' | 'unresponsiveEngines'> {
     const answers: string[] = [];
     const suggestions: string[] = [];
-    const unresponsiveEngines: string[] = [];
+    // Keyed by engine name: two providers reporting the same engine as down must
+    // collapse to one line, and the first reason to arrive is the one kept — a
+    // second, vaguer reason for an engine already known to be down adds nothing.
+    const unresponsive = new Map<string, string>();
     const add = (target: string[], values: string[]) => {
         for (const value of values) if (!target.includes(value)) target.push(value);
+    };
+    const addUnresponsive = (entries: SearchResponse['unresponsiveEngines']) => {
+        for (const entry of entries ?? []) {
+            if (!entry?.engine || unresponsive.has(entry.engine)) continue;
+            unresponsive.set(entry.engine, entry.reason ?? '');
+        }
     };
     for (const response of responses) {
         add(answers, response.answers ?? []);
         add(suggestions, response.suggestions ?? []);
-        add(unresponsiveEngines, (response.unresponsiveEngines ?? []).map(item => Array.isArray(item) ? item[0] : item));
+        addUnresponsive(response.unresponsiveEngines);
     }
     if (base) {
         add(answers, base.answers ?? []);
         add(suggestions, base.suggestions ?? []);
-        add(unresponsiveEngines, (base.unresponsiveEngines ?? []).map(item => Array.isArray(item) ? item[0] : item));
+        addUnresponsive(base.unresponsiveEngines);
     }
-    return { answers, suggestions, unresponsiveEngines };
+    return {
+        answers,
+        suggestions,
+        unresponsiveEngines: Array.from(unresponsive, ([engine, reason]) => ({ engine, reason })),
+    };
 }

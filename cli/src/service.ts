@@ -33,6 +33,19 @@ export interface SearchResult {
      */
     snippet?: string;
     engine: string;
+    /**
+     * Which engines returned this result, and where each of them ranked it.
+     *
+     * SearXNG already computes this — every result carries parallel `engines`
+     * and `positions` arrays — and the mapping below used to drop both, keeping
+     * only the single `engine`. That left the fusion score as a bare number with
+     * nothing to explain it: two engines agreeing on result #1 and one engine
+     * alone both rendered as an opaque float.
+     *
+     * Absent rather than partly filled when the two arrays disagree in length:
+     * a half-populated pairing would pair an engine with someone else's rank.
+     */
+    votes?: Array<{ engine: string; position: number }>;
     category: string;
     publishedDate?: string;
     retrievedAt?: number;
@@ -40,6 +53,19 @@ export interface SearchResult {
     thumbnail?: string;
     score?: number;
     fusionScore?: number;
+}
+
+/**
+ * An engine SearXNG asked and did not get an answer from, with its reason.
+ *
+ * The reason used to be discarded at the mapping step, which left the display
+ * layer able to say only that *something* did not respond. "google" alone reads
+ * as a transient hiccup; "google: Suspended: access denied" reads as a reason
+ * to stop asking.
+ */
+export interface UnresponsiveEngine {
+    engine: string;
+    reason: string;
 }
 
 export interface SearchResponse {
@@ -54,11 +80,56 @@ export interface SearchResponse {
         content: string;
         engine: string;
     }>;
-    unresponsiveEngines: string[];
+    unresponsiveEngines: UnresponsiveEngine[];
 }
 
 function filterEmptyResults(results: SearchResult[]): SearchResult[] {
     return results.filter(r => r.title.trim().length > 0 && r.content.trim().length > 0);
+}
+
+/**
+ * Pair SearXNG's parallel `engines` and `positions` arrays into votes.
+ *
+ * The two arrays describe the same result from different engines: index i of
+ * `positions` is where `engines[i]` ranked it. Unequal lengths mean the payload
+ * cannot be read that way, and guessing past that would attach an engine to a
+ * rank it did not give — worse than saying nothing, because the output would
+ * look authoritative.
+ */
+function mapVotes(item: any): SearchResult['votes'] {
+    const engines = item?.engines;
+    const positions = item?.positions;
+    if (!Array.isArray(engines) || !Array.isArray(positions)) return undefined;
+    if (engines.length !== positions.length) return undefined;
+    if (engines.length === 0) return undefined;
+
+    const votes: Array<{ engine: string; position: number }> = [];
+    for (let i = 0; i < engines.length; i++) {
+        const engine = engines[i];
+        const position = positions[i];
+        // A non-string engine or a non-numeric rank is the same failure as a
+        // length mismatch: the pairing is not trustworthy, so nothing is claimed.
+        if (typeof engine !== 'string' || typeof position !== 'number') return undefined;
+        votes.push({ engine, position });
+    }
+    return votes;
+}
+
+/**
+ * SearXNG reports unresponsive engines as `[name, reason]` pairs.
+ *
+ * A bare string was accepted too, because dismissing the reason and keeping the
+ * name was the old behaviour and old payloads should not silently lose the
+ * entry — the entry is the fact that matters, the reason is the explanation.
+ */
+function mapUnresponsive(raw: any): UnresponsiveEngine[] {
+    if (!Array.isArray(raw)) return [];
+    return raw.map((item: any) => {
+        if (Array.isArray(item)) {
+            return { engine: String(item[0] ?? ''), reason: String(item[1] ?? '') };
+        }
+        return { engine: String(item), reason: '' };
+    }).filter(entry => entry.engine.length > 0);
 }
 
 export class SearXNGService {
@@ -147,6 +218,7 @@ export class SearXNGService {
                 url: item.url || '',
                 content: item.content || item.snippet || '',
                 engine: item.engine || 'unknown',
+                votes: mapVotes(item),
                 category: item.category || 'general',
                 publishedDate: item.publishedDate,
                 retrievedAt,
@@ -173,7 +245,7 @@ export class SearXNGService {
                 answers: data.answers || [],
                 corrections: data.corrections || [],
                 infoboxes: data.infoboxes || [],
-                unresponsiveEngines: data.unresponsive_engines || []
+                unresponsiveEngines: mapUnresponsive(data.unresponsive_engines)
             };
 
             return searchResponse;
