@@ -366,3 +366,16 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Goal: 修正 CONTRIBUTING.md 的发布流程：按 main 推送权限分层，有权限直推、无权限走 PR，并说明两种情况下 tag 打在哪
 - Task: `TaskFlowDocs/achieved/2026-11-01-release-permissions/`
 - Next action: None — completed and archived.
+
+## 融合结果可解释化：暴露 SearXNG 已有的 engines/positions 做 votes
+
+- ID: TF-20261102-efa659
+- Status: promoted
+- Priority: normal
+- Owner: Claude
+- Source: direct user request
+- Added: 2026-11-02
+- Updated: 2026-11-02
+- Goal: 融合结果可解释化：暴露 SearXNG 已有的 engines/positions 做 votes 分解，并对未响应的引擎与可能失效的过滤条件显式标记
+- Task: `TaskFlowDocs/2026-11-02-result-explainability/`
+- Next action: Complete PRD / Spec / Plan and request approval.
