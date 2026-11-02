@@ -1,6 +1,6 @@
 {
   "name": "digdig",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Web Search Tool - SearXNG, Ollama, and DeepSeek backends",
   "homepage": "https://github.com/hkwuks/digdig#readme",
   "repository": {
