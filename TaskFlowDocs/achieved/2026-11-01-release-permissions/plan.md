@@ -1,6 +1,6 @@
 # Plan — 修正 CONTRIBUTING.md 的发布流程：按 main 推送权限分层
 > Task version: v1
-> Status: planning
+> Status: completed
 
 No spec required — small, self-contained task.
 
