@@ -143,16 +143,21 @@ CI 失败时先看是哪一格：只有 18.x 的 `build` 挂通常意味着用�
 
 发布是**权限分层的**：有 `main` 推送权限的人可以直接在 `main` 上改版本号并打 tag；没有这个权限的人走分支 + PR，合并后再打 tag。两条路的产物是一样的 —— tag 都落在 `main` 的提交上。
 
+**两条路都显式打 tag，不用 `npm version` 的自动打 tag。** 原因见本节末尾。
+
 **有 `main` 推送权限**
 
 ```bash
 git checkout main && git pull
 cd cli
-npm version patch        # 或 minor / major
-git push --follow-tags
+npm version patch --no-git-tag-version   # 改 package.json + package-lock.json，不打 tag
+cd ..
+git commit -am "chore(release): 版本升到 <version>"
+git tag v<version>
+git push origin main && git push origin v<version>
 ```
 
-`npm version` 会同时改 `cli/package.json` 的 `version`、同步 `package-lock.json`、并在该提交上打 `v<version>` 标签。`--follow-tags` 把标签一起推上去，推送触发 workflow。
+`npm version` 负责把 `cli/package.json` 和 `cli/package-lock.json` 两处 `version` 一起改对，然后提交、打 tag、分两次推送。**tag 必须推到 `main` 的那个提交上** —— 它是 `publish.yml` 唯一的触发条件。
 
 **没有 `main` 推送权限**
 
@@ -171,9 +176,23 @@ git checkout main && git pull
 git tag v<version> && git push origin v<version>
 ```
 
-注意 `--no-git-tag-version`：`npm version` 默认会在当前分支的提交上打 tag，而分支提交还不该有 tag。等合并到 `main` 再打。
+### 为什么显式打 tag，而不是让 `npm version` 自己打
 
-**不要手改 `package.json` 的版本号再自己打 tag。** `npm version` 同时处理 `package.json`、`package-lock.json` 两处版本字段和 tag，手改容易漏掉 lockfile，而 tag 和版本号对不上时 workflow 会拦（见下），那时已经多绕一圈。
+因为在这个仓库里，它打不出来，**而且不告诉你**。
+
+`cli/` 是仓库的子目录，`.git` 在上一层。npm 的 git 检测在这里会失败，`--loglevel=verbose` 下的原话是：
+
+```
+npm verbose version Not tagging: not in a git repo or no git cmd
+```
+
+但 git 本身没问题 —— 在 `cli/` 下 `git rev-parse --git-dir` 正常返回 `/mnt/f/WorkSpace/Node/digdig/.git`。是 npm 的检测在这个组合下失效，不是 git 坏了。
+
+问题在于**它是静默的**：不报错、不警告，输出照常是 `v0.0.4`，看起来完全正常。结果是版本号改了、提交了、推送了，**但 tag 没有，`publish.yml` 永远不会触发** —— 而你看不出哪里不对。
+
+`git tag` 手动打不受影响，所以两条路径都改成显式打 tag。
+
+**不要手改 `package.json` 的版本号。** 手改容易漏掉 `package-lock.json` 里那两处 `version`；用 `npm version --no-git-tag-version` 让 npm 去改，只把打 tag 这一步拿回来自己控制。
 
 ### workflow 做了什么
 
