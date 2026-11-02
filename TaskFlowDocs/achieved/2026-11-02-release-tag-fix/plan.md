@@ -1,6 +1,6 @@
 # Plan — 修正 CONTRIBUTING.md：npm version 在 cli/ 子目录打不出 tag
 > Task version: v1
-> Status: planning
+> Status: completed
 
 No spec required — small, self-contained task.
 
