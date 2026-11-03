@@ -177,6 +177,26 @@ describe('session result contract', () => {
     expect(refreshed.skippedAt).toBeUndefined();
   });
 
+  it('keeps an approved result approved when the same body is imported again', () => {
+    appendSessionResults(sessionDir, [{
+      url: 'https://example.com/article', title: 'Article', contentType: 'extracted', content: 'Stable body.',
+      extractor: 'external', extractedAt: 1, origins: [{ tool: 'exa', query: 'query' }],
+    }]);
+    const [initial] = loadSessionResults(sessionDir);
+    const approval = approveResults(sessionDir, [{ id: initial.id, revision: initial.revision }]);
+    injectApprovedResults(sessionDir, approval.approvedResults);
+    const approved = loadSessionResults(sessionDir)[0];
+
+    appendSessionResults(sessionDir, [{
+      url: 'https://example.com/article', title: 'Article', contentType: 'extracted', content: 'Stable body.',
+      extractor: 'external', extractedAt: 1, origins: [{ tool: 'exa', query: 'query' }],
+    }]);
+
+    const refreshed = loadSessionResults(sessionDir)[0];
+    expect(refreshed).toMatchObject({ status: 'approved', revision: approved.revision });
+    expect(loadSessionGraph(sessionDir).hasNode(initial.id)).toBe(true);
+  });
+
   it('does not overwrite corrupt claim state while accepting a new extracted body', () => {
     appendSessionResults(sessionDir, [{ url: 'https://example.com/article', title: 'Article', origins: [{ tool: 'sxng', query: 'query' }] }]);
     const claimsFile = join(sessionDir, 'claims', 'claims.json');

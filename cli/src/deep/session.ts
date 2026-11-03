@@ -428,7 +428,8 @@ export function appendSessionResults(
                     changed = true;
                 }
                 // An imported body is a fresh Agent input, even when its text is unchanged.
-                if (existing.skippedAt !== undefined) {
+                const wasSkipped = existing.skippedAt !== undefined;
+                if (wasSkipped) {
                     existing.skippedAt = undefined;
                     changed = true;
                 }
@@ -438,7 +439,12 @@ export function appendSessionResults(
                     existing.lastFailure = undefined;
                     changed = true;
                 }
-                if (existing.status !== 'pending') {
+                // Only a body that actually differs, or one that revives a result
+                // the Agent had skipped, is a new approval decision. Re-importing
+                // bytes that are already approved must not revoke that approval:
+                // the downgrade below prunes the result's semantic graph, and
+                // graph-add cannot rebuild what is dropped.
+                if ((bodyChanged || wasSkipped) && existing.status !== 'pending') {
                     existing.status = 'pending';
                     changed = true;
                 }
