@@ -382,3 +382,466 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Goal: 修正 CONTRIBUTING.md：npm version 在 cli/ 子目录打不出 tag，发布流程改为显式打 tag
 - Task: `TaskFlowDocs/achieved/2026-11-02-release-tag-fix/`
 - Next action: None — completed and archived.
+
+## P1 — 子命令的 -f/--format 全部失效
+
+- ID: TF-20261103-fad9a9
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-research:2026-11-03-cli-audit
+- Added: 2026-11-03
+- Updated: 2026-11-03
+- Goal: 子命令 -f/--format 失效：根命令与 21 个子命令重复声明 -f，commander 把 flag 归给父命令，子命令 opts.format 恒为 undefined，全部回落 JSON（session-report/graph-preprocess/suggest-queries/strategy-info/claim-list/review-list/evidence-*/graph-explore/drill/traverse/search/graph-obfuscate）。仅 coverage 靠 subcommandFormat 读原始 argv 幸免
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## P2 — graph-search 的 -l/--limit 失效
+
+- ID: TF-20261103-d06a7c
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-research:2026-11-03-cli-audit
+- Added: 2026-11-03
+- Updated: 2026-11-03
+- Goal: graph-search 的 -l/--limit 失效：根命令与子命令重复声明 -l，子命令 opts.limit 恒为 undefined，回落到默认 10。实测 --keyword alpha -l 2 仍返回 10 条
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## P3 — --graph <file> 是空选项
+
+- ID: TF-20261103-1350fc
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-research:2026-11-03-cli-audit
+- Added: 2026-11-03
+- Updated: 2026-11-03
+- Goal: --graph <file> 是空选项：--help 声称保存搜索结果到图文件，参数一路传进 runSearch 的类型（runCli.ts:464/1569）却从不被读取，实测不产生任何文件。要么实现要么删除
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## P4 — --session + --merge 时 merge 结果被静默丢弃
+
+- ID: TF-20261103-f917c9
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-research:2026-11-03-cli-audit
+- Added: 2026-11-03
+- Updated: 2026-11-03
+- Goal: --session 与 --merge 同时用时 merge 结果被静默丢弃：fuseResults 计入排序与候选池(totalResults=31)，但 onlyCurrent 过滤掉 display，appendSessionResults 只写 display，落盘 results.json 中该 URL 完全消失
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## P5 — -l abc / -l -5 静默放行
+
+- ID: TF-20261103-bb3296
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-research:2026-11-03-cli-audit
+- Added: 2026-11-03
+- Updated: 2026-11-03
+- Goal: -l abc / -l -5 静默放行：parseInt 得到 NaN 或负数，axios 丢掉 NaN 参数，limit 无校验，实测 -l abc 返回 30 条（服务端默认）；NaN 还让融合后的 slice 变成空操作
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## P6 — baseUrl 缺失时报错误导、retryable 判定错
+
+- ID: TF-20261103-a062c7
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-research:2026-11-03-cli-audit
+- Added: 2026-11-03
+- Updated: 2026-11-03
+- Goal: baseUrl 缺失或非法时报错误导且可重试性判定错：无配置时搜索报 SEARCH_FAILED/Invalid URL 无 hint，--health 提示文字里的 URL 为空，--engines-list 与 --categories-list 对同一配置错误报不同 code，--engines-list 还标 retryable:true。应在发请求前统一报 CONFIG_MISSING
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## P7 — 只读命令对不存在的会话名创建目录
+
+- ID: TF-20261103-def17e
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-research:2026-11-03-cli-audit
+- Added: 2026-11-03
+- Updated: 2026-11-03
+- Goal: 只读命令在会话名拼错时创建目录：session-report/suggest-queries/graph-preprocess/--quality 对不存在的会话 exit 0 且经 initSessionDir/mkdirSync 创建 .digdig/sessions/<name>/，session-list 随后以 createdAt:0 列出。coverage 表现正确（EMPTY_SESSION、exit 1、不建目录），其余应对齐
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## P8 — 轮次计数不一致（roundsCovered 恒 0 / 计数器与 origin 不符）
+
+- ID: TF-20261103-844d30
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-research:2026-11-03-cli-audit
+- Added: 2026-11-03
+- Updated: 2026-11-03
+- Goal: 轮次计数不一致：graph-preprocess 硬编码 roundsCovered:0（graph-preprocess.ts:61），md 输出永远是 Rounds: 0；纯导入会话 appendSessionResults 用 Math.max(1,round) 写 origin round=1 但计数器 data.rounds 保持 0，coverage 显示 0 rounds 却又有 round 1 的表
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## P9 — --quality 的 source 字段永远是 digdig
+
+- ID: TF-20261103-097d13
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-research:2026-11-03-cli-audit
+- Added: 2026-11-03
+- Updated: 2026-11-03
+- Goal: --quality 的 source 字段永远是 digdig：pending-facts 读 result.source，但没有任何代码写这个字段；results-add --tool exa 把工具名记在 origins[].tool，实测 exa 导入后仍报 source: digdig
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## P10 — extract 全部失败仍 exit 0
+
+- ID: TF-20261103-631878
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-research:2026-11-03-cli-audit
+- Added: 2026-11-03
+- Updated: 2026-11-03
+- Goal: extract 全部失败仍 exit 0：dg extract --urls <死链> 返回 status:ok、success:0/failed:1、退出码 0，Agent 据退出码会误判成功。全部失败时应非零退出
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## P11 — defaultEngine 是死配置，allowedEngines 只在 -e 时校验
+
+- ID: TF-20261103-0c810d
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-research:2026-11-03-cli-audit
+- Added: 2026-11-03
+- Updated: 2026-11-03
+- Goal: defaultEngine 是死配置：config.ts 定义且 README:990 有文档，但无任何代码读取；allowedEngines 只在传了 -e 时才校验，默认路径不受约束
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## C1 — 空 quote / 反向区间被接受为证据并可自动批准
+
+- ID: TF-20261103-5075cc
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-review:2026-11-03-claims-commands
+- Added: 2026-11-03
+- Updated: 2026-11-03
+- Goal: 空 quote / 反向区间被接受为证据并可自动批准：evidence.ts:120-128 只校验 charStart<0 与 charEnd>content.length，没有 charStart<charEnd 也没有非空校验，slice(10,3) 得到空串，quote:'' 必然匹配，hash 是空串 SHA-256 永远自洽。实测 --stance support 写入 ev_001 并 exit 0
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## C2 — 重复验证沿用旧 stance，反驳覆盖不掉支持
+
+- ID: TF-20261103-e5d727
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-review:2026-11-03-claims-commands
+- Added: 2026-11-03
+- Updated: 2026-11-03
+- Goal: 重复验证沿用旧 stance，反驳覆盖不掉支持：evidence.ts:151-164 按 evidenceId 找到已有 verdict 后不更新 stance/reason/confidence。实测同一 span 先 support 再 refute，返回仍是 stance:support + idempotent:true，singleRefute 规则对该 span 永远不可达
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## C4 — riskLevel 不校验，绕过 highRiskInsufficient
+
+- ID: TF-20261103-1d127c
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-review:2026-11-03-claims-commands
+- Added: 2026-11-03
+- Updated: 2026-11-03
+- Goal: riskLevel 不校验，高风险 claim 绕过 highRiskInsufficient 规则：claim.ts:86 存任意字符串，policy.ts:104-111 只认字面量 high。实测 riskLevel:'HIGH' 原样入库且 claim-list 显示 HIGH，仍可走 dualSourceSupport 自动批准
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## C8 — session-delete --older 负值删光全部会话
+
+- ID: TF-20261103-85fa15
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-review:2026-11-03-claims-commands
+- Added: 2026-11-03
+- Updated: 2026-11-03
+- Goal: session-delete --older 接受负数且无确认：session.ts:127-142 的 if (olderHours) 对 -1 为真，(now-updatedAt) > 负数恒成立。实测 --older -1 删掉全部 2 个会话；--older 0 或 NaN 则静默删不掉，exit 0
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## C7 — graph-add 覆盖结构性结果节点
+
+- ID: TF-20261103-30a192
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-review:2026-11-03-claims-commands
+- Added: 2026-11-03
+- Updated: 2026-11-03
+- Goal: graph-add 会让语义实体覆盖结构性结果节点：graph-add.ts:64-80 直接使用 entity.id，与已有 r:/q:/d: 节点冲突时 mergeNodeAttributes 改写其 label 并报 entitiesAdded:0。实测真实结果节点被改名为 Fake Entity 且 graph-explore 找不到它
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## C9 — graph-add 畸形输入抛未捕获 TypeError
+
+- ID: TF-20261103-550f7c
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-review:2026-11-03-claims-commands
+- Added: 2026-11-03
+- Updated: 2026-11-03
+- Goal: graph-add 对畸形输入抛未捕获 TypeError：graph-add.ts:52,59 收到 {entities:'not-an-array'} 或 {entities:[null]} 时抛 Fatal error 到 stderr，stdout 为空、无 JSON envelope，Agent 无法解析
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## C5 — 新 verdict 不清除旧 Review
+
+- ID: TF-20261103-a2cd67
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-review:2026-11-03-claims-commands
+- Added: 2026-11-03
+- Updated: 2026-11-03
+- Goal: 新 verdict 不清除旧 Review：evidence.ts:166-179 非 --complete 时只把 status 设为 verifying，旧 Review 仍留在 store，review-list 继续报 approved，即使已有反驳 verdict
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## C6 — 跳过最后来源使 claim 永久卡在 verifying
+
+- ID: TF-20261103-cd89a3
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-review:2026-11-03-claims-commands
+- Added: 2026-11-03
+- Updated: 2026-11-03
+- Goal: 跳过最后一个来源会让 claim 永久卡在 verifying：session.ts:539-545 令证据失效并删掉 review，policy-aggregate 随后报 No claims with verdicts to aggregate 且 exit 0，没有路径把 claim 复位
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## C10 — agent-inputs 路径校验在 Windows 上可绕过
+
+- ID: TF-20261103-5db61c
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-review:2026-11-03-claims-commands
+- Added: 2026-11-03
+- Updated: 2026-11-03
+- Goal: agent-inputs 路径包含校验在 Windows 上可绕过：session.ts:366-372 只用 path.relative 做 POSIX 判断，win32 下 relative('C:\sess\agent-inputs','\\srv\share\x.json') 原样返回 UNC 绝对路径，--data-file \\srv\share\evil.json 通过校验；C:foo 同理
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## C11 — SessionStateError 不产出 JSON envelope
+
+- ID: TF-20261103-11b5ef
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-review:2026-11-03-claims-commands
+- Added: 2026-11-03
+- Updated: 2026-11-03
+- Goal: SessionStateError 未进入 envelope：entry.ts:20-24 只在顶层 catch 打 Fatal error 到 stderr，stdout 为空无 JSON；approve 流程里 approveResults 已提交后 injectApprovedResults 若抛错，失败发生在写入之后
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## C12 — 参数校验晚于 initSessionDir 创建目录
+
+- ID: TF-20261103-2a70e1
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-review:2026-11-03-claims-commands
+- Added: 2026-11-03
+- Updated: 2026-11-03
+- Goal: 参数校验晚于 initSessionDir：claim.ts:39 / evidence.ts:86 / graph-add.ts:41 / results-add.ts:25 在 JSON 与字段校验前就 mkdir agent-inputs 和 meta.json，校验失败的 claim-add 也会留下会话目录
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## C13 — 若干 CLI 参数未校验就原样存储
+
+- ID: TF-20261103-5806a4
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-review:2026-11-03-claims-commands
+- Added: 2026-11-03
+- Updated: 2026-11-03
+- Goal: 若干参数未校验就原样存储：evidence.ts:159 的 --stance 任意字符串入库（--stance bogus 也 exit 0）；evidence.ts:101 非字符串 contentHash 被丢弃而非拒绝；--confidence abc 得 NaN 被静默省略；results-add.ts:49 的 --kind 非 search 一律按 extracted 处理
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## C14 — extract 丢弃真实抽取方法
+
+- ID: TF-20261103-7bfb6a
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-review:2026-11-03-claims-commands
+- Added: 2026-11-03
+- Updated: 2026-11-03
+- Goal: extract 丢弃真实抽取方法：extract.ts:59 把所有非 jina/非 obscura 的结果标成 extractor:'default'，覆盖 ExtractedContent.method（defuddle/obscura），经 Obscura 兜底拿到的正文会被记成错误来源
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## C3 — 默认 md 的命令 -f json 永远失效（P1 的另一方向）
+
+- ID: TF-20261103-a72e3c
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-review:2026-11-03-claims-commands
+- Added: 2026-11-03
+- Updated: 2026-11-03
+- Goal: 子命令格式失效的第二个方向：默认 md 的命令（graph-search/graph-explore/graph-drill/graph-traverse/graph-obfuscate/session-report/strategy-info/suggest-queries/graph-preprocess）加 -f json 永远拿不到 JSON，对 Agent 消费方比拿不到 md 更严重；与 P1 同一根因，修复需覆盖两个方向
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## D1 — 重复导入正文降级已批准结果并剪掉语义图
+
+- ID: TF-20261103-46ed18
+- Status: done
+- Goal: 重复导入相同正文会把已批准结果降级为 pending，并不可逆地剪掉它的语义图：session.ts:441-444 的 extracted 分支无条件置 pending，即使正文/extractor/时间戳完全一致；changed 为真导致 revision 递增，第 481 行 repairInvalidDependents 随即按 sourceResultIds 剪除所有实体与边。实测 doc-search 或 results-add 重复导入后 status approved->pending、rev 2->3、entities 1->0，重新 approve 也不会恢复语义实体
+- Task: `TaskFlowDocs/achieved/2026-11-03-session-reimport-downgrade/`
+- Next action: None — completed and archived.
+
+## D2 — 抽取结果按当前轮而非发现轮盖 round
+
+- ID: TF-20261103-7f63b3
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-review:2026-11-03-deep
+- Added: 2026-11-03
+- Updated: 2026-11-03
+- Goal: 抽取结果的 round 盖成当前轮而非发现轮：session.ts:404,412 用 importRound=Math.max(1,round)，round 在本批不开新轮时等于 currentRounds。实测第 1 轮发现、第 2 轮搜索别的、随后导入正文，该结果 origins 变成 [1,2]，coverage 误报它重复出现在第 2 轮并让第 2 轮 repeatedFromEarlier=1，而第 2 轮从未返回它
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## D3 — withIndexLock 抢锁失败删掉他人的锁
+
+- ID: TF-20261103-a83d77
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-review:2026-11-03-deep
+- Added: 2026-11-03
+- Updated: 2026-11-03
+- Goal: withIndexLock 抢锁失败时删掉别的进程正持有的锁：indexer.ts:70-89 的 finally 无条件 rmSync(.lock)，缺少 withSessionLock (session.ts:129-154) 那样的 acquired 标志。实测外部持有 .lock 时 refreshIndex 抛 INDEX_BUSY，同时那把锁被删除
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## D4 — graph-preprocess 的 md 渲染器会崩溃（被 P1 遮蔽）
+
+- ID: TF-20261103-e0f05e
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-review:2026-11-03-deep
+- Added: 2026-11-03
+- Updated: 2026-11-03
+- Goal: graph-preprocess 的 md 渲染器会崩溃：runCli.ts:213 读 result.rounds.join，而 payload 的 resultProvenance 项没有 rounds 字段，一旦 -f md 生效即 TypeError；roundsCovered 又硬编码 0，表头永远是 Rounds: 0。这两个缺陷目前被 -f 失效遮蔽，修了 P1 才会暴露
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## D5 — Partial 索引重建丢弃配置的扩展名
+
+- ID: TF-20261103-e2678c
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-review:2026-11-03-deep
+- Added: 2026-11-03
+- Updated: 2026-11-03
+- Goal: Partial 索引重建丢弃配置的扩展名：indexer.ts:437-441 在 meta.partial 时调用 buildIndexFromScannedFiles(absRoot, scanFiles(absRoot))，不传 extensions 与内存预算，回落到 DEFAULT_OPTIONS 的 md,txt。实测 doc-index --type json 后再 refreshIndex，json 文档消失且 meta.source.extensions 变成 ['.md','.txt']
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## D6 — 冗余查询历史从图里读，未批准时为空
+
+- ID: TF-20261103-0b46c5
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-review:2026-11-03-deep
+- Added: 2026-11-03
+- Updated: 2026-11-03
+- Goal: 冗余查询历史从图里读，恰恰在结果未批准时为空：runCli.ts:345-354 的 loadSessionQueryHistory 只遍历 graph 的 query 节点，而 query 节点仅由 buildApprovedStructuralEdges 为已批准结果创建。实测新会话连跑 3 轮搜索、query 节点为 0，--redundancy skip/warn/adjust 从不触发
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## D7 — Jina 限流扣掉抽取重试预算
+
+- ID: TF-20261103-b34a9e
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-review:2026-11-03-deep
+- Added: 2026-11-03
+- Updated: 2026-11-03
+- Goal: Jina 限流扣掉抽取重试预算：session.ts:636-641 对合成的 Jina Reader rate limit reached 也递增 failureCount，而 extract.ts:64-79 把它报成 retryable:true；isPendingExtraction (session.ts:488-492) 在 failureCount>=2 时放弃。实测两次限流后该 URL 从 getPendingExtractionResults 中永久消失，遵循 retryable 的调用方反而丢 URL
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## D8 — 本地文档模糊标题兜底是死代码
+
+- ID: TF-20261103-b636fb
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-review:2026-11-03-deep
+- Added: 2026-11-03
+- Updated: 2026-11-03
+- Goal: 本地文档模糊标题兜底是死代码：searcher.ts:243 读 db.data?.documents，而 Orama 3.1.18 把文档存在 db.data.docs.docs。实测 db.data.documents === undefined、db.data.docs.docs 有数据；查询 tokioo 对标题 Tokio Runtime Guide 返回 0 命中
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## D9 — search-strategy 按最新支撑轮分桶
+
+- ID: TF-20261103-ba958f
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-review:2026-11-03-deep
+- Added: 2026-11-03
+- Updated: 2026-11-03
+- Goal: search-strategy 按最新支撑轮给实体分桶：search-strategy.ts:50-55 对每个实体取 Math.max(origin rounds)，被后一轮再次看到或批准的结果会把实体迁到最新桶、从首轮消失；computeGrowthRate 只比较最近两桶，饱和轮可读成 +19 增长。与 coverage.firstRound 的口径不一致
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## D10 — path 节点无生产路径，graph-traverse 恒失败
+
+- ID: TF-20261103-9bc038
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-review:2026-11-03-deep
+- Added: 2026-11-03
+- Updated: 2026-11-03
+- Goal: path 节点没有任何生产路径，graph-traverse 提示用户去做一件做不到的事：path-extraction.ts:266 的 extractPaths 在 src/ 无调用者（仅测试调用），graphPreprocess 从不调用它，所以 dg graph-traverse 恒返回 NO_PATHS 且 hint 无法成功；相关地 graph-explore.ts:430 的 graph.edges(prevId,eId) 未做存在性检查，路径引用已剪除实体时 graphology 抛 NotFoundGraphError，最终表现为裸 Fatal error
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## D11 — 一批已确认的小缺陷（7 项）
+
+- ID: TF-20261103-761aa5
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-review:2026-11-03-deep
+- Added: 2026-11-03
+- Updated: 2026-11-03
+- Goal: 一批已确认的小缺陷：graph-explore.ts:457-471 resultCount 按 mentions 入边自增而 resultIds 是 Set（一个结果同时提两个路径实体时 2 vs 1）；graph-sampling.ts:506 mixed 策略在没有 rngSeed 时固定播 42 且 CLI 从不传 seed，--strategy mixed 永远选 community_core_path；local-doc/searcher.ts:184 与 scanner.ts:146 frontmatter 标题重复拼接成 X — X；session.ts:651 对空字符串也赋值 excerpt，Jina/Obscura 的 excerpt:'' 会清掉搜索层摘要；graph-obfuscate.ts:48-55 --fallback-rules 用裸 writeFileSync 写 graph.json，绕开会话锁且非原子；extractor.ts:390-404 与 extract.ts:15-19 把 50-99 字符的 Defuddle 结果记为失败并丢弃可用文本；session.ts:654 写入的 contentLength 无人读取且 Defuddle 记词数、Jina/Obscura 记字符数
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
