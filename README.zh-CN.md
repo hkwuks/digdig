@@ -76,8 +76,8 @@ server:
   limiter: false
 
 outgoing:
-  request_timeout: 30.0
-  max_request_timeout: 30.0
+  request_timeout: 10.0
+  max_request_timeout: 25.0
   pool_connections: 200
   pool_maxsize: 20
   retries: 2
@@ -974,7 +974,7 @@ dg --categories-list
 | `DIGDIG_DEFAULT_FORMAT` | 默认输出格式（`md` 或 `json`） | `md` |
 | `DIGDIG_USE_PROXY` | 是否使用代理（`true`/`false`） | `false` |
 | `DIGDIG_PROXY_URL` | 代理 URL | *（无）* |
-| `DIGDIG_TIMEOUT` | 请求超时时间（毫秒） | `10000` |
+| `DIGDIG_TIMEOUT` | 请求超时时间（毫秒） | `25000` |
 | `DIGDIG_REDUNDANCY_THRESHOLD` | 词级 Jaccard 冗余阈值 | `0.7` |
 | `DIGDIG_REDUNDANCY_BIGRAM_THRESHOLD` | 二元组 Jaccard 冗余阈值（短查询） | `0.5` |
 | `OLLAMA_API_KEY` | [Ollama 网页搜索](https://ollama.com) API 密钥；用 `-e ollama` 显式启用（不是自动回退） | *（无）* |
@@ -1000,7 +1000,7 @@ dg --categories-list
   "defaultFormat": "md",
   "useProxy": false,
   "proxyUrl": "",
-  "timeout": 10000,
+  "timeout": 25000,
   "ollamaApiKey": "",
   "deepseekApiKey": "",
   "redundancyThreshold": 0.7,

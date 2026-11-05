@@ -37,7 +37,11 @@ const DEFAULT_CONFIG: SearXNGConfig = {
     defaultFormat: 'md',
     useProxy: false,
     proxyUrl: '',
-    timeout: 10000,
+    // Must outlast SearXNG's own `outgoing.max_request_timeout` (upstream
+    // default 10.0s, and this repository's recommended settings.yml raises it
+    // to 25.0). A client that gives up first reports a timeout while the
+    // server is still working, which is indistinguishable from a dead server.
+    timeout: 25000,
     ollamaApiKey: '',
     deepseekApiKey: '',
     redundancyThreshold: 0.7,

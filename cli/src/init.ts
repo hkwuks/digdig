@@ -29,7 +29,7 @@ const DEFAULT_CONFIG: SearXNGConfig = {
     proxyUrl: '',
     // Same default as config.ts, so `init` does not write a value the README
     // would then have to contradict.
-    timeout: 10000,
+    timeout: 25000,
     ollamaApiKey: '',
     deepseekApiKey: ''
 };
@@ -135,10 +135,12 @@ export async function initConfig(): Promise<number> {
 
     // Configure timeout
     const timeoutStr = await configurator.question(
-        'Request timeout (milliseconds)',
+        'Request timeout (milliseconds, minimum 12000)',
         String(config.timeout)
     );
-    config.timeout = Math.max(1000, parseInt(timeoutStr, 10) || 10000);
+    // SearXNG's own `max_request_timeout` is 10.0s upstream, so anything under
+    // 12000 makes the client hang up on a server that is still working.
+    config.timeout = Math.max(12000, parseInt(timeoutStr, 10) || 25000);
 
     // Configure proxy
     console.log('\n--- Proxy Configuration ---');
