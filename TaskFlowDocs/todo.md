@@ -479,8 +479,34 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Added: 2026-11-03
 - Updated: 2026-11-03
 - Goal: 轮次计数不一致：graph-preprocess 硬编码 roundsCovered:0（graph-preprocess.ts:61），md 输出永远是 Rounds: 0；纯导入会话 appendSessionResults 用 Math.max(1,round) 写 origin round=1 但计数器 data.rounds 保持 0，coverage 显示 0 rounds 却又有 round 1 的表
+- Task: 部分完成：前半（`roundsCovered` 恒 0）已由 `TaskFlowDocs/achieved/2026-11-04-subcommand-format-flag/` 修复，现读 `loadSessionRounds`。后半（纯导入会话 origin round=1 与 data.rounds=0 不一致）仍未修
+- Next action: 后半需单独 promote。
+
+## P12 — graph-explore / graph-drill 的 --seed 只认 label，不认节点 id
+
+- ID: TF-20261105-b1e4c7
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-research:2026-11-05-format-fix-followup
+- Added: 2026-11-05
+- Updated: 2026-11-05
+- Goal: `--seed` 只按 label 逐字匹配，传节点 id 会报 ENTITY_NOT_FOUND：graph-explore.ts:544-558 的 findEntityByLabel 只比较 `attrs.label.toLowerCase() === lowerLabel`，`dg graph-explore <s> --seed e:entity0` 找不到图中确实存在的 e:entity0，反而提示「Entity Number 0 (distance: 11)」；而 help 文本写的是「Seed entity label」，AGENTS 消费方拿到 id 时无从得知要用 label。实测（2026-11-05）：传 e:entity0 → ENTITY_NOT_FOUND，传 "Entity Number 0" → 正常输出
 - Task: Not promoted.
 - Next action: Clarify and promote when ready.
+
+## P13 — query-graph 的 md 不崩溃（撤销 2026-11-03 的误判）
+
+- ID: TF-20261105-c9d2a1
+- Status: cancelled
+- Priority: normal
+- Owner: Claude
+- Source: code-research:2026-11-05-format-fix-followup
+- Added: 2026-11-05
+- Updated: 2026-11-05
+- Goal: 2026-11-03 调研曾把 query-graph 的 md 崩溃记为缺陷，实际是探测时漏传 seeds/depth 导致。补齐参数后 exit 0、输出正常（query-graph.ts:55-120）。本条作为误判撤销记录，无需修复
+- Task: Not promoted.
+- Next action: None — 误判撤销。
 
 ## P9 — --quality 的 source 字段永远是 digdig
 
