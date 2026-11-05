@@ -212,7 +212,7 @@ Configuration priority (highest to lowest):
 | `DIGDIG_DEFAULT_FORMAT` | Default output format (`md` or `json`) | `md` |
 | `DIGDIG_USE_PROXY` | Use proxy (`true`/`false`) | `false` |
 | `DIGDIG_PROXY_URL` | Proxy URL | *(none)* |
-| `DIGDIG_TIMEOUT` | Request timeout in ms | `10000` |
+| `DIGDIG_TIMEOUT` | Request timeout in ms | `25000` |
 | `DIGDIG_REDUNDANCY_THRESHOLD` | Word-level Jaccard threshold for redundancy | `0.7` |
 | `DIGDIG_REDUNDANCY_BIGRAM_THRESHOLD` | Bigram-level Jaccard threshold (short queries) | `0.5` |
 | `OLLAMA_API_KEY` | [Ollama web search](https://ollama.com) API key; enable with `-e ollama` (not an automatic fallback) | *(none)* |
@@ -233,7 +233,7 @@ Create `digdig.config.json`:
   "defaultFormat": "md",
   "useProxy": false,
   "proxyUrl": "",
-  "timeout": 10000,
+  "timeout": 25000,
   "ollamaApiKey": "",
   "deepseekApiKey": "",
   "redundancyThreshold": 0.7,

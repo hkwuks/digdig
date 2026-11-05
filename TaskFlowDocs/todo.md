@@ -214,18 +214,13 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Task: Not promoted.
 - Next action: None — superseded by `TF-20261017-d8f7b3`.
 
-## Documented default timeout contradicts the code
+## Client request timeout must exceed the SearXNG server timeout
 
 - ID: TF-20261018-7c4e12
 - Status: done
-- Priority: low
-- Owner: Claude
-- Source: follow-up
-- Added: 2026-10-18
-- Updated: 2026-10-20
-- Goal: `SEARXNG_TIMEOUT`'s documented default disagrees with what the CLI actually uses. `DEFAULT_CONFIG` sets `timeout: 10000` (`cli/src/config.ts:38`) and that is the effective value — verified by importing `config.js` from a cwd whose config file omits the field. But `README.md:981` and `README.zh-CN.md:971` both publish `30000`, and `cli/sxng.config.example.json:9` ships `"timeout": 30000`. A user copying the example gets 30s; a user reading the README's "default" column believes 30s is the default when it is not. `CLAUDE.md` (untracked, local) says `10000`, matching the code — possible evidence the code is the intended side and the example was edited later.
-- Task: `TaskFlowDocs/achieved/2026-10-20-dg-command-and-docs/`
-- Next action: None — closed 2026-10-20; README tables, config examples and `init.ts` DEFAULT_CONFIG all now 10000 (R6).
+- Goal: Reopened 2026-11-05 to reverse the direction the 2026-10-20 fix took. That fix saw `README.md`/`README.zh-CN.md`/`cli/sxng.config.example.json` publishing `30000` against `DEFAULT_CONFIG`'s `10000` and aligned the documents down to the code without asking which value was right. It picked the wrong side: `cli/src/config.ts:40`'s `timeout` is the axios request timeout for `cli/src/service.ts:141`, and a client-side timeout below the server's own is a client that hangs up while SearXNG is still working. Upstream SearXNG defaults are `outgoing.request_timeout: 2.0` / `max_request_timeout: 10.0`; this repository's own recommended `settings.yml` (`README.md:83-84`) raises them to `10.0` / `25.0`. At 10000 the client therefore ties the upstream maximum and loses to the configuration this repository tells users to run — the search fails with `NETWORK_ERROR` / `timeout of 10000ms exceeded` while the server is healthy. Reopened scope: default to 25000 in `cli/src/config.ts`, `cli/src/init.ts` and `cli/digdig.config.example.json`, update the three README tables/examples and the local `CLAUDE.md`, and raise `dg init`'s floor from 1000 to 12000 so an interactive answer cannot reintroduce a client timeout below SearXNG's default maximum.
+- Task: `TaskFlowDocs/achieved/2026-11-05-request-timeout/`
+- Next action: None — completed and archived.
 
 ## Sync the DeepSeek provider into the sxng skill docs
 
