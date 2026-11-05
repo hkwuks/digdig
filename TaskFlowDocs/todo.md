@@ -386,15 +386,10 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## P1 — 子命令的 -f/--format 全部失效
 
 - ID: TF-20261103-fad9a9
-- Status: inbox
-- Priority: normal
-- Owner: Claude
-- Source: code-research:2026-11-03-cli-audit
-- Added: 2026-11-03
-- Updated: 2026-11-03
+- Status: done
 - Goal: 子命令 -f/--format 失效：根命令与 21 个子命令重复声明 -f，commander 把 flag 归给父命令，子命令 opts.format 恒为 undefined，全部回落 JSON（session-report/graph-preprocess/suggest-queries/strategy-info/claim-list/review-list/evidence-*/graph-explore/drill/traverse/search/graph-obfuscate）。仅 coverage 靠 subcommandFormat 读原始 argv 幸免
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: `TaskFlowDocs/achieved/2026-11-04-subcommand-format-flag/`
+- Next action: None — completed and archived.
 
 ## P2 — graph-search 的 -l/--limit 失效
 
