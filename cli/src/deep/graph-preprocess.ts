@@ -6,14 +6,14 @@
 import { DirectedGraph } from 'graphology';
 import { computeTfIdf } from './tfidf.js';
 import { buildCoOccurrence, computeCrossResultFrequency, getExistingEntityContext } from './co-occurrence.js';
-import { hasVerifiedContent, loadSessionResults, loadSessionGraph } from './session.js';
+import { hasVerifiedContent, loadSessionResults, loadSessionGraph, loadSessionRounds } from './session.js';
 import { GraphNodeAttrs, GraphEdgeAttrs } from './graph.js';
 
 export interface PreprocessResult {
     tfidfTerms: Array<{ term: string; tf: number; idf: number; tfidf: number; docFreq: number }>;
     coOccurrences: Array<{ term1: string; term2: string; count: number }>;
     existingEntities: Array<{ id: string; label: string; degree: number; entityType?: string }>;
-    resultProvenance: Array<{ id: string; revision: number; url: string; title: string; approval: 'pending' | 'approved' }>;
+    resultProvenance: Array<{ id: string; revision: number; url: string; title: string; approval: 'pending' | 'approved'; rounds: number[] }>;
     termFrequencies: Array<{ term: string; count: number }>;
     roundsCovered: number;
     totalResults: number;
@@ -50,6 +50,10 @@ export function graphPreprocess(
         url: result.url,
         title: result.title,
         approval: result.status,
+        // The rounds that discovered this body. A result carries one origin per
+        // discovery; extraction reuses the discovering origin's round, so this
+        // is the set a reader needs to place the body on the session timeline.
+        rounds: [...new Set(result.origins.map(origin => origin.round).filter((round): round is number => typeof round === 'number'))].sort((a, b) => a - b),
     }));
 
     return {
@@ -58,7 +62,7 @@ export function graphPreprocess(
         existingEntities: entities,
         resultProvenance,
         termFrequencies: termFreqs,
-        roundsCovered: 0,
+        roundsCovered: loadSessionRounds(sessionDir),
         totalResults: results.length,
         resultsWithContent: tfidf.resultsWithContent,
         tokenizationStrategy: tfidf.tokenizationStrategy,

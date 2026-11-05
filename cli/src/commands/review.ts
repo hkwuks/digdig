@@ -77,7 +77,15 @@ export async function runPolicyAggregate(
     throw error;
   }
   if (newReviews.length === 0) {
-    console.log(JSON.stringify(createSuccessEnvelope({ message: 'No claims with verdicts to aggregate' }), null, 2));
+    // The empty case is still a result the caller asked to be formatted: a
+    // `-f md` caller that gets an envelope has to parse JSON after asking for
+    // markdown, so the format decision is made before the early return.
+    if ((options.format || 'json') === 'md') {
+      console.log('## Policy Aggregate Results\n');
+      console.log('No claims with verdicts to aggregate.');
+    } else {
+      console.log(JSON.stringify(createSuccessEnvelope({ message: 'No claims with verdicts to aggregate' }), null, 2));
+    }
     return 0;
   }
 

@@ -230,10 +230,14 @@ function formatFactsAsMarkdown(facts: PendingReport): string {
     if (facts.pending.length) {
         lines.push(`**Awaiting approval:** ${facts.pending.length}`);
         lines.push('');
-        lines.push('| # | Source | Body | Verified | Round | Title |');
-        lines.push('|---|--------|------|----------|-------|-------|');
+        // `id` and `rev` are not decoration: the footer tells the Agent to write
+        // selections for --approve-file, and this table is where it reads them.
+        // A markdown rendering that dropped them would be cheaper per token and
+        // useless for the step that follows.
+        lines.push('| # | ID | Rev | Source | Body | Verified | Round | Title |');
+        lines.push('|---|----|-----|--------|------|----------|-------|-------|');
         facts.pending.forEach((fact, index) => {
-            lines.push(`| ${index} | ${fact.domain || '-'} | ${fact.contentLength} | ${fact.verified ? '✓' : '✗'} | ${fact.round ?? '-'} | ${fact.title || fact.url} |`);
+            lines.push(`| ${index} | ${fact.id} | ${fact.revision} | ${fact.domain || '-'} | ${fact.contentLength} | ${fact.verified ? '✓' : '✗'} | ${fact.round ?? '-'} | ${fact.title || fact.url} |`);
         });
         lines.push('');
     }
@@ -423,27 +427,6 @@ async function searchOneQuery(
 /** Attribute a result to the tool that produced it, for session origin records. */
 function originTool(engine: string): string {
     return EXTERNAL_PROVIDERS.includes(engine as ExternalProvider) ? engine : 'digdig';
-}
-
-/**
- * Resolve `--format` for a subcommand.
- *
- * The root program declares `-f, --format` too, and Commander assigns a flag to
- * the program it appears *after* — but a subcommand's own `opts.format` then
- * arrives as `undefined`, while the parent reports its default (`md`). Neither
- * `opts` nor `command.rawArgs` (empty for a nested command) can answer, so the
- * argv handed to `runCli` is carried through `createProgram` and read here.
- */
-function subcommandFormat(argv: string[], command: string, fallback?: string): string | undefined {
-    const start = argv.indexOf(command);
-    if (start === -1) return fallback;
-
-    for (let i = start + 1; i < argv.length; i++) {
-        const arg = argv[i];
-        if (arg === '--format' || arg === '-f') return argv[i + 1];
-        if (arg.startsWith('--format=')) return arg.slice('--format='.length);
-    }
-    return fallback;
 }
 
 async function runSearch(
@@ -828,9 +811,9 @@ export function createProgram(argv: string[] = []): Command {
         .option('--depth <n>', 'BFS depth (default: 2)', val => parseInt(val, 10), 2)
         .option('--strategy <strategy>', 'Sampling strategy: augmented_chain | dual_core_bridge | community_core_path | deep_chain | mixed')
         .option('-f, --format <fmt>', 'Output format: md, json')
-        .action(async (path, opts) => {
+        .action(async (path, opts, command) => {
             console.warn('[DEPRECATED] query-graph is deprecated. Use graph-explore + graph-drill instead.');
-            const graphFormat = opts.format === 'json' ? 'json' : 'md';
+            const graphFormat = command.optsWithGlobals().format === 'json' ? 'json' : 'md';
             const code = await runQueryGraph({
                 graphFile: path,
                 seeds: opts.seeds?.split(',').map((s: string) => s.trim()).filter(Boolean) || [],
@@ -952,12 +935,12 @@ Examples:
 Note: --fallback-rules is experimental and may produce low-quality obfuscation labels.
 Recommended workflow: use --list to get candidates, then have an LLM generate obfuscated labels,
 and write them back via graph-add.`)
-        .action(async (path, opts) => {
+        .action(async (path, opts, command) => {
             const code = await runGraphObfuscateCommand({
                 graphFile: path,
                 list: opts.list ?? !opts.fallbackRules,
                 fallbackRules: opts.fallbackRules ?? false,
-                format: opts.format === 'md' ? 'md' : 'json',
+                format: command.optsWithGlobals().format === 'md' ? 'md' : 'json',
                 skipEntityTypes: opts.skipTypes?.split(',').map((t: string) => t.trim()).filter(Boolean),
             });
             process.exitCode = code;
@@ -975,14 +958,14 @@ and write them back via graph-add.`)
 Examples:
   dg graph-preprocess my-session
   dg graph-preprocess my-session --top 50 --format md`)
-        .action(async (session, opts) => {
+        .action(async (session, opts, command) => {
             const sessionDir = resolveSessionPath(session);
             const result = graphPreprocess(sessionDir, {
                 top: opts.top,
                 coOccurrenceThreshold: opts.coOccurrenceThreshold,
                 maxTermsForCoOccurrence: opts.maxTerms,
             });
-            if (opts.format === 'md') {
+            if (command.optsWithGlobals().format === 'md') {
                 console.log(formatPreprocessAsMarkdown(result));
             } else {
                 console.log(JSON.stringify(createSuccessEnvelope(result), null, 2));
@@ -1005,7 +988,7 @@ Examples:
         .action(async (session, opts, command: Command) => {
             const code = await runCoverage({
                 session,
-                format: subcommandFormat(argv, command.name(), opts.format) === 'md' ? 'md' : 'json',
+                format: command.optsWithGlobals().format === 'md' ? 'md' : 'json',
             });
             process.exitCode = code;
         });
@@ -1019,7 +1002,7 @@ Examples:
 Examples:
   dg suggest-queries my-session
   dg suggest-queries my-session --format md`)
-        .action(async (session, opts) => {
+        .action(async (session, opts, command) => {
             const sessionDir = resolveSessionPath(session);
             const graph = loadSessionGraph(sessionDir);
             const results = loadSessionResults(sessionDir);
@@ -1027,7 +1010,7 @@ Examples:
 
             const data = generateQuerySuggestions(graph, results, stage);
 
-            if (opts.format === 'md') {
+            if (command.optsWithGlobals().format === 'md') {
                 console.log(formatSuggestAsMarkdown(data));
             } else {
                 console.log(JSON.stringify(createSuccessEnvelope(data), null, 2));
@@ -1046,7 +1029,7 @@ Examples:
 Examples:
   dg strategy-info my-session
   dg strategy-info my-session --format md`)
-        .action(async (session, opts) => {
+        .action(async (session, opts, command) => {
             const sessionDir = resolveSessionPath(session);
             const graph = loadSessionGraph(sessionDir);
 
@@ -1055,7 +1038,7 @@ Examples:
                 transitionThreshold: opts.transitionThreshold,
             });
 
-            if (opts.format === 'md') {
+            if (command.optsWithGlobals().format === 'md') {
                 console.log(formatStrategyAsMarkdown(info));
             } else {
                 console.log(JSON.stringify(createSuccessEnvelope(info), null, 2));
@@ -1072,14 +1055,14 @@ Examples:
 Examples:
   dg session-report my-session
   dg session-report my-session --format md`)
-        .action(async (session, opts) => {
+        .action(async (session, opts, command) => {
             const sessionDir = resolveSessionPath(session);
             const graph = loadSessionGraph(sessionDir);
             const results = loadSessionResults(sessionDir);
 
             const analysis = getSessionAnalysis(graph, results, getPendingResults(sessionDir));
 
-            if (opts.format === 'md') {
+            if (command.optsWithGlobals().format === 'md') {
                 console.log(formatSessionReportAsMarkdown(analysis));
             } else {
                 console.log(JSON.stringify(createSuccessEnvelope(analysis), null, 2));
@@ -1099,11 +1082,11 @@ Examples:
   dg graph-explore my-session --seed "tokio" --format json
 
 See also: graph-drill, graph-search`)
-        .action(async (session, opts) => {
+        .action(async (session, opts, command) => {
             const code = await runGraphExplore({
                 session,
                 seed: opts.seed,
-                format: opts.format === 'json' ? 'json' : 'md',
+                format: command.optsWithGlobals().format === 'json' ? 'json' : 'md',
             });
             process.exitCode = code;
         });
@@ -1121,12 +1104,12 @@ Examples:
   dg graph-drill my-session --seed "tokio" --relations "alternative_to,depends_on" --format json
 
 See also: graph-explore`)
-        .action(async (session, opts) => {
+        .action(async (session, opts, command) => {
             const code = await runGraphDrill({
                 session,
                 seed: opts.seed,
                 relations: opts.relations.split(',').map((r: string) => r.trim()).filter(Boolean),
-                format: opts.format === 'json' ? 'json' : 'md',
+                format: command.optsWithGlobals().format === 'json' ? 'json' : 'md',
             });
             process.exitCode = code;
         });
@@ -1144,11 +1127,11 @@ Examples:
 
 Note: Path nodes are created by graph-preprocess. If no paths exist,
 the command will list available path node IDs.`)
-        .action(async (session, opts) => {
+        .action(async (session, opts, command) => {
             const code = await runGraphTraverse({
                 session,
                 pathId: opts.path,
-                format: opts.format === 'json' ? 'json' : 'md',
+                format: command.optsWithGlobals().format === 'json' ? 'json' : 'md',
             });
             process.exitCode = code;
         });
@@ -1166,12 +1149,12 @@ Examples:
   dg graph-search my-session --keyword "tokio" --limit 5 --format json
 
 See also: graph-explore (for viewing relations of a known entity)`)
-        .action(async (session, opts) => {
+        .action(async (session, opts, command) => {
             const code = await runGraphSearch({
                 session,
                 keyword: opts.keyword,
                 limit: opts.limit,
-                format: opts.format === 'json' ? 'json' : 'md',
+                format: command.optsWithGlobals().format === 'json' ? 'json' : 'md',
             });
             process.exitCode = code;
         });
@@ -1189,11 +1172,11 @@ See also: graph-explore (for viewing relations of a known entity)`)
 Examples:
   dg claim-add my-session --claim-file .digdig/sessions/my-session/agent-inputs/claim.json
   dg claim-add my-session --claims-file .digdig/sessions/my-session/agent-inputs/claims.json`)
-        .action(async (session, opts) => {
+        .action(async (session, opts, command) => {
             const code = await runClaimAdd(session, {
                 claimFile: opts.claimFile,
                 claimsFile: opts.claimsFile,
-                format: opts.format,
+                format: command.optsWithGlobals().format,
             });
             process.exitCode = code;
         });
@@ -1204,10 +1187,10 @@ Examples:
         .description('List claims')
         .option('--status <status>', 'Filter by status: pending, verifying, reviewed')
         .option('-f, --format <fmt>', 'Output format: json (default), md')
-        .action(async (session, opts) => {
+        .action(async (session, opts, command) => {
             const code = await runClaimList(session, {
                 status: opts.status,
-                format: opts.format,
+                format: command.optsWithGlobals().format,
             });
             process.exitCode = code;
         });
@@ -1218,10 +1201,10 @@ Examples:
         .description('Search candidate evidence for a claim (read-only)')
         .requiredOption('--claim-id <id>', 'Claim ID')
         .option('-f, --format <fmt>', 'Output format: json (default), md')
-        .action(async (session, opts) => {
+        .action(async (session, opts, command) => {
             const code = await runEvidenceSearch(session, {
                 claimId: opts.claimId,
-                format: opts.format,
+                format: command.optsWithGlobals().format,
             });
             process.exitCode = code;
         });
@@ -1237,7 +1220,7 @@ Examples:
         .option('--confidence <n>', 'Confidence 0-1', parseFloat)
         .option('--complete', 'Auto-trigger policy aggregation after this evidence')
         .option('-f, --format <fmt>', 'Output format: json (default), md')
-        .action(async (session, opts) => {
+        .action(async (session, opts, command) => {
             const code = await runEvidenceVerify(session, {
                 claimId: opts.claimId,
                 evidenceFile: opts.evidenceFile,
@@ -1245,7 +1228,7 @@ Examples:
                 reason: opts.reason,
                 confidence: opts.confidence,
                 complete: opts.complete ?? false,
-                format: opts.format,
+                format: command.optsWithGlobals().format,
             });
             process.exitCode = code;
         });
@@ -1256,10 +1239,10 @@ Examples:
         .description('List evidence for a claim')
         .requiredOption('--claim-id <id>', 'Claim ID')
         .option('-f, --format <fmt>', 'Output format: json (default), md')
-        .action(async (session, opts) => {
+        .action(async (session, opts, command) => {
             const code = await runEvidenceList(session, {
                 claimId: opts.claimId,
-                format: opts.format,
+                format: command.optsWithGlobals().format,
             });
             process.exitCode = code;
         });
@@ -1270,10 +1253,10 @@ Examples:
         .description('List verdicts for a claim')
         .requiredOption('--claim-id <id>', 'Claim ID')
         .option('-f, --format <fmt>', 'Output format: json (default), md')
-        .action(async (session, opts) => {
+        .action(async (session, opts, command) => {
             const code = await runVerdictList(session, {
                 claimId: opts.claimId,
-                format: opts.format,
+                format: command.optsWithGlobals().format,
             });
             process.exitCode = code;
         });
@@ -1284,10 +1267,10 @@ Examples:
         .description('Run policy aggregation (manual, or auto via evidence-verify --complete)')
         .option('--claim-id <id>', 'Aggregate only a specific claim')
         .option('-f, --format <fmt>', 'Output format: json (default), md')
-        .action(async (session, opts) => {
+        .action(async (session, opts, command) => {
             const code = await runPolicyAggregate(session, {
                 claimId: opts.claimId,
-                format: opts.format,
+                format: command.optsWithGlobals().format,
             });
             process.exitCode = code;
         });
@@ -1298,10 +1281,10 @@ Examples:
         .description('List reviews')
         .option('--status <status>', 'Filter: approved, needsReview, rejected')
         .option('-f, --format <fmt>', 'Output format: json (default), md')
-        .action(async (session, opts) => {
+        .action(async (session, opts, command) => {
             const code = await runReviewList(session, {
                 status: opts.status,
-                format: opts.format,
+                format: command.optsWithGlobals().format,
             });
             process.exitCode = code;
         });
