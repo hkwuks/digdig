@@ -312,6 +312,8 @@ See SOP for detailed L1/L2/L3 complexity guidelines.
 |---------|---------|
 | `dg <query>` | Search the web |
 | `dg extract` | Extract page content |
+| `dg doc-index` | Index local documents for BM25 search |
+| `dg doc-search` | Search local documents and inject results into session |
 | `dg results-add` | Append external results as pending |
 | `dg graph-preprocess` | TF-IDF + co-occurrence analysis |
 | `dg graph-add` | Add entities/edges to graph |

@@ -865,15 +865,10 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## SKILL.md 命令表漏了 doc-index / doc-search，且没有任何校验
 
 - ID: TF-20261107-96407c
-- Status: inbox
-- Priority: normal
-- Owner: Claude
-- Source: direct user request
-- Added: 2026-11-07
-- Updated: 2026-11-07
+- Status: done
 - Goal: `skills/digdig/SKILL.md:311-338` 的 Command Reference 表列了 24 个命令，而 `runCli.ts` 实际注册 27 个。差的是 `doc-index`、`doc-search`、`query-graph` 三个，但三者情况不同：`doc-index`/`doc-search` 在 `skills/digdig/references/SOP.md:398-430` 有完整章节（何时用、如何工作、Agent 决策表），只是没有进总表——只读 SKILL.md 的 Agent 不会发现这个能力存在；`query-graph` 在 `runCli.ts:809` 已标 `[DEPRECATED]`，`appendix.md:75` 也写了改用 `graph-explore` + `graph-drill`，不该进表。根因是命令表靠手抄、`--help` 由 commander 生成，两者之间没有任何校验。范围：补 `doc-index`/`doc-search` 两行进总表，并加一个测试断言 SKILL.md 的命令集合与 `runCli.ts` 注册的命令集合一致（允许一份显式豁免清单承载 `query-graph` 这类已废弃项）。
-- Task: `TaskFlowDocs/2026-11-07-docs-command-table/`
-- Next action: 写 PRD，按「补两行 + 加集合一致性测试」实施。
+- Task: `TaskFlowDocs/achieved/2026-11-07-docs-command-table/`
+- Next action: None — completed and archived.
 
 ## Query Plan 只活在 Agent 上下文里，CLI 不落地
 
