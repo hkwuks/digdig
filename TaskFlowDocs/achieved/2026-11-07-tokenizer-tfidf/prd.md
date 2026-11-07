@@ -1,6 +1,6 @@
 # tokenize() 把含 CJK 的混合 token 整体当 CJK 分支处理，ASCII 部分被切成碎片且原词丢失
 > Task version: v1
-> Status: planning
+> Status: completed
 
 ## Goal
 

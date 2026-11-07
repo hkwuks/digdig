@@ -887,16 +887,15 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## tfidf 聚合排序让高频词压过 IDF，恰恰排掉了最不能区分方面的词
 
 - ID: TF-20261107-b09652
-- Status: inbox
+- Status: cancelled
 - Priority: normal
 - Owner: Claude
 - Source: design report review
 - Added: 2026-11-07
 - Updated: 2026-11-07
-- Goal: `cli/src/deep/tfidf.ts:119` 的聚合排序是 `tfidf: tfSum * idf`，`tfSum` 取**所有文档出现次数之和**。高频词靠这一项压过 IDF，于是出现得越普遍的词排得越前——而它们恰恰最不能区分方面。依据是 `docs/agent_search_integrated_report_2026-10-27.md` 3.4.3 的实测：20 条结果、4 个查询方面的会话语料上，`graph-preprocess` 输出的词表是 `tokio`/`async`/`rust`（各 10/20，覆盖全会话）排在 `scheduler`/`epoll`/`cancellation`（各 5/20，真正的方面线索）之前。报告 3.4.5 第 3 条给出的替代做法是「按 IDF 排序并剔除跨轮高频词」的候选词。注意 `dg coverage` 的 `distinctiveTerms`（`cli/src/deep/coverage.ts:198-239`）**已经符合要求**——它按单轮内 `docFreq` 排序且剔除跨轮词；问题只在 `tfidf.ts`，不要在 coverage 上重复修。
-- Task: Not promoted.
-- Next action: 把排序依据改为 IDF 优先，并用 3.4.3 的四个方面合成语料补一个回归测试，断言方面词排在全会话主题词之前。
-
+- Goal: **2026-11-07 撤销，处理对象已不存在。** 原条目要改的是 `cli/src/deep/tfidf.ts:119` 的 `tfidf: tfSum * idf` 排序，把它改成「IDF 优先并按需过滤」。该函数（`computeTfIdf`）已随 `TF-20261107-1aa3f8` 整体移除——`graph-preprocess` 不再输出 `tfidfTerms`，同一命令内的 `termFrequencies[]` 是整数 df、`resultProvenance[].title` 可直接读，SOP 已改指这两个字段。撤销前对原结论的两次实测修正，一并记录以免以后重走：①「把 `tfSum` 换成每文档平均频次就能修正排序」不成立，在 20 条结果 / 4 方面各 5 条 / 主题词覆盖 10 条的语料上，两组词项的比值从 1.33 变为 0.55（确实跨过了 1，相对次序反转），但整体上大量 `df=1` 词项根本不受这个归一化影响——真实会话 `ds_1784791971087_gb9ood` 的 501 个词项里 450 个是 `df=1`（89.8%），归一化对它们无效。②「按 IDF 排序」按字面实现会让结果更差：`df=1` 的 IDF 最高，真实会话上输出就是「把所有只出现一次的词打乱后输出」。原先归给 `docs/agent_search_integrated_report_2026-10-27.md` 3.4.3 的实测与 3.4.5 的「不要在命令行内实现方面聚类」，在该文件被新版 `docs/agent_search_integrated_report.md` 取代后已无法核对（新版无 3.4 节、无 R31–R40）；同一条判据实际来源是 `TaskFlowDocs/achieved/2026-10-28-result-identity-pipeline/spec.md:214`，只适用于 `coverage.ts` 的 `distinctiveTerms`，那里未受影响。
+- Task: None — superseded by `TF-20261107-1aa3f8`（已完成，`achieved/2026-11-07-tokenizer-tfidf/`）。
+- Next action: None — `computeTfIdf` 已随 `achieved/2026-11-07-tokenizer-tfidf/` 移除。
 ## status 字段混了「Agent 是否认可」与「内容是否还是批准时的那份」
 
 - ID: TF-20261107-23d219
@@ -952,13 +951,7 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## tokenize() 把含 CJK 的混合 token 整体当 CJK 分支处理，ASCII 部分被切成碎片且原词丢失
 
 - ID: TF-20261107-1aa3f8
-- Status: promoted
-- Priority: normal
-- Owner: Claude
-- Source: direct user request
-- Added: 2026-11-07
-- Updated: 2026-11-07
+- Status: done
 - Goal: `cli/src/deep/tfidf.ts:27` 的 `if (CJK_RANGE.test(cleaned))` 判断的是 token **含有** CJK，不是**全部由** CJK 组成。于是任何混入汉字的 token 整体走 bigram 分支，其中的 ASCII 段被切成两字片段，原词不输出。实测：`github中文社区` → `["gi","it","th","hu","ub","b中","中文","文社","社区"]`；`rust异步运行时` → `["ru","us","st","t异","异步","步运","运行","行时"]`，**`rust` 整个丢失**。三个消费者共用此函数（`tfidf.ts` 的 `computeTfIdf`、`coverage.ts` 的 `distinctiveTermsOf`、`co-occurrence.ts` 的 `buildCoOccurrence`/`computeCrossResultFrequency`）。真实会话 `ds_1784791971087_gb9ood`（10 条有正文的结果）实测：501 个词项里 71 个是纯 ASCII 碎片（长度 ≤2），按 ASCII/CJK 分段后降为 0。同一次实测里 3 轮中文会话的 `dg coverage` 输出 `ep`/`po`/`ol`/`ll` 四个碎片并因 `docFreq=3` 排在 `distinctiveTerms` 最前。
-- 同批处理的第二件事：移除 `graph-preprocess` 的 `tfidfTerms` 字段。它按 `tfSum × idf` 排序（`tfidf.ts:119-122`），实测在修好 tokenizer 后前四位是 `github`/`context`/`hub`/`the`，`the` 与 URL 残留 `andrewyngcontexthub` 都进了前十。`SOP.md:159` 要求 Agent「选 tfidf > 阈值的词」，但 `tfidf` 是没有可比基准的浮点数，同一命令内已有 `termFrequencies`（整数 df，可解释）与 `resultProvenance[].title`（Agent 可直接读）。已核实无实质消费者：`--auto-entities` 降级路径**从未实现**（全仓库 grep 为零），`PRD-001` 里的 `{term, score, frequency}` 契约与实现 `{term, tf, idf, tfidf, docFreq}` 早已不一致，`runCli.ts:176-185` 只渲染表格。`coverage.ts` 的 `distinctiveTerms` **不动**——它按 spec(`achieved/2026-10-28-result-identity-pipeline/spec.md:214`) 实现且有测试，是独立通道。
-- Task: `TaskFlowDocs/2026-11-07-tokenizer-tfidf/`
-- Next action: Complete PRD / Spec / Plan and request approval.
+- Task: `TaskFlowDocs/achieved/2026-11-07-tokenizer-tfidf/`
+- Next action: None — completed and archived.

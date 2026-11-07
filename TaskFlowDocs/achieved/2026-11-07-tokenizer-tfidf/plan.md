@@ -1,6 +1,6 @@
 # Plan — tokenize() 把含 CJK 的混合 token 整体当 CJK 分支处理，ASCII 部分被切成碎片且原词丢失
 > Task version: v1
-> Status: planning
+> Status: completed
 
 No spec required — small, self-contained task.
 
@@ -130,3 +130,11 @@ No spec required — small, self-contained task.
 ## Version History
 
 - v1 — planning.
+
+## Todo Record
+
+Moved verbatim from the TODO entry by `hooks/archive`, grouped by the field each block followed.
+
+### `- Goal:`
+
+- 同批处理的第二件事：移除 `graph-preprocess` 的 `tfidfTerms` 字段。它按 `tfSum × idf` 排序（`tfidf.ts:119-122`），实测在修好 tokenizer 后前四位是 `github`/`context`/`hub`/`the`，`the` 与 URL 残留 `andrewyngcontexthub` 都进了前十。`SOP.md:159` 要求 Agent「选 tfidf > 阈值的词」，但 `tfidf` 是没有可比基准的浮点数，同一命令内已有 `termFrequencies`（整数 df，可解释）与 `resultProvenance[].title`（Agent 可直接读）。已核实无实质消费者：`--auto-entities` 降级路径**从未实现**（全仓库 grep 为零），`PRD-001` 里的 `{term, score, frequency}` 契约与实现 `{term, tf, idf, tfidf, docFreq}` 早已不一致，`runCli.ts:176-185` 只渲染表格。`coverage.ts` 的 `distinctiveTerms` **不动**——它按 spec(`achieved/2026-10-28-result-identity-pipeline/spec.md:214`) 实现且有测试，是独立通道。
