@@ -948,3 +948,17 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Goal: `computeSourceClusterId`（`cli/src/claims/deterministic-checks.ts:58-70`）把 publisher hostname 做 sha256 截 16 位当簇 ID。同一篇文章被 5 个站转载，5 个不同 hostname 就是 5 个「独立来源」，`policy.ts` 按来源域名数判定的规则（`dualSourceMixed`、`highRiskInsufficient`）因此会被骗过——`policy.ts:44` 的注释自己写的就是「Domain-level source independence」，即它知道这只是域名级而非内容级。`docs/agent_search_integrated_report_2026-10-27.md` 3.3 明写「证据数量不等于独立性：文章来源关系需要聚类；不能用 URL count 代替证据簇数」，2.6 节进一步要求「同一文章转载、共同通讯社稿、同一官方声明的多次改写应视作同一事实来源簇」。
 - Task: Not promoted.
 - Next action: 需要设计。真实来源簇识别需要正文相似度或 canonical URL 传播链，不是一行改动；先确认它在 Fast/Standard/Deep 哪一档启用（报告 4.1 里只有 Deep 有「来源簇与多样性约束」）。
+
+## tokenize() 把含 CJK 的混合 token 整体当 CJK 分支处理，ASCII 部分被切成碎片且原词丢失
+
+- ID: TF-20261107-1aa3f8
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: direct user request
+- Added: 2026-11-07
+- Updated: 2026-11-07
+- Goal: `cli/src/deep/tfidf.ts:27` 的 `if (CJK_RANGE.test(cleaned))` 判断的是 token **含有** CJK，不是**全部由** CJK 组成。于是任何混入汉字的 token 整体走 bigram 分支，其中的 ASCII 段被切成两字片段，原词不输出。实测：`github中文社区` → `["gi","it","th","hu","ub","b中","中文","文社","社区"]`；`rust异步运行时` → `["ru","us","st","t异","异步","步运","运行","行时"]`，**`rust` 整个丢失**。三个消费者共用此函数（`tfidf.ts` 的 `computeTfIdf`、`coverage.ts` 的 `distinctiveTermsOf`、`co-occurrence.ts` 的 `buildCoOccurrence`/`computeCrossResultFrequency`）。真实会话 `ds_1784791971087_gb9ood`（10 条有正文的结果）实测：501 个词项里 71 个是纯 ASCII 碎片（长度 ≤2），按 ASCII/CJK 分段后降为 0。同一次实测里 3 轮中文会话的 `dg coverage` 输出 `ep`/`po`/`ol`/`ll` 四个碎片并因 `docFreq=3` 排在 `distinctiveTerms` 最前。
+- 同批处理的第二件事：移除 `graph-preprocess` 的 `tfidfTerms` 字段。它按 `tfSum × idf` 排序（`tfidf.ts:119-122`），实测在修好 tokenizer 后前四位是 `github`/`context`/`hub`/`the`，`the` 与 URL 残留 `andrewyngcontexthub` 都进了前十。`SOP.md:159` 要求 Agent「选 tfidf > 阈值的词」，但 `tfidf` 是没有可比基准的浮点数，同一命令内已有 `termFrequencies`（整数 df，可解释）与 `resultProvenance[].title`（Agent 可直接读）。已核实无实质消费者：`--auto-entities` 降级路径**从未实现**（全仓库 grep 为零），`PRD-001` 里的 `{term, score, frequency}` 契约与实现 `{term, tf, idf, tfidf, docFreq}` 早已不一致，`runCli.ts:176-185` 只渲染表格。`coverage.ts` 的 `distinctiveTerms` **不动**——它按 spec(`achieved/2026-10-28-result-identity-pipeline/spec.md:214`) 实现且有测试，是独立通道。
+- Task: Not promoted.
+- Next action: 先修 `tokenize()` 并补回归测试（断言 `github中文社区` 产出 `github` 而非 `gi`/`it`/`th`，且 `rust异步运行时` 产出 `rust`）；再移除 `tfidfTerms` 连同 `computeTfIdf`、`runCli.ts` 的表格、3 条集成断言，并把 `SOP.md:159` 与 `cli/docs/AGENT-USAGE.md:53` 改指 `resultProvenance` 标题与 `termFrequencies`。
