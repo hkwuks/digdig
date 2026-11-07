@@ -31,10 +31,8 @@ describe('graph-preprocess (integration)', () => {
 
         const result = graphPreprocess(sessionDir);
 
-        expect(result.tokenizationStrategy).toBe('whitespace_min3_cjk_bigram');
         expect(result.totalResults).toBe(3);
         expect(result.resultsWithContent).toBe(3);
-        expect(result.tfidfTerms.length).toBeGreaterThan(0);
         expect(result.coOccurrences.length).toBeGreaterThan(0);
         expect(result.existingEntities).toEqual([]);
         expect(result.termFrequencies.length).toBeGreaterThan(0);
@@ -50,19 +48,7 @@ describe('graph-preprocess (integration)', () => {
 
         expect(result.totalResults).toBe(1);
         expect(result.resultsWithContent).toBe(0);
-        expect(result.tfidfTerms).toEqual([]);
         expect(result.coOccurrences).toEqual([]);
-    });
-
-    it('respects top option', () => {
-        initSessionDir(sessionDir);
-        appendSessionResults(sessionDir, [
-            { url: 'https://a.com', title: 'A', contentType: 'extracted', content: 'tokio async runtime rust programming language ecosystem', extractor: 'test' },
-            { url: 'https://b.com', title: 'B', contentType: 'extracted', content: 'hyper tonic tower grpc networking library', extractor: 'test' },
-        ]);
-
-        const result = graphPreprocess(sessionDir, { top: 3 });
-        expect(result.tfidfTerms.length).toBeLessThanOrEqual(3);
     });
 
     it('includes existing entities from graph', () => {

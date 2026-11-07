@@ -14,7 +14,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { DirectedGraph } from 'graphology';
-import { tokenize, computeTfIdf } from '../../src/deep/tfidf.js';
+import { tokenize } from '../../src/deep/tfidf.js';
 import { getEntityDegree } from '../../src/deep/degree-utils.js';
 import { sampleGraph } from '../../src/deep/graph-sampling.js';
 import { checkQueryRedundancy } from '../../src/deep/query-redundancy.js';
@@ -75,19 +75,6 @@ function buildResults(count: number): SessionResult[] {
 // ── Benchmarks ──────────────────────────────────────────────────────
 
 describe('Performance Benchmarks', () => {
-    describe('TF-IDF', () => {
-        it('computes TF-IDF for 100 results in <100ms', () => {
-            const results = buildResults(100);
-            const start = performance.now();
-            const output = computeTfIdf(results, { top: 30 });
-            const elapsed = performance.now() - start;
-
-            expect(output.terms.length).toBeGreaterThan(0);
-            expect(elapsed).toBeLessThan(100);
-            console.log(`  TF-IDF (100 results): ${elapsed.toFixed(2)}ms, terms=${output.terms.length}`);
-        });
-    });
-
     describe('getEntityDegree', () => {
         it('computes degree for a node in <5ms', () => {
             const graph = buildLargeGraph(1000, 2);

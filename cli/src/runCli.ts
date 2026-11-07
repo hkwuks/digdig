@@ -173,17 +173,6 @@ function formatPreprocessAsMarkdown(data: any): string {
     if (data.coOccurrenceTruncated) lines.push('*Co-occurrence matrix was truncated*');
     lines.push('');
 
-    if (data.tfidfTerms?.length) {
-        lines.push('### Top TF-IDF Terms');
-        lines.push('');
-        lines.push('| Term | TF-IDF | Doc Freq |');
-        lines.push('|------|--------|----------|');
-        for (const t of data.tfidfTerms.slice(0, 20)) {
-            lines.push(`| ${t.term} | ${t.tfidf.toFixed(2)} | ${t.docFreq} |`);
-        }
-        lines.push('');
-    }
-
     if (data.coOccurrences?.length) {
         lines.push('### Co-occurrences');
         lines.push('');
@@ -949,7 +938,7 @@ and write them back via graph-add.`)
     program
         .command('graph-preprocess')
         .argument('<session>', 'Session directory or name')
-        .description('Preprocess session data: TF-IDF, co-occurrence, entity context, and result provenance')
+        .description('Preprocess session data: co-occurrence, term frequencies, entity context, and result provenance')
         .option('--top <n>', 'Top N terms to return', val => parseInt(val, 10), 30)
         .option('--co-occurrence-threshold <n>', 'Min co-occurrence count', val => parseInt(val, 10), 2)
         .option('--max-terms <n>', 'Max terms for co-occurrence matrix', val => parseInt(val, 10), 50)

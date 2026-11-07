@@ -125,7 +125,7 @@ obscura --version
 | `dg session-report <session>` | Full session analysis report |
 | `dg session-list` | List all sessions |
 | `dg session-delete <name>` | Delete a session |
-| `dg graph-preprocess <session>` | TF-IDF + co-occurrence + result provenance analysis |
+| `dg graph-preprocess <session>` | Co-occurrence + term frequencies + result provenance analysis |
 | `dg graph-add <session> --data-file <path>` | Add semantic entities/edges backed by approved result IDs |
 | `dg graph-search <session>` | Discover entities by keyword |
 | `dg graph-explore <session>` | View entity relations |

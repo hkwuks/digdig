@@ -900,7 +900,7 @@ No extra npm dependencies needed — Obscura is called via CLI. Auto-detected fr
 | `dg coverage <session>` | What the session has looked at so far, as counted facts (rounds, queries, new vs repeated, round-local terms) |
 | `dg session-list` | List all sessions |
 | `dg session-delete <session-name>` | Delete a session |
-| `dg graph-preprocess <session>` | TF-IDF + co-occurrence + result provenance analysis |
+| `dg graph-preprocess <session>` | Co-occurrence + term frequencies + result provenance analysis |
 | `dg graph-add <session> --data-file <path>` | Add semantic entities/edges backed by approved result IDs |
 | `dg graph-search <session>` | Discover entities by keyword |
 | `dg graph-explore <session>` | View entity relations |
