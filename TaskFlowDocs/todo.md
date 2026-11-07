@@ -873,12 +873,78 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## Query Plan 只活在 Agent 上下文里，CLI 不落地
 
 - ID: TF-20261107-897767
-- Status: inbox
+- Status: cancelled
 - Priority: normal
 - Owner: Claude
 - Source: direct user request
 - Added: 2026-11-07
 - Updated: 2026-11-07
-- Goal: `skills/digdig/references/SOP.md` 要求 Agent 在深度研究前建一张 Query Plan，用 `unsearched`/`covered`/`partial`/`blocked` 四态记录每个子问题的证据缺口（`:80`、`:136-142`、`:247`），并把「所有核心行 covered 或 blocked 已披露」作为停止条件（`:116`、`:283`）。但 `SOP.md:140` 自己写着「It is not persisted by the CLI」，`grep -rn "queryPlan\|query-plan\|QueryPlan" cli/src` 零结果——这张清单只存在于对话上下文。会话压缩后清单消失，Agent 无法回答「还差哪几个子问题」，只能退回去看 `dg coverage`，而 coverage 报告的是轮次/结果数/域名/词频，回答不了「哪一部分没有证据」。后果是两种：误判查完就收工（答案不全），或没有目标地继续搜（浪费轮次）。这是设计缺口不是笔误：要落地必须先定 Query Plan 存在哪里（session 目录下的新文件？并入 results.json 信封？）、谁来写（新增 CLI 命令让 Agent 提交？Agent 手写 JSON 由命令校验？）、coverage 与 suggest-queries 怎么读它并据此给出「还缺什么/能否停止」。这些都与现有搜索结果存储、知识图谱存储的整体设计耦合，需要单独设计后再实施。
+- Goal: **2026-11-07 撤销，原判断方向错误。** 原条目主张「Query Plan 该由 CLI 持久化」，作为 Agent 判断「还缺什么」的落地方式。核对 `docs/agent_search_integrated_report_2026-10-27.md`（2026-10-29 补的 3.4 节）后确认这条方向被实测否掉了：3.4.5 明确写「不要在命令行内实现方面聚类」，执行摘要写「覆盖度不由命令行算法判定……该判断交给模型，命令侧只交付可数事实」。3.4.3 的实测显示小语料上 `tf × idf` 让最普遍的词排最前（`tokio`/`async`/`rust` 各 10/20 排在 `scheduler`/`epoll`/`cancellation` 各 5/20 之前），3.4.4 显示同义表述下词袋余弦 0.102 vs 跨方面 0.012、`cos ≥ 0.3` 聚类得到 12 个单点簇——词袋无法还原方面。所以 CLI 不该保存「缺口清单」，那是模型的产物。
+- 真正该做的是 3.4.5 第 3 条列的四项「可数事实」，对照现状：按轮分组查询、每轮新增条数、标题清单、剔除跨轮高频词的候选词——`dg coverage` 的前三项已具备，第四项 `distinctiveTerms`（`cli/src/deep/coverage.ts:198-239`）已按单轮内 docFreq 排序且剔除跨轮词，符合要求。真正不合规的是 `cli/src/deep/tfidf.ts:119` 的 `tfidf: tfSum * idf`，即 3.4.3 实测的那个聚合方式，已另记为 `TF-20261107-tfidf`。
 - Task: Not promoted.
-- Next action: 需要设计。先与现有 session 存储结构（`results.json` 信封 `{status, data:{results, rounds}}`、`graph.json`、`rounds`）一起通盘考虑，再决定是否 promote。
+- Next action: None — superseded by `TF-20261107-tfidf`; the "CLI persists the gap list" premise is refuted by the design report.
+
+## tfidf 聚合排序让高频词压过 IDF，恰恰排掉了最不能区分方面的词
+
+- ID: TF-20261107-b09652
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: design report review
+- Added: 2026-11-07
+- Updated: 2026-11-07
+- Goal: `cli/src/deep/tfidf.ts:119` 的聚合排序是 `tfidf: tfSum * idf`，`tfSum` 取**所有文档出现次数之和**。高频词靠这一项压过 IDF，于是出现得越普遍的词排得越前——而它们恰恰最不能区分方面。依据是 `docs/agent_search_integrated_report_2026-10-27.md` 3.4.3 的实测：20 条结果、4 个查询方面的会话语料上，`graph-preprocess` 输出的词表是 `tokio`/`async`/`rust`（各 10/20，覆盖全会话）排在 `scheduler`/`epoll`/`cancellation`（各 5/20，真正的方面线索）之前。报告 3.4.5 第 3 条给出的替代做法是「按 IDF 排序并剔除跨轮高频词」的候选词。注意 `dg coverage` 的 `distinctiveTerms`（`cli/src/deep/coverage.ts:198-239`）**已经符合要求**——它按单轮内 `docFreq` 排序且剔除跨轮词；问题只在 `tfidf.ts`，不要在 coverage 上重复修。
+- Task: Not promoted.
+- Next action: 把排序依据改为 IDF 优先，并用 3.4.3 的四个方面合成语料补一个回归测试，断言方面词排在全会话主题词之前。
+
+## status 字段混了「Agent 是否认可」与「内容是否还是批准时的那份」
+
+- ID: TF-20261107-23d219
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: design report review
+- Added: 2026-11-07
+- Updated: 2026-11-07
+- Goal: `SessionResult.status` 是 `pending`/`approved` 二值，同时承担两个语义：Agent 对这条结果的采信决定，以及这条结果的内容是否仍是批准时的那一份。`repairInvalidDependents`（`cli/src/deep/session.ts:520-560`）用 `result.status !== 'approved'` 判定 `contentChanged`，于是**所有**通向非 approved 的路径被一视同仁：Agent 主动 skip、正文被重新抽取、被跳过的结果被重新导入。三者触发同一套级联——`evidences` 标 `invalid`、受影响的 `claim` 回 `verifying`、对应 `review` 直接删除、语义图里 `sourceResultIds` 含该 id 的节点与边物理删除、`path` 节点因实体消失而删除、孤立 `query`/`domain` 节点也删除。D1 只是这个模型的第一个受害者：当时（`TaskFlowDocs/achieved/2026-11-03-session-reimport-downgrade/`）的修法是加 guard `(bodyChanged || wasSkipped)`，**根因未动**，任何新增的降级路径都会复现同类破坏。`docs/agent_search_integrated_report_2026-10-27.md` 4.3 的数据契约把这件事拆成三个独立实体（`SubQuestion.status`、`Claim.status`、`Evidence`），可作为拆分参照。
+- Task: Not promoted.
+- Next action: 拆分字段——把「内容版本」独立出来（如 `contentRevision` 或 snapshot id），`repairInvalidDependents` 只在内容版本变化或显式 skip 时级联，而不是看 `status`。
+
+## SessionResult 没有 snapshot 概念，证据定位无法在重抽取后重新对齐
+
+- ID: TF-20261107-024a82
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: design report review
+- Added: 2026-11-07
+- Updated: 2026-11-07
+- Goal: `SessionResult.content` 是裸字符串，没有 `normalized_text_hash`，没有 `extraction_version`。`EvidenceSpan`（`cli/src/claims/types.ts:46`）的 `charStart`/`charEnd` 是 UTF-16 偏移，正文重新抽取后偏移失效；现在只能靠 `contentHash` 校验失败来发现，**没有版本化的重定位机制**。`docs/agent_search_integrated_report_2026-10-27.md` 4.3 明确要求「重抽取或正文标准化版本变化时，应重新定位，不能沿用旧偏移」，并把 `Snapshot(id, url, final_url, mime, normalized_text_hash, extraction_version, access_level)` 列为一个独立实体。次要缺口：locator 只有文本偏移一种，报告还要求 PDF 页码/区域、表格行列、代码 commit+文件+行号、视频时间戳——「不应假装所有证据都能被表示为 UTF-8 文本中的一对 start/end」。
+- Task: Not promoted.
+- Next action: 先定 snapshot 的存储位置与版本语义（与 `TF-20261107-492224` 的三层拆分是同一件事），多 locator 类型留到之后。
+
+## results.json 把三层存储混成一个文件
+
+- ID: TF-20261107-492224
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: design report review
+- Added: 2026-11-07
+- Updated: 2026-11-07
+- Goal: `results.json` 同时装着 `docs/agent_search_integrated_report_2026-10-27.md` 4.4 要求分开的三层：Search Cache（查询、候选摘要、后端状态）、Evidence Store（抓取快照、定位、哈希、出处）、Verified Knowledge（已审核且值得复用的结论）。报告要求三者各有不同的 TTL 与失效策略，混在一起就无法分别治理。现状后果可量化：`writeResults`（`cli/src/deep/session.ts:304`）每次全量重写整个文件，抽取正文后正文占比超过 90%，一个 200 条结果的会话就是数 MB；而 `loadSessionResults` 在 20 多处被调用，其中 `loadSessionGraph`、`mutateSessionGraph`、`mutateSessionState`、`approveResults` 每次还会附带跑一遍有副作用的 `repairInvalidDependents`。结论是**分层**而不是分片——分片只是手段，报告 4.4 要的是三层各自的生命周期。
+- Task: Not promoted.
+- Next action: 需要设计。这是 `TF-20261107-024a82`（snapshot）与 `TF-20261107-23d219`（status 拆分）的共同前置，三者应一起设计。
+
+## 来源簇只按 hostname 判断，转载被当成独立来源
+
+- ID: TF-20261107-ebc986
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: design report review
+- Added: 2026-11-07
+- Updated: 2026-11-07
+- Goal: `computeSourceClusterId`（`cli/src/claims/deterministic-checks.ts:58-70`）把 publisher hostname 做 sha256 截 16 位当簇 ID。同一篇文章被 5 个站转载，5 个不同 hostname 就是 5 个「独立来源」，`policy.ts` 按来源域名数判定的规则（`dualSourceMixed`、`highRiskInsufficient`）因此会被骗过——`policy.ts:44` 的注释自己写的就是「Domain-level source independence」，即它知道这只是域名级而非内容级。`docs/agent_search_integrated_report_2026-10-27.md` 3.3 明写「证据数量不等于独立性：文章来源关系需要聚类；不能用 URL count 代替证据簇数」，2.6 节进一步要求「同一文章转载、共同通讯社稿、同一官方声明的多次改写应视作同一事实来源簇」。
+- Task: Not promoted.
+- Next action: 需要设计。真实来源簇识别需要正文相似度或 canonical URL 传播链，不是一行改动；先确认它在 Fast/Standard/Deep 哪一档启用（报告 4.1 里只有 Deep 有「来源簇与多样性约束」）。
