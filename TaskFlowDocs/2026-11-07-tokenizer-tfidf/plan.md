@@ -44,16 +44,16 @@ No spec required — small, self-contained task.
 - Dependencies: 无
 - Files: `cli/src/deep/tfidf.ts`、`cli/test/unit/deep/tfidf.test.ts`
 - Implementation checklist:
-  - [ ] 先写失败测试：`tokenize('github中文社区')` 含 `github`、`中文`、`社区`，不含 `gi`/`it`/`th`/`hu`/`ub`
-  - [ ] 先写失败测试：`tokenize('rust异步运行时')` 含 `rust`、`异步`、`运行`，不含 `ru`/`us`/`st`
-  - [ ] 先写失败测试：`tokenize('Tokio async-std')` 仍产出 `tokio`、`asyncstd`（纯 ASCII 行为不变）
-  - [ ] 确认三条测试在现有实现下失败（RED）
-  - [ ] 把 `CJK_RANGE.test(cleaned)` 的单分支改为按 run 分段：`cleaned.match(/[CJK]+|[^CJK]+/g)`，ASCII 段长度 ≥3 整段保留，CJK 段按 bigram 展开
-  - [ ] 确认三条测试通过（GREEN），且原有 9 条 `tokenize` 测试全部通过
+  - [x] 先写失败测试：`tokenize('github中文社区')` 含 `github`、`中文`、`社区`，不含 `gi`/`it`/`th`/`hu`/`ub`
+  - [x] 先写失败测试：`tokenize('rust异步运行时')` 含 `rust`、`异步`、`运行`，不含 `ru`/`us`/`st`
+  - [x] 先写失败测试：`tokenize('Tokio async-std')` 仍产出 `tokio`、`asyncstd`（纯 ASCII 行为不变）
+  - [x] 确认三条测试在现有实现下失败（RED）
+  - [x] 把 `CJK_RANGE.test(cleaned)` 的单分支改为按 run 分段：`cleaned.match(/[CJK]+|[^CJK]+/g)`，ASCII 段长度 ≥3 整段保留，CJK 段按 bigram 展开
+  - [x] 确认三条测试通过（GREEN），且原有 9 条 `tokenize` 测试全部通过
 - Acceptance: PRD 前三条验收标准
 - Verification: `cd cli && npx vitest run test/unit/deep/tfidf.test.ts`
 - Rollback: 单文件单函数，`git checkout -- cli/src/deep/tfidf.ts`
-- Status: pending
+- Status: done
 
 ### Step 2 — 用真实数据验证修复效果
 
@@ -61,14 +61,14 @@ No spec required — small, self-contained task.
 - Dependencies: Step 1
 - Files: 无源码改动，只做测量
 - Implementation checklist:
-  - [ ] `npm run build`
-  - [ ] 对 `.digdig/sessions/ds_1784791971087_gb9ood` 统计：纯 ASCII 碎片（长度 ≤2）从 71 降到 0
-  - [ ] 用临时 3 轮中文会话跑 `buildCoverage`，确认 `distinctiveTerms` 含 `epoll` 而非 `ep`/`ol`/`ll`/`po`
-  - [ ] 记录修复前后 `dg coverage` 的实际输出到 plan 的 Change Log
+  - [x] `npm run build`
+  - [x] 对 `.digdig/sessions/ds_1784791971087_gb9ood` 统计：纯 ASCII 碎片（长度 ≤2）从 71 降到 0
+  - [x] 用临时 3 轮中文会话跑 `buildCoverage`，确认 `distinctiveTerms` 含 `epoll` 而非 `ep`/`ol`/`ll`/`po`
+  - [x] 记录修复前后 `dg coverage` 的实际输出到 plan 的 Change Log
 - Acceptance: PRD 后两条验收标准
 - Verification: 上述脚本输出
 - Rollback: 不适用（只读测量）
-- Status: pending
+- Status: done
 
 ### Step 3 — 移除 tfidfTerms
 
@@ -76,19 +76,19 @@ No spec required — small, self-contained task.
 - Dependencies: Step 2（先确认修复后该字段仍不可用，记录为证据）
 - Files: `cli/src/deep/tfidf.ts`、`cli/src/deep/graph-preprocess.ts`、`cli/src/runCli.ts`、`cli/test/integration/graph-preprocess.test.ts`、`cli/test/benchmark/performance.bench.ts`、`skills/digdig/references/SOP.md`、`cli/docs/AGENT-USAGE.md`
 - Implementation checklist:
-  - [ ] 先记录 Step 2 里修好的 tokenizer 之下 `tfidfTerms` 前 12 位的实际输出（`the`、`andrewyngcontexthub` 等），作为移除依据写进 Change Log
-  - [ ] 删除 `cli/src/deep/tfidf.ts` 的 `computeTfIdf`、`TfIdfResult`、`TfIdfOutput`，保留 `tokenize`
-  - [ ] 删除 `graph-preprocess.ts` 的 `tfidfTerms` 字段（类型与赋值）
-  - [ ] 删除 `runCli.ts:176-185` 的表格渲染
-  - [ ] 删除 `graph-preprocess.test.ts` 里三条 `tfidfTerms` 断言；确认 `tokenizationStrategy` 字段的去留
-  - [ ] 更新 `performance.bench.ts` 里对 `computeTfIdf` 的引用
-  - [ ] 改 `SOP.md:159`：改用 `resultProvenance[].title` 与 `termFrequencies`
-  - [ ] 改 `AGENT-USAGE.md:53,111`
-  - [ ] `npx tsc --noEmit` 确认无残留引用
+  - [x] 先记录 Step 2 里修好的 tokenizer 之下 `tfidfTerms` 前 12 位的实际输出（`the`、`andrewyngcontexthub` 等），作为移除依据写进 Change Log
+  - [x] 删除 `cli/src/deep/tfidf.ts` 的 `computeTfIdf`、`TfIdfResult`、`TfIdfOutput`，保留 `tokenize`
+  - [x] 删除 `graph-preprocess.ts` 的 `tfidfTerms` 字段（类型与赋值）
+  - [x] 删除 `runCli.ts:176-185` 的表格渲染
+  - [x] 删除 `graph-preprocess.test.ts` 里三条 `tfidfTerms` 断言；确认 `tokenizationStrategy` 字段的去留
+  - [x] 更新 `performance.bench.ts` 里对 `computeTfIdf` 的引用
+  - [x] 改 `SOP.md:159`：改用 `resultProvenance[].title` 与 `termFrequencies`
+  - [x] 改 `AGENT-USAGE.md:53,111`
+  - [x] `npx tsc --noEmit` 确认无残留引用
 - Acceptance: PRD 的四、五、六条要求
 - Verification: `cd cli && npm run build && npx vitest run` 全绿
 - Rollback: `git revert` 本步提交
-- Status: pending
+- Status: done
 
 ### Step 4 — 全量验证与文档收尾
 
@@ -96,15 +96,15 @@ No spec required — small, self-contained task.
 - Dependencies: Step 3
 - Files: 无新增
 - Implementation checklist:
-  - [ ] `cd cli && npm run build && npx vitest run`
-  - [ ] `npx tsc --noEmit`
-  - [ ] `dg graph-preprocess --format json` 输出确认无 `tfidfTerms` 键
-  - [ ] `dg graph-preprocess --format md` 确认不崩（表格已删）
-  - [ ] 检查 `README.md` / `README.zh-CN.md` / `SKILL.md` 是否提到 TF-IDF 输出字段
+  - [x] `cd cli && npm run build && npx vitest run`
+  - [x] `npx tsc --noEmit`
+  - [x] `dg graph-preprocess --format json` 输出确认无 `tfidfTerms` 键
+  - [x] `dg graph-preprocess --format md` 确认不崩（表格已删）
+  - [x] 检查 `README.md` / `README.zh-CN.md` / `SKILL.md` 是否提到 TF-IDF 输出字段
 - Acceptance: 全套绿
 - Verification: 上述命令
 - Rollback: 不适用
-- Status: pending
+- Status: done
 
 ## Checkpoints
 
@@ -116,6 +116,12 @@ No spec required — small, self-contained task.
 ## Verification / Review
 
 ## Change Log
+
+- **Step 1** — RED 已确认：`github中文社区` 与 `rust异步运行时` 两条新测试在旧实现下失败，报错分别是 `expected ['gi','it','th','hu','ub',…] to include 'github'` 与 `expected ['ru','us','st','t异','异步',…] to include 'rust'`；第三条纯 ASCII 用例本就通过。改为按 run 分段后 20/20 通过，原有 9 条 `tokenize` 用例无回归。
+- **Step 2** — 真实会话 `ds_1784791971087_gb9ood`：不同词项 501 → 404，纯 ASCII 碎片（长度 ≤2）**71 → 0**，短词+低 df 噪声 74 → 11。3 轮中文会话 `buildCoverage`：修复前 `ep`/`po`/`ol`/`ll` 四个碎片各 `docFreq=3` 排在 `distinctiveTerms` 最前，修复后为 `epoll(3)`，且无任何 ASCII 碎片与跨边界碎片（`与e` 消失）。
+- **Step 3** — 修好 tokenizer 后重新测量 `tfidfTerms`，前四位是 `github`/`context`/`hub`/`the`，`andrewyngcontexthub` 在第 9 位，据此移除该字段。`tokenizationStrategy` 保留，值改为 `whitespace_min3_cjk_bigram_split`（由 `TOKENIZATION_STRATEGY` 常量导出），因为它描述的是 `tokenize()` 本身的行为，仍是 Agent 需要的事实。
+- **Step 3** — `AGENT-USAGE.md` 未改：`cli/docs/` 在主检出中是 untracked 目录，worktree 内不存在，不属于本任务范围。
+- **Step 4** — `tsc --noEmit` 干净；全量 595 测试通过（48 文件）；`--format json` 输出无 `tfidfTerms` 键；`--format md` 正常渲染不崩；README/README.zh-CN/cli/README/SKILL.md 中 5 处 TF-IDF 描述已同步。
 
 ## Follow-ups
 
