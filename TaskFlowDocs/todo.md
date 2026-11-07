@@ -861,3 +861,29 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Goal: 一批已确认的小缺陷：graph-explore.ts:457-471 resultCount 按 mentions 入边自增而 resultIds 是 Set（一个结果同时提两个路径实体时 2 vs 1）；graph-sampling.ts:506 mixed 策略在没有 rngSeed 时固定播 42 且 CLI 从不传 seed，--strategy mixed 永远选 community_core_path；local-doc/searcher.ts:184 与 scanner.ts:146 frontmatter 标题重复拼接成 X — X；session.ts:651 对空字符串也赋值 excerpt，Jina/Obscura 的 excerpt:'' 会清掉搜索层摘要；graph-obfuscate.ts:48-55 --fallback-rules 用裸 writeFileSync 写 graph.json，绕开会话锁且非原子；extractor.ts:390-404 与 extract.ts:15-19 把 50-99 字符的 Defuddle 结果记为失败并丢弃可用文本；session.ts:654 写入的 contentLength 无人读取且 Defuddle 记词数、Jina/Obscura 记字符数
 - Task: Not promoted.
 - Next action: Clarify and promote when ready.
+
+## SKILL.md 命令表漏了 doc-index / doc-search，且没有任何校验
+
+- ID: TF-20261107-96407c
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: direct user request
+- Added: 2026-11-07
+- Updated: 2026-11-07
+- Goal: `skills/digdig/SKILL.md:311-338` 的 Command Reference 表列了 24 个命令，而 `runCli.ts` 实际注册 27 个。差的是 `doc-index`、`doc-search`、`query-graph` 三个，但三者情况不同：`doc-index`/`doc-search` 在 `skills/digdig/references/SOP.md:398-430` 有完整章节（何时用、如何工作、Agent 决策表），只是没有进总表——只读 SKILL.md 的 Agent 不会发现这个能力存在；`query-graph` 在 `runCli.ts:809` 已标 `[DEPRECATED]`，`appendix.md:75` 也写了改用 `graph-explore` + `graph-drill`，不该进表。根因是命令表靠手抄、`--help` 由 commander 生成，两者之间没有任何校验。范围：补 `doc-index`/`doc-search` 两行进总表，并加一个测试断言 SKILL.md 的命令集合与 `runCli.ts` 注册的命令集合一致（允许一份显式豁免清单承载 `query-graph` 这类已废弃项）。
+- Task: `TaskFlowDocs/2026-11-07-docs-command-table/`
+- Next action: 写 PRD，按「补两行 + 加集合一致性测试」实施。
+
+## Query Plan 只活在 Agent 上下文里，CLI 不落地
+
+- ID: TF-20261107-897767
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: direct user request
+- Added: 2026-11-07
+- Updated: 2026-11-07
+- Goal: `skills/digdig/references/SOP.md` 要求 Agent 在深度研究前建一张 Query Plan，用 `unsearched`/`covered`/`partial`/`blocked` 四态记录每个子问题的证据缺口（`:80`、`:136-142`、`:247`），并把「所有核心行 covered 或 blocked 已披露」作为停止条件（`:116`、`:283`）。但 `SOP.md:140` 自己写着「It is not persisted by the CLI」，`grep -rn "queryPlan\|query-plan\|QueryPlan" cli/src` 零结果——这张清单只存在于对话上下文。会话压缩后清单消失，Agent 无法回答「还差哪几个子问题」，只能退回去看 `dg coverage`，而 coverage 报告的是轮次/结果数/域名/词频，回答不了「哪一部分没有证据」。后果是两种：误判查完就收工（答案不全），或没有目标地继续搜（浪费轮次）。这是设计缺口不是笔误：要落地必须先定 Query Plan 存在哪里（session 目录下的新文件？并入 results.json 信封？）、谁来写（新增 CLI 命令让 Agent 提交？Agent 手写 JSON 由命令校验？）、coverage 与 suggest-queries 怎么读它并据此给出「还缺什么/能否停止」。这些都与现有搜索结果存储、知识图谱存储的整体设计耦合，需要单独设计后再实施。
+- Task: Not promoted.
+- Next action: 需要设计。先与现有 session 存储结构（`results.json` 信封 `{status, data:{results, rounds}}`、`graph.json`、`rounds`）一起通盘考虑，再决定是否 promote。
