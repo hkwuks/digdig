@@ -151,13 +151,14 @@ dg --session new --owner "researcher" --desc "RAG Vector DB deep research" --que
 # Extract key page content
 dg extract --session <session>
 
-# Get TF-IDF terms, co-occurrence pairs, existing entities from extracted content
+# Get co-occurrence pairs, term frequencies, result titles, existing entities
 dg graph-preprocess <session> --format json
 ```
 
 **Agent Decision Logic**:
-- Select terms with tfidf > threshold that are not in existing entity list
-- Prioritize terms with high co-occurrence count (high connectivity)
+- Read the page titles in `resultProvenance[].title` — they say what each body is about
+- Use `termFrequencies[]` (an integer count of how many results contain each term) together with `coOccurrences[]` to judge which terms are worth an entity
+- Skip terms already present in `existingEntities`
 - Avoid overly broad terms
 
 #### Phase 3: Quality Assessment & Agent Approval

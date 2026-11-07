@@ -881,7 +881,7 @@ obscura --version
 | `dg coverage <session>` | 本会话已看过什么，以可数事实呈现（轮次、查询、新增与重复、轮内独有词） |
 | `dg session-list` | 列出所有会话 |
 | `dg session-delete <session-name>` | 删除指定会话 |
-| `dg graph-preprocess <session>` | TF-IDF + 共现分析 + 结果来源轮次 |
+| `dg graph-preprocess <session>` | 共现分析 + 词频 + 结果来源轮次 |
 | `dg graph-add <session> --data-file <path>` | 从 UTF-8 JSON 添加由已审批结果 ID 支撑的语义实体/边 |
 | `dg graph-search <session>` | 按关键词发现实体 |
 | `dg graph-explore <session>` | 查看实体关系 |

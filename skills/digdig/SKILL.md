@@ -64,7 +64,7 @@ dg strategy-info <session>      # Check search stage
 dg session-report <session>     # Full session report
 
 # Knowledge graph
-dg graph-preprocess <session>                                                                                                                # TF-IDF + co-occurrence analysis
+dg graph-preprocess <session>                                                                                                                # Co-occurrence + term frequency analysis
 dg results-add <session> --kind search --tool exa --query "source query" --data-file .\.digdig\sessions\<session>\agent-inputs\results.json  # Append external discovery as pending
 dg graph-add <session> --data-file .\.digdig\sessions\<session>\agent-inputs\graph-data.json                                                 # Add entities/edges (after approval)
 dg graph-search <session> --keyword "x"                                                                                                      # Discover entities
@@ -315,7 +315,7 @@ See SOP for detailed L1/L2/L3 complexity guidelines.
 | `dg doc-index` | Index local documents for BM25 search |
 | `dg doc-search` | Search local documents and inject results into session |
 | `dg results-add` | Append external results as pending |
-| `dg graph-preprocess` | TF-IDF + co-occurrence analysis |
+| `dg graph-preprocess` | Co-occurrence + term frequency analysis |
 | `dg graph-add` | Add entities/edges to graph |
 | `dg graph-search` | Discover entities by keyword |
 | `dg graph-explore` | View entity relations |

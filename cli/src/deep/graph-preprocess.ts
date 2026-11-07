@@ -1,16 +1,15 @@
 /**
- * graph-preprocess: Preprocess session data to produce TF-IDF terms,
- * co-occurrence pairs, and existing entity context for Agent consumption.
+ * graph-preprocess: Preprocess session data to produce co-occurrence pairs,
+ * term frequencies, and existing entity context for Agent consumption.
  */
 
 import { DirectedGraph } from 'graphology';
-import { computeTfIdf } from './tfidf.js';
+import { TOKENIZATION_STRATEGY } from './tfidf.js';
 import { buildCoOccurrence, computeCrossResultFrequency, getExistingEntityContext } from './co-occurrence.js';
 import { hasVerifiedContent, loadSessionResults, loadSessionGraph, loadSessionRounds } from './session.js';
 import { GraphNodeAttrs, GraphEdgeAttrs } from './graph.js';
 
 export interface PreprocessResult {
-    tfidfTerms: Array<{ term: string; tf: number; idf: number; tfidf: number; docFreq: number }>;
     coOccurrences: Array<{ term1: string; term2: string; count: number }>;
     existingEntities: Array<{ id: string; label: string; degree: number; entityType?: string }>;
     resultProvenance: Array<{ id: string; revision: number; url: string; title: string; approval: 'pending' | 'approved'; rounds: number[] }>;
@@ -37,7 +36,6 @@ export function graphPreprocess(
     const graph: DirectedGraph<GraphNodeAttrs, GraphEdgeAttrs> = loadSessionGraph(sessionDir);
     const bodyResults = results.filter(hasVerifiedContent);
 
-    const tfidf = computeTfIdf(bodyResults, { top: opts?.top });
     const coOcc = buildCoOccurrence(bodyResults, {
         threshold: opts?.coOccurrenceThreshold,
         maxTerms: opts?.maxTermsForCoOccurrence,
@@ -57,15 +55,14 @@ export function graphPreprocess(
     }));
 
     return {
-        tfidfTerms: tfidf.terms,
         coOccurrences: coOcc.pairs,
         existingEntities: entities,
         resultProvenance,
         termFrequencies: termFreqs,
         roundsCovered: loadSessionRounds(sessionDir),
         totalResults: results.length,
-        resultsWithContent: tfidf.resultsWithContent,
-        tokenizationStrategy: tfidf.tokenizationStrategy,
+        resultsWithContent: bodyResults.length,
+        tokenizationStrategy: TOKENIZATION_STRATEGY,
         coOccurrenceTruncated: coOcc.truncated,
     };
 }
