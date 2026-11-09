@@ -92,6 +92,18 @@ describe('fuseResults', () => {
         expect(urls).toContain('https://live.com');
     });
 
+    it('includes merged results in session output while excluding history and respecting limit', () => {
+        const output = fuseResults({
+            responses: [response('q', [result('https://live.com')])],
+            mergeResults: [result('https://merged.com')],
+            sessionSnapshot: [result('https://history.com'), result('https://merged.com')],
+            onlyCurrent: true,
+            limit: 1,
+        });
+        expect(output.display.map(r => r.url)).toEqual(['https://merged.com']);
+        expect(output.fused.some(item => item.id.includes('history.com'))).toBe(true);
+    });
+
     it('keeps local document chunks as separate results', () => {
         const output = fuseResults({
             responses: [response('q', [

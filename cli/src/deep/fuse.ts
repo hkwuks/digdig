@@ -101,9 +101,10 @@ export function fuseResults(input: FusionInput): FusionOutput {
             originsByKey.set(key, origins);
         }
     }
-    // Only a current result can be displayed, so only a current result needs a body.
+    // Imported results belong to this invocation, not the session history.
     for (const result of input.mergeResults ?? []) {
         const key = resultUrlKey(result);
+        currentKeys.add(key);
         if (!current.has(key)) current.set(key, result);
     }
 

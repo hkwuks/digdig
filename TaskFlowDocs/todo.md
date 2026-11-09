@@ -415,15 +415,10 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## P4 — --session + --merge 时 merge 结果被静默丢弃
 
 - ID: TF-20261103-f917c9
-- Status: inbox
-- Priority: normal
-- Owner: Claude
-- Source: code-research:2026-11-03-cli-audit
-- Added: 2026-11-03
-- Updated: 2026-11-03
+- Status: done
 - Goal: --session 与 --merge 同时用时 merge 结果被静默丢弃：fuseResults 计入排序与候选池(totalResults=31)，但 onlyCurrent 过滤掉 display，appendSessionResults 只写 display，落盘 results.json 中该 URL 完全消失
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: `TaskFlowDocs/achieved/2026-11-09-session-merge-results/`
+- Next action: None — completed and archived.
 
 ## P5 — -l abc / -l -5 静默放行
 
