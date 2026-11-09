@@ -743,15 +743,10 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## D3 — withIndexLock 抢锁失败删掉他人的锁
 
 - ID: TF-20261103-a83d77
-- Status: inbox
-- Priority: normal
-- Owner: Claude
-- Source: code-review:2026-11-03-deep
-- Added: 2026-11-03
-- Updated: 2026-11-03
+- Status: done
 - Goal: withIndexLock 抢锁失败时删掉别的进程正持有的锁：indexer.ts:70-89 的 finally 无条件 rmSync(.lock)，缺少 withSessionLock (session.ts:129-154) 那样的 acquired 标志。实测外部持有 .lock 时 refreshIndex 抛 INDEX_BUSY，同时那把锁被删除
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: `TaskFlowDocs/achieved/2026-11-09-index-lock-ownership/`
+- Next action: None — completed and archived.
 
 ## D4 — graph-preprocess 的 md 渲染器会崩溃（被 P1 遮蔽）
 

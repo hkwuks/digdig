@@ -71,6 +71,7 @@ async function withIndexLock<T>(rootPath: string, action: () => Promise<T>): Pro
   const indexPath = getIndexPath(rootPath);
   mkdirSync(indexPath, { recursive: true });
   const lock = join(indexPath, '.lock');
+  let acquired = false;
   try {
     try { mkdirSync(lock); }
     catch {
@@ -82,9 +83,10 @@ async function withIndexLock<T>(rootPath: string, action: () => Promise<T>): Pro
         throw Object.assign(new Error('Local document index is busy'), { code: 'INDEX_BUSY' });
       }
     }
+    acquired = true;
     return await action();
   } finally {
-    try { rmSync(lock, { recursive: true, force: true }); } catch { /* best effort */ }
+    try { if (acquired) rmSync(lock, { recursive: true, force: true }); } catch { /* best effort */ }
   }
 }
 
