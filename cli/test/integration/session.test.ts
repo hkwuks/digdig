@@ -1,5 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+vi.mock('fs', async importOriginal => {
+  const actual = await importOriginal<typeof import('fs')>();
+  return { ...actual, existsSync: vi.fn(actual.existsSync) };
+});
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import {
@@ -295,8 +299,17 @@ describe('session result contract', () => {
     expect(loadSessionResults(sessionDir)[0].skippedAt).toBeUndefined();
   });
 
-  it('accepts Agent JSON only inside the owning session agent-inputs directory', () => {
-    expect(validateSessionInputFile(sessionDir, join(sessionDir, 'agent-inputs', 'request.json'))).toBeUndefined();
+  it('rejects UNC paths before checking whether the file exists', () => {
+    const existsSyncMock = vi.mocked(existsSync);
+    existsSyncMock.mockClear();
+    expect(validateSessionInputFile(sessionDir, String.raw`\\server\share\outside.json`)).toBeUndefined();
+    expect(existsSyncMock).not.toHaveBeenCalled();
+  });
+
+  it('accepts existing files inside the owning session agent-inputs directory', () => {
+    const file = join(sessionDir, 'agent-inputs', 'request.json');
+    writeFileSync(file, '{}', 'utf8');
+    expect(validateSessionInputFile(sessionDir, file)).toBe(file);
     expect(validateSessionInputFile(sessionDir, join(sessionDir, '..', 'request.json'))).toBeUndefined();
   });
 });
