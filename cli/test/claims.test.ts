@@ -325,6 +325,28 @@ describe('claim-add', () => {
 
 describe('deterministic checks', () => {
   describe('evidence verification', () => {
+    it.each([
+      { name: 'empty quote', quote: '', charStart: 0, charEnd: 0, code: 'INVALID_EVIDENCE' },
+      { name: 'whitespace-only quote', quote: ' ', charStart: 5, charEnd: 6, code: 'INVALID_EVIDENCE' },
+      { name: 'zero-length span', quote: 'x', charStart: 0, charEnd: 0, code: 'OFFSET_OUT_OF_RANGE' },
+      { name: 'reversed span', quote: 'x', charStart: 10, charEnd: 3, code: 'OFFSET_OUT_OF_RANGE' },
+    ])('rejects $name without recording evidence', async ({ quote, charStart, charEnd, code }) => {
+      saveClaims(sessionDir, [{
+        id: 'cl_001', text: 'Tokio is widely used', riskLevel: 'medium',
+        status: 'pending', sessionDir, createdAt: Date.now(),
+      }]);
+      const output = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+      output.mockClear();
+
+      expect(await runEvidenceVerify(sessionDir, {
+        claimId: 'cl_001',
+        evidenceFile: sessionInput('invalid-span.json', { resultId: 'r:article', quote, charStart, charEnd }),
+        stance: 'support', reason: 'test',
+      })).toBe(1);
+      expect(output).toHaveBeenCalledWith(expect.stringContaining(`"code": "${code}"`));
+      expect(loadEvidences(sessionDir)).toEqual([]);
+    });
+
     it('rejects a quote that differs from the approved content at its offsets', async () => {
       saveClaims(sessionDir, [{
         id: 'cl_001',
