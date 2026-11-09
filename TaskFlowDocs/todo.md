@@ -540,15 +540,15 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## C1 — 空 quote / 反向区间被接受为证据并可自动批准
 
 - ID: TF-20261103-5075cc
-- Status: inbox
+- Status: done
 - Priority: normal
 - Owner: Claude
 - Source: code-review:2026-11-03-claims-commands
 - Added: 2026-11-03
-- Updated: 2026-11-03
+- Updated: 2026-11-09
 - Goal: 空 quote / 反向区间被接受为证据并可自动批准：evidence.ts:120-128 只校验 charStart<0 与 charEnd>content.length，没有 charStart<charEnd 也没有非空校验，slice(10,3) 得到空串，quote:'' 必然匹配，hash 是空串 SHA-256 永远自洽。实测 --stance support 写入 ev_001 并 exit 0
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: PR #37 (360cc35)：空引用与无效区间校验
+- Next action: None — 已由合并的修复完成。
 
 ## C2 — 重复验证沿用旧 stance，反驳覆盖不掉支持
 
@@ -629,15 +629,15 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## C10 — agent-inputs 路径校验在 Windows 上可绕过
 
 - ID: TF-20261103-5db61c
-- Status: inbox
+- Status: done
 - Priority: normal
 - Owner: Claude
 - Source: code-review:2026-11-03-claims-commands
 - Added: 2026-11-03
-- Updated: 2026-11-03
+- Updated: 2026-11-09
 - Goal: agent-inputs 路径包含校验在 Windows 上可绕过：session.ts:366-372 只用 path.relative 做 POSIX 判断，win32 下 relative('C:\sess\agent-inputs','\\srv\share\x.json') 原样返回 UNC 绝对路径，--data-file \\srv\share\evil.json 通过校验；C:foo 同理
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: PR #38 (1c0e273)：Windows 路径边界校验
+- Next action: None — 已由合并的修复完成。
 
 ## C11 — SessionStateError 不产出 JSON envelope
 
@@ -694,15 +694,15 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## C3 — 默认 md 的命令 -f json 永远失效（P1 的另一方向）
 
 - ID: TF-20261103-a72e3c
-- Status: inbox
+- Status: done
 - Priority: normal
 - Owner: Claude
 - Source: code-review:2026-11-03-claims-commands
 - Added: 2026-11-03
-- Updated: 2026-11-03
+- Updated: 2026-11-09
 - Goal: 子命令格式失效的第二个方向：默认 md 的命令（graph-search/graph-explore/graph-drill/graph-traverse/graph-obfuscate/session-report/strategy-info/suggest-queries/graph-preprocess）加 -f json 永远拿不到 JSON，对 Agent 消费方比拿不到 md 更严重；与 P1 同一根因，修复需覆盖两个方向
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: PR #33 (045cf6a)：双向格式切换；TaskFlowDocs/achieved/2026-11-04-subcommand-format-flag/
+- Next action: None — 已由合并的修复完成。
 
 ## D1 — 重复导入正文降级已批准结果并剪掉语义图
 
@@ -736,15 +736,15 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## D4 — graph-preprocess 的 md 渲染器会崩溃（被 P1 遮蔽）
 
 - ID: TF-20261103-e0f05e
-- Status: inbox
+- Status: done
 - Priority: normal
 - Owner: Claude
 - Source: code-review:2026-11-03-deep
 - Added: 2026-11-03
-- Updated: 2026-11-03
+- Updated: 2026-11-09
 - Goal: graph-preprocess 的 md 渲染器会崩溃：runCli.ts:213 读 result.rounds.join，而 payload 的 resultProvenance 项没有 rounds 字段，一旦 -f md 生效即 TypeError；roundsCovered 又硬编码 0，表头永远是 Rounds: 0。这两个缺陷目前被 -f 失效遮蔽，修了 P1 才会暴露
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: PR #33 (045cf6a)：Markdown 渲染与轮次；TaskFlowDocs/achieved/2026-11-04-subcommand-format-flag/
+- Next action: None — 已由合并的修复完成。
 
 ## D5 — Partial 索引重建丢弃配置的扩展名
 
