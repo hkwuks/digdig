@@ -584,15 +584,15 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## C8 — session-delete --older 负值删光全部会话
 
 - ID: TF-20261103-85fa15
-- Status: inbox
+- Status: in_progress
 - Priority: normal
 - Owner: Claude
 - Source: code-review:2026-11-03-claims-commands
 - Added: 2026-11-03
-- Updated: 2026-11-03
+- Updated: 2026-11-09
 - Goal: session-delete --older 接受负数且无确认：session.ts:127-142 的 if (olderHours) 对 -1 为真，(now-updatedAt) > 负数恒成立。实测 --older -1 删掉全部 2 个会话；--older 0 或 NaN 则静默删不掉，exit 0
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: `TaskFlowDocs/2026-11-09-session-delete-validation/`
+- Next action: 在 worktree 验证 CLI 入口、重跑测试并审查。
 
 ## C7 — graph-add 覆盖结构性结果节点
 

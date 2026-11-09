@@ -1097,6 +1097,8 @@ Deciding which aspects are covered and which are missing is the Agent's job. `dg
 | `dg session-delete <session-name>` | Delete specific session |
 | `dg session-delete --older <hours>` | Delete old sessions |
 
+`--older` accepts a positive finite number of hours (including fractions) and cannot be combined with session names.
+
 **Session Path Resolution:**
 - Pure name (e.g., `my-session`) → `.digdig/sessions/my-session`
 - Full path (e.g., `/custom/path/session`) → used as-is

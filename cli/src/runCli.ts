@@ -901,7 +901,7 @@ Examples:
     program
         .command('session-delete')
         .argument('[names]', 'Comma-separated session names to delete')
-        .option('--older <h>', 'Delete sessions older than N hours', val => parseFloat(val))
+        .option('--older <h>', 'Delete sessions older than N hours')
         .action(async (names, opts) => {
             const nameList = (names || '').split(',').map((n: string) => n.trim()).filter(Boolean);
             const code = await runSessionDelete(nameList, opts.older);

@@ -4,7 +4,7 @@
 
 import { readFileSync, readdirSync, rmSync, statSync } from 'fs';
 import { join } from 'path';
-import { createSuccessEnvelope } from '../protocol.js';
+import { createErrorEnvelope, createSuccessEnvelope } from '../protocol.js';
 import { resolveStatePath } from '../legacy.js';
 
 export interface SessionMeta {
@@ -121,10 +121,16 @@ export async function runSessionList(rootDir?: string): Promise<number> {
 }
 
 /** Delete sessions by name, or by age with --older <hours> */
-export async function runSessionDelete(names: string[], olderHours?: number, rootDir?: string): Promise<number> {
+export async function runSessionDelete(names: string[], olderInput?: string, rootDir?: string): Promise<number> {
     const root = rootDir || getDefaultSessionRoot();
+    const olderHours = olderInput === undefined ? undefined : Number(olderInput);
 
-    if (olderHours) {
+    if (olderInput !== undefined && (!olderInput.trim() || !Number.isFinite(olderHours) || olderHours! <= 0 || names.length > 0)) {
+        console.log(JSON.stringify(createErrorEnvelope('INVALID_ARGUMENT', '--older must be a positive finite number and cannot be combined with session names'), null, 2));
+        return 1;
+    }
+
+    if (olderHours !== undefined) {
         // Delete sessions older than N hours
         const sessions = listSessions(root);
         const now = Date.now();
