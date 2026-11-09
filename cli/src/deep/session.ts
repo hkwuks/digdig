@@ -5,7 +5,7 @@
  */
 
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'fs';
-import { dirname, join, relative, resolve } from 'path';
+import { dirname, isAbsolute, join, relative, resolve } from 'path';
 import { DirectedGraph, MultiDirectedGraph } from 'graphology';
 import { buildStructuralEdges, deserializeGraph, graphStats, GraphEdgeAttrs, GraphNodeAttrs, resultId, serializeGraph } from './graph.js';
 import { resultUrlKey } from './dedupe.js';
@@ -367,7 +367,7 @@ export function validateSessionInputFile(sessionDir: string, inputFile: string):
     const inputsDir = resolve(sessionDir, 'agent-inputs');
     const candidate = resolve(inputFile);
     const rel = relative(inputsDir, candidate);
-    if (rel === '' || rel.startsWith('..') || rel.includes(':') || !existsSync(candidate)) return undefined;
+    if (rel === '' || isAbsolute(rel) || rel.startsWith('..') || rel.includes(':') || !existsSync(candidate)) return undefined;
     return candidate;
 }
 
