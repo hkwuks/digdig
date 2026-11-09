@@ -63,6 +63,14 @@ export async function runClaimAdd(
       console.log(JSON.stringify(createErrorEnvelope('MISSING_TEXT', `Entry ${i} is missing required field "text"`), null, 2));
       return 1;
     }
+    const risk = inputs[i].riskLevel;
+    if (risk !== undefined) {
+      if (typeof risk !== 'string' || !['low', 'medium', 'high'].includes(risk.toLowerCase())) {
+        console.log(JSON.stringify(createErrorEnvelope('INVALID_RISK_LEVEL', `Entry ${i}: riskLevel must be low, medium, or high`), null, 2));
+        return 1;
+      }
+      inputs[i].riskLevel = risk.toLowerCase() as Claim['riskLevel'];
+    }
   }
 
   let result: Record<string, any>;

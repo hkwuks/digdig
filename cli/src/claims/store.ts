@@ -53,8 +53,8 @@ interface Envelope<T> {
 }
 
 export class ClaimsStateError extends Error {
-  constructor(readonly file: string) {
-    super(`Cannot read claims state: ${file}`);
+  constructor(readonly file: string, detail?: string) {
+    super(`Cannot read claims state: ${file}${detail ? `: ${detail}` : ''}`);
   }
 }
 
@@ -74,7 +74,7 @@ function loadArray<T>(file: string): T[] {
 
 /** Validate all existing claim artifacts before any related mutation. */
 export function assertClaimsStoreReadable(sessionDir: string): void {
-  loadArray<Claim>(claimsFile(sessionDir));
+  loadClaims(sessionDir);
   loadArray<EvidenceSpan>(evidencesFile(sessionDir));
   loadArray<Verdict>(verdictsFile(sessionDir));
   loadArray<Review>(reviewsFile(sessionDir));
@@ -94,7 +94,11 @@ function writeArray<T>(file: string, items: T[]): void {
 // ── Claims ──────────────────────────────────────────────────────────
 
 export function loadClaims(sessionDir: string): Claim[] {
-  return loadArray<Claim>(claimsFile(sessionDir));
+  const file = claimsFile(sessionDir);
+  const claims = loadArray<Claim>(file);
+  const invalid = claims.findIndex(claim => !claim || !['low', 'medium', 'high'].includes(claim.riskLevel));
+  if (invalid !== -1) throw new ClaimsStateError(file, `Invalid riskLevel at claim index ${invalid}; expected low, medium, or high`);
+  return claims;
 }
 
 export function saveClaims(sessionDir: string, claims: Claim[]): void {

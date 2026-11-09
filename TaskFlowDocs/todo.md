@@ -571,15 +571,10 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## C4 — riskLevel 不校验，绕过 highRiskInsufficient
 
 - ID: TF-20261103-1d127c
-- Status: inbox
-- Priority: normal
-- Owner: Claude
-- Source: code-review:2026-11-03-claims-commands
-- Added: 2026-11-03
-- Updated: 2026-11-03
+- Status: done
 - Goal: riskLevel 不校验，高风险 claim 绕过 highRiskInsufficient 规则：claim.ts:86 存任意字符串，policy.ts:104-111 只认字面量 high。实测 riskLevel:'HIGH' 原样入库且 claim-list 显示 HIGH，仍可走 dualSourceSupport 自动批准
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: `TaskFlowDocs/achieved/2026-11-09-claim-risk-validation/`
+- Next action: None — completed and archived.
 
 ## C8 — session-delete --older 负值删光全部会话
 
