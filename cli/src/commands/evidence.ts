@@ -105,6 +105,10 @@ export async function runEvidenceVerify(
     console.log(JSON.stringify(createErrorEnvelope('MISSING_FIELDS', '--evidence-file must contain resultId, quote, charStart, and charEnd'), null, 2));
     return 1;
   }
+  if (!evidenceInput.quote.trim()) {
+    console.log(JSON.stringify(createErrorEnvelope('INVALID_EVIDENCE', 'Evidence quote must not be empty or whitespace'), null, 2));
+    return 1;
+  }
 
   let mutation: { evidence: EvidenceSpan; verdict: Verdict; review?: ReturnType<typeof aggregateClaim>; idempotent: boolean };
   try {
@@ -117,7 +121,7 @@ export async function runEvidenceVerify(
       const result = getApprovedResults(sessionDir).find(item => item.id === evidenceInput.resultId);
       if (!result) throw new EvidenceCommandError('RESULT_NOT_APPROVED', `Result ID ${evidenceInput.resultId} is not in approved results`);
       const content = result.content!;
-      if (evidenceInput.charStart < 0 || evidenceInput.charEnd > content.length) {
+      if (evidenceInput.charStart < 0 || evidenceInput.charEnd > content.length || evidenceInput.charStart >= evidenceInput.charEnd) {
         throw new EvidenceCommandError('OFFSET_OUT_OF_RANGE', `charStart/charEnd out of range (content length: ${content.length})`);
       }
       const quote = content.slice(evidenceInput.charStart, evidenceInput.charEnd);
