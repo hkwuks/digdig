@@ -138,7 +138,7 @@ export async function runEvidenceVerify(
         && item.charStart === evidenceInput.charStart
         && item.charEnd === evidenceInput.charEnd
         && !item.invalid);
-      const idempotent = Boolean(duplicate);
+      let idempotent = Boolean(duplicate);
       const evidence: EvidenceSpan = duplicate ?? {
           id: `ev_${String(evidences.length + 1).padStart(3, '0')}`,
           claimId: claim.id,
@@ -154,6 +154,7 @@ export async function runEvidenceVerify(
 
       const verdicts = loadVerdicts(sessionDir);
       let verdict = verdicts.find(item => item.claimId === claim.id && item.evidenceIds.length === 1 && item.evidenceIds[0] === evidence.id);
+      const verdictChanged = !verdict || verdict.stance !== options.stance || verdict.reason !== options.reason || verdict.confidence !== options.confidence;
       if (!verdict) {
         verdict = {
           id: `vd_${String(verdicts.length + 1).padStart(3, '0')}`,
@@ -165,10 +166,19 @@ export async function runEvidenceVerify(
           createdAt: Date.now(),
         };
         verdicts.push(verdict);
+      } else if (verdictChanged) {
+        verdict.stance = options.stance;
+        verdict.reason = options.reason;
+        verdict.confidence = options.confidence;
       }
 
-      claim.status = 'verifying';
+      idempotent = idempotent && !verdictChanged;
       const reviews = loadReviews(sessionDir);
+      if (verdictChanged) {
+        claim.status = 'verifying';
+        const reviewIndex = reviews.findIndex(item => item.claimId === claim.id);
+        if (reviewIndex !== -1) reviews.splice(reviewIndex, 1);
+      }
       let review: ReturnType<typeof aggregateClaim> | undefined;
       if (options.complete) {
         const validEvidences = evidences.filter(item => item.claimId === claim.id && !item.invalid);

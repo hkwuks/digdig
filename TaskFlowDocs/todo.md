@@ -558,15 +558,10 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## C2 — 重复验证沿用旧 stance，反驳覆盖不掉支持
 
 - ID: TF-20261103-e5d727
-- Status: inbox
-- Priority: normal
-- Owner: Claude
-- Source: code-review:2026-11-03-claims-commands
-- Added: 2026-11-03
-- Updated: 2026-11-03
+- Status: done
 - Goal: 重复验证沿用旧 stance，反驳覆盖不掉支持：evidence.ts:151-164 按 evidenceId 找到已有 verdict 后不更新 stance/reason/confidence。实测同一 span 先 support 再 refute，返回仍是 stance:support + idempotent:true，singleRefute 规则对该 span 永远不可达
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: `TaskFlowDocs/achieved/2026-11-09-evidence-verdict-review/`
+- Next action: None — completed and archived.
 
 ## C4 — riskLevel 不校验，绕过 highRiskInsufficient
 
@@ -613,15 +608,15 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## C5 — 新 verdict 不清除旧 Review
 
 - ID: TF-20261103-a2cd67
-- Status: inbox
+- Status: done
 - Priority: normal
 - Owner: Claude
 - Source: code-review:2026-11-03-claims-commands
 - Added: 2026-11-03
-- Updated: 2026-11-03
+- Updated: 2026-11-09
 - Goal: 新 verdict 不清除旧 Review：evidence.ts:166-179 非 --complete 时只把 status 设为 verifying，旧 Review 仍留在 store，review-list 继续报 approved，即使已有反驳 verdict
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: `TaskFlowDocs/achieved/2026-11-09-evidence-verdict-review/`
+- Next action: None — completed and archived.
 
 ## C6 — 跳过最后来源使 claim 永久卡在 verifying
 
