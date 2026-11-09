@@ -1,6 +1,6 @@
 # Plan — 修复 session-delete 参数校验
 > Task version: v1
-> Status: planning
+> Status: completed
 
 ## Spec Pointers
 - `spec.md`
@@ -39,7 +39,7 @@
 - Acceptance: PRD 全部验收条件成立。
 - Verification: 定向测试、类型检查及 CLI 入口检查。
 - Rollback: 回退本任务改动。
-- Status: in_progress
+- Status: done
 
 ## Verification / Review
 worktree：定向 Vitest 12 项通过，涵盖 CLI 参数及错误 envelope；tsc --noEmit 通过。代码审查确认校验在删除前；未做真实删除。Vitest 使用 runner 配置加载以避免向链接的依赖目录写缓存。
@@ -48,4 +48,9 @@ worktree：定向 Vitest 12 项通过，涵盖 CLI 参数及错误 envelope；ts
 - 2026-11-09 v1 — 原先错误地在主工作区实施；用户同意后迁入 worktree 并补建记录。审批实际发生在实现前，计划文档在实现后补记。
 
 ## Follow-ups
-任务完成及归档流程尚未执行。
+无新增功能性后续事项。
+
+## PR 检查
+- 目标：`hkwuks/digdig` 的 `main`；远端 main 已核对为 cfb1ad6，与本地基线一致。
+- 模板：`.github/pull_request_template.md`；背景、改动、验证、兼容性与范围外事项均将在 PR 中填写。
+- 审查：输入在删除前校验；名称冲突失败；现有 mock 和 CLI 测试覆盖主要路径。未使用真实会话执行删除。

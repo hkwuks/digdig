@@ -1,6 +1,6 @@
 # 修复 session-delete 参数校验
 > Task version: v1
-> Status: planning
+> Status: completed
 
 ## Task Kind
 - Kind: defect
