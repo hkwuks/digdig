@@ -23,7 +23,7 @@ vi.mock('../../src/ollama-service.js', () => ({
 import { runCli } from '../../src/runCli.js';
 import { config } from '../../src/config.js';
 
-const originalKeys = { ollama: config.ollamaApiKey, deepseek: config.deepseekApiKey };
+const originalKeys = { ollama: config.ollamaApiKey, deepseek: config.deepseekApiKey, defaultLimit: config.defaultLimit };
 
 function providerResponse(engine: string, url: string) {
     return {
@@ -60,6 +60,7 @@ describe('provider routing', () => {
         vi.clearAllMocks();
         config.ollamaApiKey = '';
         config.deepseekApiKey = '';
+        config.defaultLimit = 10;
         deepseekSearch.mockResolvedValue(providerResponse('deepseek', 'https://deepseek.test'));
         ollamaSearch.mockResolvedValue(providerResponse('ollama', 'https://ollama.test'));
     });
@@ -67,6 +68,7 @@ describe('provider routing', () => {
     afterEach(() => {
         config.ollamaApiKey = originalKeys.ollama;
         config.deepseekApiKey = originalKeys.deepseek;
+        config.defaultLimit = originalKeys.defaultLimit;
         vi.restoreAllMocks();
     });
 
