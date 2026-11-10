@@ -664,15 +664,10 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## C13 — 若干 CLI 参数未校验就原样存储
 
 - ID: TF-20261103-5806a4
-- Status: inbox
-- Priority: normal
-- Owner: Claude
-- Source: code-review:2026-11-03-claims-commands
-- Added: 2026-11-03
-- Updated: 2026-11-03
+- Status: done
 - Goal: 若干参数未校验就原样存储：evidence.ts:159 的 --stance 任意字符串入库（--stance bogus 也 exit 0）；evidence.ts:101 非字符串 contentHash 被丢弃而非拒绝；--confidence abc 得 NaN 被静默省略；results-add.ts:49 的 --kind 非 search 一律按 extracted 处理
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: `TaskFlowDocs/achieved/2026-11-10-evidence-input-validation/`
+- Next action: None — completed and archived.
 
 ## C14 — extract 丢弃真实抽取方法
 

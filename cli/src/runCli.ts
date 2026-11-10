@@ -1219,7 +1219,7 @@ Examples:
         .requiredOption('--evidence-file <path>', 'UTF-8 JSON file with evidence object under this session agent-inputs directory')
         .requiredOption('--stance <s>', 'Stance: support, refute, insufficient')
         .requiredOption('--reason <text>', 'Judgement rationale')
-        .option('--confidence <n>', 'Confidence 0-1', parseFloat)
+        .option('--confidence <n>', 'Confidence 0-1')
         .option('--complete', 'Auto-trigger policy aggregation after this evidence')
         .option('-f, --format <fmt>', 'Output format: json (default), md')
         .action(async (session, opts, command) => {
@@ -1228,7 +1228,7 @@ Examples:
                 evidenceFile: opts.evidenceFile,
                 stance: opts.stance,
                 reason: opts.reason,
-                confidence: opts.confidence,
+                confidence: opts.confidence === undefined ? undefined : (opts.confidence.trim() ? Number(opts.confidence) : NaN),
                 complete: opts.complete ?? false,
                 format: command.optsWithGlobals().format,
             });

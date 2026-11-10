@@ -83,7 +83,14 @@ export async function runEvidenceVerify(
   },
 ): Promise<number> {
   const sessionDir = resolveSessionPath(session);
-  initSessionDir(sessionDir);
+  if (!['support', 'refute', 'insufficient'].includes(options.stance)) {
+    console.log(JSON.stringify(createErrorEnvelope('INVALID_STANCE', 'Stance must be support, refute, or insufficient'), null, 2));
+    return 1;
+  }
+  if (options.confidence !== undefined && (!Number.isFinite(options.confidence) || options.confidence < 0 || options.confidence > 1)) {
+    console.log(JSON.stringify(createErrorEnvelope('INVALID_CONFIDENCE', 'Confidence must be a number between 0 and 1'), null, 2));
+    return 1;
+  }
   const input = readSessionJsonInput(sessionDir, [{ option: '--evidence-file', value: options.evidenceFile, file: true }]);
   if (!input.ok) {
     console.log(JSON.stringify(createErrorEnvelope(input.code, input.message), null, 2));
@@ -91,6 +98,10 @@ export async function runEvidenceVerify(
   }
   if (!isJsonObject(input.value)) {
     console.log(JSON.stringify(createErrorEnvelope('INVALID_EVIDENCE', '--evidence-file must contain a JSON object'), null, 2));
+    return 1;
+  }
+  if (input.value.contentHash !== undefined && typeof input.value.contentHash !== 'string') {
+    console.log(JSON.stringify(createErrorEnvelope('INVALID_EVIDENCE', 'contentHash must be a string'), null, 2));
     return 1;
   }
   const evidenceInput: EvidenceInput = {
@@ -109,6 +120,8 @@ export async function runEvidenceVerify(
     console.log(JSON.stringify(createErrorEnvelope('INVALID_EVIDENCE', 'Evidence quote must not be empty or whitespace'), null, 2));
     return 1;
   }
+
+  initSessionDir(sessionDir);
 
   let mutation: { evidence: EvidenceSpan; verdict: Verdict; review?: ReturnType<typeof aggregateClaim>; idempotent: boolean };
   try {

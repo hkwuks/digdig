@@ -22,7 +22,10 @@ function originFor(item: Record<string, unknown>, options: ResultsAddOptions): R
 
 export async function runResultsAdd(options: ResultsAddOptions): Promise<number> {
     const sessionDir = resolveSessionPath(options.session);
-    initSessionDir(sessionDir);
+    if (options.kind !== 'search' && options.kind !== 'extracted') {
+        console.log(JSON.stringify(createErrorEnvelope('INVALID_RESULTS', 'Import kind must be search or extracted'), null, 2));
+        return 1;
+    }
     const input = readSessionJsonInput(sessionDir, [{ option: '--data-file', value: options.dataFile, file: true }]);
     if (!input.ok) {
         console.log(JSON.stringify(createErrorEnvelope(input.code, input.message), null, 2));
@@ -79,6 +82,7 @@ export async function runResultsAdd(options: ResultsAddOptions): Promise<number>
         });
     }
 
+    initSessionDir(sessionDir);
     const result = appendSessionResults(sessionDir, results);
     console.log(JSON.stringify(createSuccessEnvelope({
         added: result.added,
