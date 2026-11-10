@@ -449,15 +449,10 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## P7 — 只读命令对不存在的会话名创建目录
 
 - ID: TF-20261103-def17e
-- Status: inbox
-- Priority: normal
-- Owner: Claude
-- Source: code-research:2026-11-03-cli-audit
-- Added: 2026-11-03
-- Updated: 2026-11-03
+- Status: done
 - Goal: 只读命令在会话名拼错时创建目录：session-report/suggest-queries/graph-preprocess/--quality 对不存在的会话 exit 0 且经 initSessionDir/mkdirSync 创建 .digdig/sessions/<name>/，session-list 随后以 createdAt:0 列出。coverage 表现正确（EMPTY_SESSION、exit 1、不建目录），其余应对齐
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: `TaskFlowDocs/achieved/2026-11-10-readonly-session-creation/`
+- Next action: None — completed and archived.
 
 ## P8 — 轮次计数不一致（roundsCovered 恒 0 / 计数器与 origin 不符）
 
