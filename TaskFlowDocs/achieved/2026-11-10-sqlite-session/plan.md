@@ -1,6 +1,6 @@
 # Plan — results.json 把三层存储混成一个文件
 > Task version: v1
-> Status: in_progress
+> Status: completed
 
 ## Spec Pointers
 
