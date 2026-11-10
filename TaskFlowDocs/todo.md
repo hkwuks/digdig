@@ -794,15 +794,10 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## D10 — path 节点无生产路径，graph-traverse 恒失败
 
 - ID: TF-20261103-9bc038
-- Status: inbox
-- Priority: normal
-- Owner: Claude
-- Source: code-review:2026-11-03-deep
-- Added: 2026-11-03
-- Updated: 2026-11-03
+- Status: done
 - Goal: path 节点没有任何生产路径，graph-traverse 提示用户去做一件做不到的事：path-extraction.ts:266 的 extractPaths 在 src/ 无调用者（仅测试调用），graphPreprocess 从不调用它，所以 dg graph-traverse 恒返回 NO_PATHS 且 hint 无法成功；相关地 graph-explore.ts:430 的 graph.edges(prevId,eId) 未做存在性检查，路径引用已剪除实体时 graphology 抛 NotFoundGraphError，最终表现为裸 Fatal error
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: `TaskFlowDocs/achieved/2026-11-10-graph-reasoning-paths/`
+- Next action: None — completed and archived.
 
 ## D11 — 一批已确认的小缺陷（7 项）
 

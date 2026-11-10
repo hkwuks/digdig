@@ -4,6 +4,7 @@ import { createErrorEnvelope, createSuccessEnvelope } from '../protocol.js';
 import { entityId, GraphEdgeAttrs, GraphNodeAttrs } from '../deep/graph.js';
 import { initSessionDir, mutateSessionGraph, resolveSessionPath } from '../deep/session.js';
 import { isJsonObject, readSessionJsonInput } from './json-input.js';
+import { extractPaths } from '../deep/path-extraction.js';
 
 export interface GraphAddOptions {
     session: string;
@@ -109,7 +110,8 @@ export async function runGraphAdd(options: GraphAddOptions): Promise<number> {
                 edgesAdded++;
             }
         }
-        return { entitiesAdded, edgesAdded, skippedEdges };
+        const paths = extractPaths(graph);
+        return { entitiesAdded, edgesAdded, skippedEdges, pathsTruncated: paths.truncated };
     }, { reconcileStructural: true });
     if ('invalidProvenance' in mutation) {
         console.log(JSON.stringify(createErrorEnvelope(
@@ -122,7 +124,7 @@ export async function runGraphAdd(options: GraphAddOptions): Promise<number> {
         console.log(JSON.stringify(createErrorEnvelope('GRAPH_NODE_ID_CONFLICT', `Entity ID conflicts with an existing non-entity node: ${mutation.collision}`), null, 2));
         return 1;
     }
-    const { entitiesAdded, edgesAdded, skippedEdges } = mutation;
-    console.log(JSON.stringify(createSuccessEnvelope({ entitiesAdded, edgesAdded, skippedEdges: skippedEdges.length ? skippedEdges : undefined }), null, 2));
+    const { entitiesAdded, edgesAdded, skippedEdges, pathsTruncated } = mutation;
+    console.log(JSON.stringify(createSuccessEnvelope({ entitiesAdded, edgesAdded, skippedEdges: skippedEdges.length ? skippedEdges : undefined, pathsTruncated }), null, 2));
     return 0;
 }

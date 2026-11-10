@@ -309,6 +309,24 @@ describe('path-extraction', () => {
             expect(result.compositionChains).toEqual([]);
             expect(result.conjunctions).toEqual([]);
             expect(result.totalPaths).toBe(0);
+            expect(result.truncated).toBe(false);
+        });
+
+        it('reports a search budget limit even when no paths are found', () => {
+            const graph = createGraph();
+            for (let i = 0; i < 300; i++) graph.addNode(`e:${i}`, { type: 'entity', label: String(i) });
+            const result = extractPaths(graph);
+            expect(result.totalPaths).toBe(0);
+            expect(result.truncated).toBe(true);
+        });
+
+        it('allocates chain IDs after existing four-digit counters', () => {
+            const graph = createGraph();
+            graph.addNode('p:chain_1000', { type: 'path', pathType: 'composition_chain', label: 'Existing', entities: [] });
+            for (const id of ['a', 'b', 'c']) graph.addNode(id, { type: 'entity', label: id });
+            graph.addEdge('a', 'b', { relation: 'related', weight: 1 });
+            graph.addEdge('b', 'c', { relation: 'related', weight: 1 });
+            expect(extractPaths(graph).compositionChains[0].id).toBe('p:chain_1001');
         });
 
         it('path nodes have correct pathType', () => {

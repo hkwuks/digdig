@@ -179,7 +179,7 @@ L2/L3 only:
 - **Extract** does not add results. A successful session merge writes both `content` and `extractedAt`.
 - **Approve** accepts only entries reported as `verified: true`, then injects them into graph (structural edges).
 - **Failed extraction** stays pending. It cannot be approved or graph-injected until a later extraction succeeds.
-- **graph-add** only adds entities/edges; results go through approve first
+- **graph-add** adds entities/edges and generates reasoning paths; results go through approve first. Its `pathsTruncated` flag means the bounded extraction stopped early, so the generated paths are incomplete.
 - **Claim pipeline** (L2/L3 only): before a Claim can use a result as evidence, extract that URL in the session so the evidence records its actual `extractedAt`; then Agent submits claims -> CLI auto-searches evidence -> Agent verifies -> CLI aggregates policy -> Agent adjusts output
 
 ### Quick Start

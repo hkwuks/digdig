@@ -33,6 +33,23 @@ export interface PathExtractionResult {
     compositionChains: CompositionChain[];
     conjunctions: ConjunctionPath[];
     totalPaths: number;
+    truncated: boolean;
+}
+
+interface SearchBudget { steps: number; paths: number; truncated: boolean }
+
+function consumeStep(budget?: SearchBudget): boolean {
+    if (!budget) return true;
+    if (budget.steps <= 0) { budget.truncated = true; return false; }
+    budget.steps--;
+    return true;
+}
+
+function consumePath(budget?: SearchBudget): boolean {
+    if (!budget) return true;
+    if (budget.paths <= 0) { budget.truncated = true; return false; }
+    budget.paths--;
+    return true;
 }
 
 export interface PathExtractionConfig {
@@ -55,7 +72,8 @@ export interface PathExtractionConfig {
  */
 export function detectCompositionChains(
     graph: DirectedGraph<GraphNodeAttrs, GraphEdgeAttrs>,
-    config?: PathExtractionConfig
+    config?: PathExtractionConfig,
+    budget?: SearchBudget
 ): CompositionChain[] {
     const minHops = config?.minChainHops ?? 2;
     const maxHops = config?.maxChainHops ?? 5;
@@ -63,6 +81,7 @@ export function detectCompositionChains(
 
     const chains: CompositionChain[] = [];
     const seenEntitySets = new Set<string>();
+    const firstId = nextPathId(graph, 'composition_chain');
 
     // Get all entity nodes
     const entityNodes: string[] = [];
@@ -75,7 +94,7 @@ export function detectCompositionChains(
 
     for (const startNode of entityNodes) {
         // DFS from startNode, following entity-to-entity edges
-        const paths = dfsEntityChains(graph, startNode, maxHops);
+        const paths = dfsEntityChains(graph, startNode, maxHops, budget);
 
         for (const path of paths) {
             if (path.entities.length - 1 < minHops) continue;
@@ -87,7 +106,9 @@ export function detectCompositionChains(
                 seenEntitySets.add(key);
             }
 
-            const id = nextPathId(graph, 'composition_chain', chains.length);
+            if (!consumePath(budget)) return chains;
+
+            const id = firstId.replace(/\d+$/, value => String(Number(value) + chains.length).padStart(3, '0'));
             chains.push({
                 id,
                 entities: path.entities,
@@ -95,6 +116,7 @@ export function detectCompositionChains(
                 relations: path.relations,
             });
         }
+        if (budget?.truncated) break;
     }
 
     return chains;
@@ -109,11 +131,13 @@ interface EntityChainPath {
 function dfsEntityChains(
     graph: DirectedGraph<GraphNodeAttrs, GraphEdgeAttrs>,
     start: string,
-    maxHops: number
+    maxHops: number,
+    budget?: SearchBudget
 ): EntityChainPath[] {
     const results: EntityChainPath[] = [];
 
     function dfs(current: string, path: string[], relations: string[], visited: Set<string>) {
+        if (!consumeStep(budget)) return;
         if (path.length - 1 >= maxHops) {
             if (path.length - 1 >= 2) {
                 results.push({ entities: [...path], relations: [...relations] });
@@ -125,6 +149,7 @@ function dfsEntityChains(
         const outEdges = graph.outEdges(current);
         let extended = false;
         for (const edge of outEdges) {
+            if (!consumeStep(budget)) return;
             const target = graph.target(edge);
             if (visited.has(target)) continue;
             if (graph.getNodeAttributes(target).type !== 'entity') continue;
@@ -145,6 +170,7 @@ function dfsEntityChains(
         // Also follow incoming entity→entity edges
         const inEdges = graph.inEdges(current);
         for (const edge of inEdges) {
+            if (!consumeStep(budget)) return;
             const source = graph.source(edge);
             if (visited.has(source)) continue;
             if (graph.getNodeAttributes(source).type !== 'entity') continue;
@@ -180,13 +206,15 @@ function dfsEntityChains(
  */
 export function detectConjunctions(
     graph: DirectedGraph<GraphNodeAttrs, GraphEdgeAttrs>,
-    config?: PathExtractionConfig
+    config?: PathExtractionConfig,
+    budget?: SearchBudget
 ): ConjunctionPath[] {
     const maxDepth = config?.maxConjunctionDepth ?? 3;
     const dedup = config?.dedup ?? true;
 
     const conjunctions: ConjunctionPath[] = [];
     const seenPairs = new Set<string>();
+    const firstId = nextPathId(graph, 'conjunction');
 
     // Get all entity nodes
     const entityNodes: string[] = [];
@@ -197,12 +225,15 @@ export function detectConjunctions(
     // For each entity, find its targets within maxDepth
     const reachability = new Map<string, Map<string, number>>();
     for (const entity of entityNodes) {
-        reachability.set(entity, bfsEntityReachable(graph, entity, maxDepth));
+        if (!consumeStep(budget)) return conjunctions;
+        reachability.set(entity, bfsEntityReachable(graph, entity, maxDepth, budget));
+        if (budget?.truncated) return conjunctions;
     }
 
     // Find pairs of entities that share a common target
     for (let i = 0; i < entityNodes.length; i++) {
         for (let j = i + 1; j < entityNodes.length; j++) {
+            if (!consumeStep(budget)) return conjunctions;
             const e1 = entityNodes[i];
             const e2 = entityNodes[j];
             const reach1 = reachability.get(e1)!;
@@ -210,6 +241,7 @@ export function detectConjunctions(
 
             // Find common reachable entities
             for (const [target, d1] of reach1) {
+                if (!consumeStep(budget)) return conjunctions;
                 const d2 = reach2.get(target);
                 if (d2 === undefined) continue;
                 if (target === e1 || target === e2) continue;
@@ -218,7 +250,9 @@ export function detectConjunctions(
                 if (dedup && seenPairs.has(pairKey)) continue;
                 seenPairs.add(pairKey);
 
-                const id = nextPathId(graph, 'conjunction', conjunctions.length);
+                if (!consumePath(budget)) return conjunctions;
+
+                const id = firstId.replace(/\d+$/, value => String(Number(value) + conjunctions.length).padStart(3, '0'));
                 conjunctions.push({
                     id,
                     seed1: e1,
@@ -237,23 +271,26 @@ export function detectConjunctions(
 function bfsEntityReachable(
     graph: DirectedGraph<GraphNodeAttrs, GraphEdgeAttrs>,
     start: string,
-    maxDepth: number
+    maxDepth: number,
+    budget?: SearchBudget
 ): Map<string, number> {
     const dist = new Map<string, number>();
     const queue: Array<{ id: string; d: number }> = [{ id: start, d: 0 }];
     dist.set(start, 0);
 
     while (queue.length > 0) {
+        if (!consumeStep(budget)) break;
         const { id, d } = queue.shift()!;
         if (d >= maxDepth) continue;
 
         // Follow both directions
-        graph.forEachNeighbor(id, (neighbor: string) => {
-            if (dist.has(neighbor)) return;
-            if (graph.getNodeAttributes(neighbor).type !== 'entity') return;
+        for (const neighbor of graph.neighbors(id)) {
+            if (!consumeStep(budget)) return dist;
+            if (dist.has(neighbor)) continue;
+            if (graph.getNodeAttributes(neighbor).type !== 'entity') continue;
             dist.set(neighbor, d + 1);
             queue.push({ id: neighbor, d: d + 1 });
-        });
+        }
     }
 
     dist.delete(start); // don't include self
@@ -267,11 +304,20 @@ export function extractPaths(
     graph: DirectedGraph<GraphNodeAttrs, GraphEdgeAttrs>,
     config?: PathExtractionConfig
 ): PathExtractionResult {
-    const chains = detectCompositionChains(graph, config);
-    const conjunctions = detectConjunctions(graph, config);
+    // shortcut: bounded extraction may omit paths in dense graphs; increase only with measured capacity.
+    const budget: SearchBudget = { steps: 20_000, paths: 1_000, truncated: false };
+    const chains = detectCompositionChains(graph, config, budget);
+    const conjunctions = budget.truncated ? [] : detectConjunctions(graph, config, budget);
+    const existing = new Map<string, string>();
+    graph.forEachNode((id, attrs) => {
+        if (attrs.type === 'path' && attrs.pathType && attrs.entities) {
+            existing.set(JSON.stringify([attrs.pathType, attrs.entities]), id);
+        }
+    });
 
     // Create path: nodes in the graph
     for (const chain of chains) {
+        chain.id = existing.get(JSON.stringify(['composition_chain', chain.entities])) ?? chain.id;
         graph.mergeNode(chain.id, {
             type: 'path',
             label: `Chain: ${chain.entities.map(e => graph.getNodeAttributes(e)?.label ?? e).join(' → ')}`,
@@ -288,6 +334,7 @@ export function extractPaths(
     }
 
     for (const conj of conjunctions) {
+        conj.id = existing.get(JSON.stringify(['conjunction', [conj.seed1, conj.seed2, conj.bridge]])) ?? conj.id;
         const e1Label = graph.getNodeAttributes(conj.seed1)?.label ?? conj.seed1;
         const e2Label = graph.getNodeAttributes(conj.seed2)?.label ?? conj.seed2;
         const bridgeLabel = graph.getNodeAttributes(conj.bridge)?.label ?? conj.bridge;
@@ -309,5 +356,6 @@ export function extractPaths(
         compositionChains: chains,
         conjunctions,
         totalPaths: chains.length + conjunctions.length,
+        truncated: budget.truncated,
     };
 }
