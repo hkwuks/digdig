@@ -535,15 +535,10 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## P10 — extract 全部失败仍 exit 0
 
 - ID: TF-20261103-631878
-- Status: inbox
-- Priority: normal
-- Owner: Claude
-- Source: code-research:2026-11-03-cli-audit
-- Added: 2026-11-03
-- Updated: 2026-11-03
+- Status: done
 - Goal: extract 全部失败仍 exit 0：dg extract --urls <死链> 返回 status:ok、success:0/failed:1、退出码 0，Agent 据退出码会误判成功。全部失败时应非零退出
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: `TaskFlowDocs/achieved/2026-11-10-extract-failure-exit/`
+- Next action: None — completed and archived.
 
 ## P11 — defaultEngine 是死配置，allowedEngines 只在 -e 时校验
 

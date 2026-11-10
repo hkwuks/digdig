@@ -45,6 +45,52 @@ describe('runExtract', () => {
     });
   });
 
+  it('reports a nonzero structured error when every extraction fails', async () => {
+    initSessionDir(sessionDir);
+    const url = 'https://example.com/fail';
+    appendSessionResults(sessionDir, [{ url, title: 'Fail', origins: [{ tool: 'sxng', query: 'q' }] }]);
+    const extractor = { extractBatch: vi.fn().mockResolvedValue([{ url, title: '', content: '', excerpt: '', length: 0, extractedAt: 1, error: 'unavailable' }]) } as any;
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    expect(await runExtract(extractor, { session: sessionDir, urls: [url] })).toBe(1);
+    expect(JSON.parse(log.mock.lastCall![0])).toMatchObject({ status: 'error', error: { code: 'EXTRACT_FAILED', details: { failed: [url], stats: { total: 1, success: 0, failed: 1 } } } });
+    expect(loadSessionResults(sessionDir)[0].failureCount).toBe(1);
+  });
+
+  it('keeps successful results and retry details when a batch is partly rate limited', async () => {
+    const urls = ['https://example.com/ok', 'https://example.com/limited'];
+    initSessionDir(sessionDir);
+    appendSessionResults(sessionDir, urls.map(url => ({ url, title: url, origins: [{ tool: 'sxng', query: 'q' }] })));
+    const extractor = { extractBatch: vi.fn().mockResolvedValue([
+      { url: urls[0], title: 'Ok', content: 'Body', excerpt: '', length: 4, extractedAt: 1 },
+      { url: urls[1], title: '', content: '', excerpt: '', length: 0, extractedAt: 1, error: 'Jina Reader rate limit reached', retryAfterMs: 3000, retryAt: 4000 },
+    ]) } as any;
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    expect(await runExtract(extractor, { urls, jina: true, session: sessionDir })).toBe(0);
+    expect(JSON.parse(log.mock.lastCall![0])).toMatchObject({ status: 'ok', data: { failed: [urls[1]], stats: { total: 2, success: 1, failed: 1 }, rateLimit: { retryAfterMs: 3000, retryAt: 4000 } } });
+    const results = loadSessionResults(sessionDir);
+    expect(results.find(result => result.url === urls[0])).toMatchObject({ content: 'Body', contentType: 'extracted' });
+    expect(results.find(result => result.url === urls[1])?.failureCount).toBeUndefined();
+  });
+
+  it('succeeds with a failure list when a batch has ordinary partial failures', async () => {
+    const urls = ['https://example.com/ok', 'https://example.com/fail'];
+    const extractor = { extractBatch: vi.fn().mockResolvedValue([
+      { url: urls[0], title: 'Ok', content: 'Body', excerpt: '', length: 4, extractedAt: 1 },
+      { url: urls[1], title: '', content: '', excerpt: '', length: 0, extractedAt: 1, error: 'unavailable' },
+    ]) } as any;
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    expect(await runExtract(extractor, { urls })).toBe(0);
+    expect(JSON.parse(log.mock.lastCall![0])).toMatchObject({ status: 'ok', data: { failed: [urls[1]], stats: { total: 2, success: 1, failed: 1 } } });
+  });
+
+  it('treats an empty extractor response for requested URLs as failure', async () => {
+    const url = 'https://example.com/missing';
+    const extractor = { extractBatch: vi.fn().mockResolvedValue([]) } as any;
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    expect(await runExtract(extractor, { urls: [url] })).toBe(1);
+    expect(JSON.parse(log.mock.lastCall![0])).toMatchObject({ status: 'error', error: { code: 'EXTRACT_FAILED', details: { failed: [url] } } });
+  });
+
   it('keeps session results eligible after repeated Jina rate limits', async () => {
     initSessionDir(sessionDir);
     const url = 'https://example.com/limited';
