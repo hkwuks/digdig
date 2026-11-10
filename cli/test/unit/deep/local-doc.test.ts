@@ -315,6 +315,23 @@ describe('local-doc indexer', () => {
         });
     });
 
+    it('preserves custom extensions when rebuilding a partial index', async () => {
+        await withIndexRoot(async () => {
+            writeFileSync(join(testDir, 'custom.json'), '{"key":"uniquejsonvalue"}', 'utf-8');
+            await buildIndexFromScannedFiles(testDir, scanFiles(testDir, { extensions: ['json'] }), undefined, ['json']);
+            const metaPath = join(getIndexPath(testDir), 'meta.json');
+            const meta = JSON.parse(readFileSync(metaPath, 'utf-8'));
+            meta.partial = true;
+            writeFileSync(metaPath, JSON.stringify(meta), 'utf-8');
+
+            const result = await refreshIndex(testDir);
+            expect(result.meta.source?.extensions).toEqual(['.json']);
+            expect(Object.keys(result.meta.source?.files ?? {})).toEqual(['custom.json']);
+            const { search } = await import('@orama/orama');
+            expect((await search(await loadIndex(testDir), { term: 'uniquejsonvalue', mode: 'fulltext' })).hits).toHaveLength(1);
+        });
+    });
+
     it('uses Git changes for tracked documents and hashes for untracked documents', async () => {
         await withIndexRoot(async () => {
             runGit(testDir, ['init']);

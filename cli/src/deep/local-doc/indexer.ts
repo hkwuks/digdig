@@ -439,11 +439,14 @@ async function refreshIndexUnlocked(rootPath: string): Promise<IndexLocation> {
   const absRoot = resolve(rootPath);
   const previous = getIndexMeta(absRoot);
   const source = previous?.source;
+  const memoryBudgetBytes = getIndexMemoryBudget();
   if (!previous || previous.partial || !source) {
-    return buildIndexFromScannedFiles(absRoot, scanFiles(absRoot));
+    return buildIndexFromScannedFiles(absRoot, scanFiles(absRoot, {
+      extensions: source?.extensions,
+      maxFileSize: Math.min(10 * 1024 * 1024, Math.floor(memoryBudgetBytes / 8)),
+    }), memoryBudgetBytes, source?.extensions);
   }
 
-  const memoryBudgetBytes = getIndexMemoryBudget();
   const db = await loadIndex(absRoot);
   const git = getGitState(absRoot, source.git?.head, source.extensions);
   let partial = false;

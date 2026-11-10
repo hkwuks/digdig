@@ -749,15 +749,10 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## D5 — Partial 索引重建丢弃配置的扩展名
 
 - ID: TF-20261103-e2678c
-- Status: inbox
-- Priority: normal
-- Owner: Claude
-- Source: code-review:2026-11-03-deep
-- Added: 2026-11-03
-- Updated: 2026-11-03
+- Status: done
 - Goal: Partial 索引重建丢弃配置的扩展名：indexer.ts:437-441 在 meta.partial 时调用 buildIndexFromScannedFiles(absRoot, scanFiles(absRoot))，不传 extensions 与内存预算，回落到 DEFAULT_OPTIONS 的 md,txt。实测 doc-index --type json 后再 refreshIndex，json 文档消失且 meta.source.extensions 变成 ['.md','.txt']
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: `TaskFlowDocs/achieved/2026-11-10-partial-index-options/`
+- Next action: None — completed and archived.
 
 ## D6 — 冗余查询历史从图里读，未批准时为空
 
