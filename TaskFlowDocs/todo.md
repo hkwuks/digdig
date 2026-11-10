@@ -606,15 +606,10 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## C9 — graph-add 畸形输入抛未捕获 TypeError
 
 - ID: TF-20261103-550f7c
-- Status: inbox
-- Priority: normal
-- Owner: Claude
-- Source: code-review:2026-11-03-claims-commands
-- Added: 2026-11-03
-- Updated: 2026-11-03
+- Status: done
 - Goal: graph-add 对畸形输入抛未捕获 TypeError：graph-add.ts:52,59 收到 {entities:'not-an-array'} 或 {entities:[null]} 时抛 Fatal error 到 stderr，stdout 为空、无 JSON envelope，Agent 无法解析
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: `TaskFlowDocs/achieved/2026-11-10-graph-input-validation/`
+- Next action: None — completed and archived.
 
 ## C5 — 新 verdict 不清除旧 Review
 

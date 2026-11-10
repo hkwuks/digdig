@@ -29,6 +29,26 @@ interface EdgeInput {
     sourceResultIds: string[];
 }
 
+type EntityShape = Omit<EntityInput, 'sourceResultIds'> & { sourceResultIds?: unknown };
+type EdgeShape = Omit<EdgeInput, 'sourceResultIds'> & { sourceResultIds?: unknown };
+
+function optionalString(value: unknown): boolean { return value === undefined || typeof value === 'string'; }
+function optionalNumber(value: unknown): boolean { return value === undefined || (typeof value === 'number' && Number.isFinite(value)); }
+function sourceShape(value: unknown): boolean { return value === undefined || (Array.isArray(value) && value.every(id => typeof id === 'string')); }
+
+function isEntityShape(value: unknown): value is EntityShape {
+    return isJsonObject(value) && typeof value.label === 'string' && value.label.length > 0
+        && optionalString(value.id) && optionalString(value.entityType) && optionalString(value.obfuscatedLabel)
+        && optionalNumber(value.score) && optionalNumber(value.frequency) && sourceShape(value.sourceResultIds);
+}
+
+function isEdgeShape(value: unknown): value is EdgeShape {
+    return isJsonObject(value) && typeof value.source === 'string' && value.source.length > 0
+        && typeof value.target === 'string' && value.target.length > 0
+        && typeof value.relation === 'string' && value.relation.length > 0
+        && optionalNumber(value.weight) && sourceShape(value.sourceResultIds);
+}
+
 function sourceIdsAreApproved(ids: unknown, approved: Set<string>): ids is string[] {
     return Array.isArray(ids) && ids.length > 0 && ids.every(id => typeof id === 'string' && approved.has(id));
 }
@@ -39,7 +59,6 @@ function mergeIds(left: string[] | undefined, right: string[]): string[] {
 
 export async function runGraphAdd(options: GraphAddOptions): Promise<number> {
     const sessionDir = resolveSessionPath(options.session);
-    initSessionDir(sessionDir);
     const input = readSessionJsonInput(sessionDir, [{ option: '--data-file', value: options.dataFile, file: true }]);
     if (!input.ok) {
         console.log(JSON.stringify(createErrorEnvelope(input.code, input.message), null, 2));
@@ -49,22 +68,35 @@ export async function runGraphAdd(options: GraphAddOptions): Promise<number> {
         console.log(JSON.stringify(createErrorEnvelope('INVALID_GRAPH_DATA', 'Graph input must be an object with entities and/or edges arrays'), null, 2));
         return 1;
     }
-    const parsed = input.value as { entities?: EntityInput[]; edges?: EdgeInput[] };
-    if (!(parsed.entities?.length || parsed.edges?.length)) {
+    const entities = input.value.entities === undefined ? [] : input.value.entities;
+    const edges = input.value.edges === undefined ? [] : input.value.edges;
+    if (!Array.isArray(entities) || !Array.isArray(edges) || !entities.every(isEntityShape) || !edges.every(isEdgeShape)) {
+        console.log(JSON.stringify(createErrorEnvelope('INVALID_GRAPH_DATA', 'Graph entities and edges must be arrays of valid objects'), null, 2));
+        return 1;
+    }
+    if (!(entities.length || edges.length)) {
         console.log(JSON.stringify(createErrorEnvelope('INVALID_GRAPH_DATA', 'Graph input must contain at least one entity or edge'), null, 2));
         return 1;
     }
 
+    initSessionDir(sessionDir);
     const mutation = mutateSessionGraph(sessionDir, (graph, approved) => {
         const approvedIds = new Set(approved.map(result => result.id));
-        const invalidEntity = (parsed.entities ?? []).find(entity => !entity.label || !sourceIdsAreApproved(entity.sourceResultIds, approvedIds));
-        const invalidEdge = (parsed.edges ?? []).find(edge => !edge.source || !edge.target || !edge.relation || !sourceIdsAreApproved(edge.sourceResultIds, approvedIds));
-        if (invalidEntity || invalidEdge) return { invalidProvenance: true };
-        const collision = (parsed.entities ?? []).map(entity => entity.id || entityId(entity.label))
+        const validEntities: EntityInput[] = [];
+        const validEdges: EdgeInput[] = [];
+        for (const entity of entities) {
+            if (!sourceIdsAreApproved(entity.sourceResultIds, approvedIds)) return { invalidProvenance: true };
+            validEntities.push({ ...entity, sourceResultIds: entity.sourceResultIds });
+        }
+        for (const edge of edges) {
+            if (!sourceIdsAreApproved(edge.sourceResultIds, approvedIds)) return { invalidProvenance: true };
+            validEdges.push({ ...edge, sourceResultIds: edge.sourceResultIds });
+        }
+        const collision = validEntities.map(entity => entity.id || entityId(entity.label))
             .find(id => graph.hasNode(id) && graph.getNodeAttribute(id, 'type') !== 'entity');
         if (collision) return { collision };
         let entitiesAdded = 0;
-        for (const entity of parsed.entities ?? []) {
+        for (const entity of validEntities) {
             const id = entity.id || entityId(entity.label);
             if (!graph.hasNode(id)) {
                 graph.addNode(id, {
@@ -86,7 +118,7 @@ export async function runGraphAdd(options: GraphAddOptions): Promise<number> {
 
         let edgesAdded = 0;
         const skippedEdges: Array<{ source: string; target: string; relation: string }> = [];
-        for (const edge of parsed.edges ?? []) {
+        for (const edge of validEdges) {
             if (!graph.hasNode(edge.source) || !graph.hasNode(edge.target)) {
                 skippedEdges.push(edge);
                 continue;

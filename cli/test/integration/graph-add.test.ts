@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { runGraphAdd } from '../../src/commands/graph-add.js';
@@ -46,6 +46,40 @@ describe('graph-add command', () => {
     writeFileSync(dataFile, JSON.stringify({ entities: [{ label: 'Tokio', sourceResultIds: ['r:unknown'] }] }), 'utf8');
     expect(await runGraphAdd({ session: sessionDir, dataFile })).toBe(1);
     expect(loadSessionGraph(sessionDir).hasNode('e:tokio')).toBe(false);
+  });
+
+  it.each([
+    { entities: 'not-an-array' },
+    { entities: null },
+    { entities: [null] },
+    { edges: [null] },
+    { entities: [{ label: 7, sourceResultIds: [] }] },
+    { entities: [{ id: 7, label: 'Entity', sourceResultIds: [] }] },
+    { entities: [{ label: 'Entity', score: 'high', sourceResultIds: [] }] },
+    { entities: [{ label: 'Entity', sourceResultIds: [42] }] },
+    { edges: [{ source: 'e:a', target: 'e:b', relation: 42, sourceResultIds: [] }] },
+  ])('rejects malformed graph inputs without changing session files: %j', async input => {
+    const dataFile = join(sessionDir, 'agent-inputs', 'malformed.json');
+    writeFileSync(dataFile, JSON.stringify(input), 'utf8');
+    const meta = readFileSync(join(sessionDir, 'meta.json'), 'utf8');
+    const graph = readFileSync(join(sessionDir, 'graph.json'), 'utf8');
+    vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 10000);
+    expect(await runGraphAdd({ session: sessionDir, dataFile })).toBe(1);
+    expect(JSON.parse(vi.mocked(console.log).mock.lastCall![0])).toMatchObject({ status: 'error', error: { code: 'INVALID_GRAPH_DATA' } });
+    expect(readFileSync(join(sessionDir, 'meta.json'), 'utf8')).toBe(meta);
+    expect(readFileSync(join(sessionDir, 'graph.json'), 'utf8')).toBe(graph);
+  });
+
+  it('does not write a valid entity when another item in the batch is malformed', async () => {
+    const dataFile = join(sessionDir, 'agent-inputs', 'mixed-invalid.json');
+    writeFileSync(dataFile, JSON.stringify({ entities: [{ id: 'e:ok', label: 'Valid', sourceResultIds: [resultId] }, null] }), 'utf8');
+    const meta = readFileSync(join(sessionDir, 'meta.json'), 'utf8');
+    const graph = readFileSync(join(sessionDir, 'graph.json'), 'utf8');
+    vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 10000);
+    expect(await runGraphAdd({ session: sessionDir, dataFile })).toBe(1);
+    expect(JSON.parse(vi.mocked(console.log).mock.lastCall![0])).toMatchObject({ error: { code: 'INVALID_GRAPH_DATA' } });
+    expect(readFileSync(join(sessionDir, 'meta.json'), 'utf8')).toBe(meta);
+    expect(readFileSync(join(sessionDir, 'graph.json'), 'utf8')).toBe(graph);
   });
 
   it('rejects the entire batch when an entity id belongs to a structural node', async () => {
