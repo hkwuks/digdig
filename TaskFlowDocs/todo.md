@@ -775,15 +775,10 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## D7 — Jina 限流扣掉抽取重试预算
 
 - ID: TF-20261103-b34a9e
-- Status: inbox
-- Priority: normal
-- Owner: Claude
-- Source: code-review:2026-11-03-deep
-- Added: 2026-11-03
-- Updated: 2026-11-03
+- Status: done
 - Goal: Jina 限流扣掉抽取重试预算：session.ts:636-641 对合成的 Jina Reader rate limit reached 也递增 failureCount，而 extract.ts:64-79 把它报成 retryable:true；isPendingExtraction (session.ts:488-492) 在 failureCount>=2 时放弃。实测两次限流后该 URL 从 getPendingExtractionResults 中永久消失，遵循 retryable 的调用方反而丢 URL
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: `TaskFlowDocs/achieved/2026-11-10-extraction-rate-limit/`
+- Next action: None — completed and archived.
 
 ## D8 — 本地文档模糊标题兜底是死代码
 

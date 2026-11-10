@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { runExtract } from '../../../src/commands/extract.js';
-import { appendSessionResults, initSessionDir, loadSessionResults } from '../../../src/deep/session.js';
+import { appendSessionResults, getPendingExtractionResults, initSessionDir, loadSessionResults, recordExtractionOutcome } from '../../../src/deep/session.js';
 
 describe('runExtract', () => {
   const sessionDir = mkdtempSync(join(tmpdir(), 'sxng-extract-'));
@@ -43,5 +43,27 @@ describe('runExtract', () => {
     expect(JSON.parse(log.mock.calls[0][0])).toMatchObject({
       status: 'error', error: { code: 'JINA_RATE_LIMITED', retryable: true, details: { retryAfterMs: 3000, retryAt: 4000 } },
     });
+  });
+
+  it('keeps session results eligible after repeated Jina rate limits', async () => {
+    initSessionDir(sessionDir);
+    const url = 'https://example.com/limited';
+    appendSessionResults(sessionDir, [{ url, title: 'Limited', origins: [{ tool: 'sxng', query: 'q' }] }]);
+    const extractor = { extractBatch: vi.fn().mockResolvedValue([{
+      url, title: '', content: '', excerpt: '', length: 0, extractedAt: 1,
+      error: 'Jina Reader rate limit reached', retryAfterMs: 3000, retryAt: 4000,
+    }]) } as any;
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    expect(await runExtract(extractor, { session: sessionDir, urls: [url], jina: true })).toBe(1);
+    expect(await runExtract(extractor, { session: sessionDir, urls: [url], jina: true })).toBe(1);
+    expect(loadSessionResults(sessionDir)[0].failureCount).toBeUndefined();
+    expect(getPendingExtractionResults(sessionDir).map(result => result.url)).toContain(url);
+    recordExtractionOutcome(sessionDir, [{ url, failure: { code: 'empty', message: 'blank' } }]);
+    expect(loadSessionResults(sessionDir)[0].failureCount).toBe(1);
+    expect(await runExtract(extractor, { session: sessionDir, urls: [url], jina: true })).toBe(1);
+    expect(loadSessionResults(sessionDir)[0].failureCount).toBe(1);
+    recordExtractionOutcome(sessionDir, [{ url, failure: { code: 'empty', message: 'blank' } }]);
+    expect(getPendingExtractionResults(sessionDir)).toEqual([]);
   });
 });
