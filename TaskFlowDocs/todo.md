@@ -1,5 +1,31 @@
 # Todo
 
+## 排查 TaskFlow 在 Codex 的能力记录与文档写入门禁
+
+- ID: TF-20261110-codexhook
+- Status: inbox
+- Priority: normal
+- Owner: unassigned
+- Source: user-request:2026-11-10
+- Added: 2026-11-10
+- Updated: 2026-11-10
+- Goal: 排查 TaskFlow 的 Codex 能力调用证据未接线、计划文件门禁仅匹配 apply_patch 而无法覆盖 shell 写入的问题；在真实 Codex 会话中验证事件、记录和门禁行为，再决定可行的兼容方案。
+- Task: Not promoted.
+- Next action: 在 TaskFlow 项目中确认归属和方案；当前仅记录，不实施。
+
+## 研究抽取能力优先级、外部工具复用和插件方案
+
+- ID: TF-20261110-a7e5c1
+- Status: inbox
+- Priority: normal
+- Owner: unassigned
+- Source: user-request:2026-11-10
+- Added: 2026-11-10
+- Updated: 2026-11-10
+- Goal: 盘点已有正文抽取能力及其调用方式，研究如何按适用场景安排抽取优先级和回退；验证 Ollama、DeepSeek 是否提供可复用的抽取接口，以及能否借用 Agent 已安装的搜索或抽取工具。比较直接集成与插件方案的收益、复杂度和边界，再讨论是否需要启用插件机制。接口是否存在、工具能否复用及优先级均待验证，不预设结论。
+- Task: Not promoted.
+- Next action: 研究现有实现和候选能力，提出有依据的优先级与架构选项供讨论；本条仅登记，不实施。
+
 ## Add DeepSeek Search API as a search provider
 
 - ID: TF-20261017-d5d5af
