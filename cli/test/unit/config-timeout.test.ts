@@ -44,6 +44,7 @@ describe('digdig request timeout default', () => {
         const { dir, home, cwd } = await freshConfig();
         process.cwd = () => cwd;
         process.env.HOME = home;
+        process.env.USERPROFILE = home;
         const { config } = await import('../../src/config.js');
         expect(config.timeout).toBe(25000);
         rmSync(dir, { recursive: true, force: true });
@@ -53,6 +54,7 @@ describe('digdig request timeout default', () => {
         const { dir, home, cwd } = await freshConfig();
         process.cwd = () => cwd;
         process.env.HOME = home;
+        process.env.USERPROFILE = home;
         process.env.DIGDIG_TIMEOUT = '3000';
         const { config } = await import('../../src/config.js');
         expect(config.timeout).toBe(3000);
@@ -63,6 +65,7 @@ describe('digdig request timeout default', () => {
         const { dir, home, cwd } = await freshConfig();
         process.cwd = () => cwd;
         process.env.HOME = home;
+        process.env.USERPROFILE = home;
         const { config } = await import('../../src/config.js');
         const initSource = readFileSync(new URL('../../src/init.ts', import.meta.url), 'utf8');
         const match = initSource.match(/timeout:\s*(\d+),/);
@@ -114,7 +117,7 @@ describe('documented timeout default', () => {
         const en = readFileSync(new URL('README.md', repo), 'utf8');
         const zh = readFileSync(new URL('README.zh-CN.md', repo), 'utf8');
         const outgoing = (source: string) => {
-            const block = source.match(/outgoing:\n(?:.*\n)*?\s+request_timeout: ([\d.]+)[^\n]*\n\s+max_request_timeout: ([\d.]+)/);
+            const block = source.replace(/\r\n/g, '\n').match(/outgoing:\n(?:.*\n)*?\s+request_timeout: ([\d.]+)[^\n]*\n\s+max_request_timeout: ([\d.]+)/);
             expect(block).not.toBeNull();
             return { request: block![1], max: block![2] };
         };
