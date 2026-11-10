@@ -19,7 +19,8 @@ import {
   setSkipped,
   validateSessionInputFile,
 } from '../../src/deep/session.js';
-import { loadClaims, loadEvidences, loadReviews, saveClaims, saveEvidences, saveReviews } from '../../src/claims/store.js';
+import { loadClaims, loadEvidences, loadReviews, saveClaims, saveEvidences, saveReviews, saveVerdicts } from '../../src/claims/store.js';
+import { runPolicyAggregate } from '../../src/commands/review.js';
 
 describe('session result contract', () => {
   let sessionDir: string;
@@ -258,9 +259,51 @@ describe('session result contract', () => {
 
     expect(loadSessionResults(sessionDir)[0].status).toBe('pending');
     expect(loadEvidences(sessionDir)[0]).toMatchObject({ invalid: true, invalidationReason: 'contentChanged' });
-    expect(loadClaims(sessionDir)[0].status).toBe('verifying');
+    expect(loadClaims(sessionDir)[0].status).toBe('pending');
     expect(loadReviews(sessionDir)).toEqual([]);
     expect(loadSessionGraph(sessionDir).hasNode(initial.id)).toBe(false);
+  });
+
+  it('returns a claim to pending when its last source is skipped, retaining evidence', () => {
+    appendSessionResults(sessionDir, [{ url: 'https://example.com/one', title: 'One', contentType: 'extracted', content: 'Body one', extractor: 'defuddle', extractedAt: 1, origins: [{ tool: 'sxng', query: 'q' }] }]);
+    const [result] = loadSessionResults(sessionDir);
+    approveResults(sessionDir, [{ id: result.id, revision: result.revision }]);
+    saveClaims(sessionDir, [{ id: 'cl_001', text: 'Claim', riskLevel: 'low', status: 'reviewed', sessionDir, createdAt: 1 }]);
+    saveEvidences(sessionDir, [{ id: 'ev_001', claimId: 'cl_001', resultId: result.id, quote: 'Body', charStart: 0, charEnd: 4, contentHash: 'fixture', extractedAt: 1 }]);
+    const approved = loadSessionResults(sessionDir)[0];
+    setSkipped(sessionDir, [{ id: approved.id, revision: approved.revision }], true);
+    expect(loadEvidences(sessionDir)).toMatchObject([{ id: 'ev_001', invalid: true, invalidationReason: 'sourceSkipped' }]);
+    expect(loadClaims(sessionDir)[0].status).toBe('pending');
+  });
+
+  it('keeps a newly aggregated review after one of two sources was invalidated', async () => {
+    appendSessionResults(sessionDir, ['one', 'two'].map(name => ({ url: `https://example.com/${name}`, title: name, contentType: 'extracted' as const, content: `Body ${name}`, extractor: 'defuddle', extractedAt: 1, origins: [{ tool: 'sxng' as const, query: 'q' }] })));
+    const results = loadSessionResults(sessionDir);
+    approveResults(sessionDir, results.map(result => ({ id: result.id, revision: result.revision })));
+    saveClaims(sessionDir, [{ id: 'cl_001', text: 'Claim', riskLevel: 'low', status: 'reviewed', sessionDir, createdAt: 1 }]);
+    saveEvidences(sessionDir, results.map((result, index) => ({ id: `ev_00${index + 1}`, claimId: 'cl_001', resultId: result.id, quote: 'Body', charStart: 0, charEnd: 4, contentHash: 'fixture', extractedAt: 1 })));
+    const first = loadSessionResults(sessionDir)[0];
+    setSkipped(sessionDir, [{ id: first.id, revision: first.revision }], true);
+    expect(loadClaims(sessionDir)[0].status).toBe('verifying');
+    saveVerdicts(sessionDir, [{ id: 'vd_002', claimId: 'cl_001', evidenceIds: ['ev_002'], stance: 'support', reason: 'Valid source', createdAt: Date.now() }]);
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    expect(await runPolicyAggregate(sessionDir, {})).toBe(0);
+    log.mockRestore();
+    loadSessionGraph(sessionDir);
+    expect(loadClaims(sessionDir)[0].status).toBe('reviewed');
+    expect(loadReviews(sessionDir)).toHaveLength(1);
+  });
+
+  it('removes an older review when recovering a previously invalidated evidence', () => {
+    appendSessionResults(sessionDir, [{ url: 'https://example.com/one', title: 'One', contentType: 'extracted', content: 'Body one', extractor: 'defuddle', extractedAt: 1, origins: [{ tool: 'sxng', query: 'q' }] }]);
+    const [result] = loadSessionResults(sessionDir);
+    saveClaims(sessionDir, [{ id: 'cl_001', text: 'Claim', riskLevel: 'low', status: 'reviewed', sessionDir, createdAt: 1 }]);
+    saveEvidences(sessionDir, [{ id: 'ev_001', claimId: 'cl_001', resultId: result.id, quote: 'Body', charStart: 0, charEnd: 4, contentHash: 'fixture', extractedAt: 1, invalid: true, invalidatedAt: 100, invalidationReason: 'contentChanged' }]);
+    saveReviews(sessionDir, [{ claimId: 'cl_001', decision: 'approved', autoPass: true, checks: { sourceIndependent: true, hasRefute: false, allSupport: true }, matchedRule: 'fixture', reviewer: 'agent', reviewedAt: 99 }]);
+    loadSessionGraph(sessionDir);
+    expect(loadClaims(sessionDir)[0].status).toBe('pending');
+    expect(loadReviews(sessionDir)).toEqual([]);
+    expect(loadEvidences(sessionDir)).toHaveLength(1);
   });
 
   it('repairs stale graph data during read-only graph loading', () => {

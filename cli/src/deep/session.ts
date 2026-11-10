@@ -530,6 +530,7 @@ function repairInvalidDependents(sessionDir: string, results: SessionResult[]): 
         assertClaimsStoreReadable(sessionDir);
         const evidences = loadEvidences(sessionDir);
         const affectedClaims = new Set<string>();
+        const newlyInvalidClaims = new Set<string>();
         const now = Date.now();
         let evidenceChanged = false;
         for (const evidence of evidences) {
@@ -541,15 +542,26 @@ function repairInvalidDependents(sessionDir: string, results: SessionResult[]): 
                 evidence.invalid = true;
                 evidence.invalidatedAt = now;
                 evidence.invalidationReason = reason;
+                newlyInvalidClaims.add(evidence.claimId);
                 evidenceChanged = true;
             }
         }
         if (affectedClaims.size) {
-            if (evidenceChanged) saveEvidences(sessionDir, evidences);
             const claims = loadClaims(sessionDir);
-            for (const claim of claims) if (affectedClaims.has(claim.id)) claim.status = 'verifying';
+            const reviews = loadReviews(sessionDir);
+            const invalidateReviews = new Set<string>();
+            for (const claim of claims) {
+                if (!affectedClaims.has(claim.id)) continue;
+                const valid = evidences.some(evidence => evidence.claimId === claim.id && !evidence.invalid);
+                const review = reviews.find(item => item.claimId === claim.id);
+                const newerInvalidation = evidences.some(evidence => evidence.claimId === claim.id && evidence.invalid && evidence.invalidatedAt !== undefined && review && evidence.invalidatedAt > review.reviewedAt);
+                if (!valid || newlyInvalidClaims.has(claim.id) || newerInvalidation) invalidateReviews.add(claim.id);
+                if (!valid) claim.status = 'pending';
+                else if (!review || invalidateReviews.has(claim.id)) claim.status = 'verifying';
+            }
+            saveReviews(sessionDir, reviews.filter(review => !invalidateReviews.has(review.claimId)));
             saveClaims(sessionDir, claims);
-            saveReviews(sessionDir, loadReviews(sessionDir).filter(review => !affectedClaims.has(review.claimId)));
+            if (evidenceChanged) saveEvidences(sessionDir, evidences);
         }
     } catch { /* Preserve corrupt claim artifacts for their dedicated repair commands. */ }
 
