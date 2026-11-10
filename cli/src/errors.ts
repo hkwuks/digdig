@@ -20,6 +20,8 @@
  */
 
 export type SearchErrorCode =
+    /** Missing or invalid SearXNG endpoint. */
+    | 'CONFIG_MISSING'
     /** 401 / 403 — the credential is wrong or missing. Never retryable. */
     | 'AUTH_FAILED'
     /** 429 — ask again later. */
@@ -96,6 +98,8 @@ export class SearchError extends Error {
         const label = LABEL[this.provider];
 
         switch (this.code) {
+            case 'CONFIG_MISSING':
+                return 'Set a valid HTTP(S) baseUrl in digdig.config.json or DIGDIG_BASE_URL.';
             case 'AUTH_FAILED': {
                 const variable = KEY_VARIABLE[this.provider];
                 if (!variable) {

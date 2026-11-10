@@ -462,15 +462,10 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## P6 — baseUrl 缺失时报错误导、retryable 判定错
 
 - ID: TF-20261103-a062c7
-- Status: inbox
-- Priority: normal
-- Owner: Claude
-- Source: code-research:2026-11-03-cli-audit
-- Added: 2026-11-03
-- Updated: 2026-11-03
+- Status: done
 - Goal: baseUrl 缺失或非法时报错误导且可重试性判定错：无配置时搜索报 SEARCH_FAILED/Invalid URL 无 hint，--health 提示文字里的 URL 为空，--engines-list 与 --categories-list 对同一配置错误报不同 code，--engines-list 还标 retryable:true。应在发请求前统一报 CONFIG_MISSING
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: `TaskFlowDocs/achieved/2026-11-10-searxng-config-error/`
+- Next action: None — completed and archived.
 
 ## P7 — 只读命令对不存在的会话名创建目录
 

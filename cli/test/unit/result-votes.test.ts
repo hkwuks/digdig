@@ -7,7 +7,7 @@
  * and an outage indistinguishable from a hiccup. These tests pin the pairing
  * rules, including the case where pairing them would be a guess.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import axios from 'axios';
 
 vi.mock('axios');
@@ -55,9 +55,12 @@ async function search(results: unknown[], unresponsive: unknown[] = []) {
 
 describe('SearXNG result votes', () => {
     beforeEach(() => {
+        vi.stubEnv('DIGDIG_BASE_URL', 'https://searxng.example');
         vi.resetModules();
         mockedAxios.isAxiosError = vi.fn().mockReturnValue(false) as never;
     });
+
+    afterEach(() => vi.unstubAllEnvs());
 
     it('pairs engines with their positions when two engines agree', async () => {
         const response = await search([
@@ -119,9 +122,12 @@ describe('SearXNG result votes', () => {
 
 describe('SearXNG unresponsive engines', () => {
     beforeEach(() => {
+        vi.stubEnv('DIGDIG_BASE_URL', 'https://searxng.example');
         vi.resetModules();
         mockedAxios.isAxiosError = vi.fn().mockReturnValue(false) as never;
     });
+
+    afterEach(() => vi.unstubAllEnvs());
 
     it('keeps the reason alongside the engine name', async () => {
         const response = await search(

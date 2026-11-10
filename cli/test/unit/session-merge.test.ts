@@ -1,5 +1,10 @@
-import { expect, it, vi } from 'vitest';
+import { expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { runCli } from '../../src/runCli.js';
+import { config } from '../../src/config.js';
+
+const originalBaseUrl = config.baseUrl;
+beforeEach(() => { config.baseUrl = 'https://searxng.example'; });
+afterEach(() => { config.baseUrl = originalBaseUrl; });
 
 const state = vi.hoisted(() => ({ stored: [] as any[] }));
 vi.mock('fs', async original => {
