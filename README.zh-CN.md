@@ -1297,6 +1297,7 @@ Session 融合时使用独立的 `fusionScore`。`publishedDate` 是来源发布
 digdig 的深度搜索工作流（会话积累、可数覆盖事实、知识图谱、声明-证据-审核）已被需要持久化、多轮研究能力的项目采用：
 
 - **[1052 OS](https://github.com/1052666/1052-OS)** — 个人 AI 操作系统。其 `search-pack` 集成了持久化研究会话、可数覆盖事实、内容提取和声明-证据-审核流程，这些功能均由与 digdig 相同的深度搜索理念驱动。
+- **[Mimir](https://github.com/1692775560/dsh-Mimir-Academic-research)**  一站式科研工作台插件：LaTeX 论文边写边编译、arXiv 文献管理、实验追踪、指标图表、GPU 服务器 SSH 任务编排，管理科研全周期。An open-source research workbench plugin for the whole research cycle.
 
 > 欢迎提交 PR 添加你的项目。
 
