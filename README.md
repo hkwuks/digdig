@@ -15,7 +15,7 @@
   <a href="https://github.com/hkwuks/digdig/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/hkwuks/digdig?style=flat-square&color=green" alt="license">
   </a>
-  <img src="https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen?style=flat-square" alt="node version">
+  <img src="https://img.shields.io/badge/node-%3E%3D24.15.0-brightgreen?style=flat-square" alt="node version">
 </p>
 
 <p align="center">
@@ -1073,7 +1073,7 @@ dg --session <session-name> --queries "tokio vs async-std,benchmark 2026" --redu
 
 ### Session Coverage
 
-A `--session` search shows only what that invocation found; earlier rounds still contribute to the fusion score but do not appear in the output. `dg coverage <session>` restores the whole-session view on demand, from `results.json` alone — no graph, no approval, no extraction required.
+A `--session` search shows only what that invocation found; earlier rounds still contribute to the fusion score but do not appear in the output. `dg coverage <session>` restores the whole-session view on demand from stored results — no graph, no approval, no extraction required.
 
 It reports counted facts, not conclusions: rounds with their queries and engines, how many results each round first introduced, how many it returned that an earlier round had already seen, which URLs recur across rounds, per round the terms confined to that round, which hosts the session actually drew from, and which of the common primary-source hosts (arXiv, GitHub, Stack Overflow, package registries) it has not touched. A round whose every result was already known is the clearest saturation signal. Terms spanning every round are the session's subject and are excluded, so each round is named by what it actually added.
 
@@ -1108,10 +1108,10 @@ Deciding which aspects are covered and which are missing is the Agent's job. `dg
 
 Each session stores state and Agent input files in `.digdig/sessions/<session-name>/`:
 
-- **`results.json`** — Accumulated search results (URL dedup, multi-round)
-- **`graph.json`** — Knowledge graph (structural + semantic layers)
-- **`meta.json`** — Session metadata (owner, description, timestamps)
+- **`session.sqlite`** — Session metadata, results, captured bodies, graph and claim/evidence/review state
 - **`agent-inputs/`** — UTF-8 JSON input files for write commands; retained for inspection and retry
+
+Existing JSON sessions migrate automatically on first access, including read-only access. Original JSON files remain unchanged as historical backups; the database becomes the only writable session state. Do not access the same session concurrently with older digdig versions. SQLite WAL requires a local filesystem shared by processes on one host; network filesystems are unsupported. Do not copy only the database file while it is open: SQLite may also use WAL files.
 
 ### Knowledge Graph
 

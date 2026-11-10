@@ -62,16 +62,14 @@ describe('backward compatibility', () => {
                 }, null, 2)
             );
 
-            expect(() => loadSessionResults(sessionDir)).toThrow('Cannot read session results');
+            expect(() => loadSessionResults(sessionDir)).toThrow('Invalid legacy session results.json');
         });
     });
 
     describe('graph-add backward compatibility', () => {
         it('adds entities without optional fields', () => {
-            initSessionDir(sessionDir);
-
             // Old-format entity (no entityType, score, etc.)
-            const graph = loadSessionGraph(sessionDir);
+            const graph = new DirectedGraph<GraphNodeAttrs, GraphEdgeAttrs>();
             graph.mergeNode('e:legacy', { type: 'entity', label: 'legacy' });
 
             const serialized = serializeGraph(graph);

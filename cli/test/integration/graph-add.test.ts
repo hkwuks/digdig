@@ -1,10 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { runGraphAdd } from '../../src/commands/graph-add.js';
 import { runGraphTraverse } from '../../src/commands/graph-traverse.js';
 import { appendSessionResults, approveResults, getApprovedResults, initSessionDir, injectApprovedResults, loadSessionGraph, loadSessionResults, mutateSessionGraph, setSkipped } from '../../src/deep/session.js';
+import { withSessionRead, withSessionWrite } from '../../src/deep/session-store.js';
+
+function sessionSnapshot(dir: string): unknown {
+  return withSessionRead(dir, db => ({
+    meta: db.prepare("SELECT data FROM session_meta WHERE key = 'meta'").get(),
+    graph: db.prepare('SELECT data FROM graph_snapshot WHERE id = 1').get(),
+  }));
+}
 
 describe('graph-add command', () => {
   let sessionDir: string;
@@ -61,25 +69,21 @@ describe('graph-add command', () => {
   ])('rejects malformed graph inputs without changing session files: %j', async input => {
     const dataFile = join(sessionDir, 'agent-inputs', 'malformed.json');
     writeFileSync(dataFile, JSON.stringify(input), 'utf8');
-    const meta = readFileSync(join(sessionDir, 'meta.json'), 'utf8');
-    const graph = readFileSync(join(sessionDir, 'graph.json'), 'utf8');
+    const before = sessionSnapshot(sessionDir);
     vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 10000);
     expect(await runGraphAdd({ session: sessionDir, dataFile })).toBe(1);
     expect(JSON.parse(vi.mocked(console.log).mock.lastCall![0])).toMatchObject({ status: 'error', error: { code: 'INVALID_GRAPH_DATA' } });
-    expect(readFileSync(join(sessionDir, 'meta.json'), 'utf8')).toBe(meta);
-    expect(readFileSync(join(sessionDir, 'graph.json'), 'utf8')).toBe(graph);
+    expect(sessionSnapshot(sessionDir)).toEqual(before);
   });
 
   it('does not write a valid entity when another item in the batch is malformed', async () => {
     const dataFile = join(sessionDir, 'agent-inputs', 'mixed-invalid.json');
     writeFileSync(dataFile, JSON.stringify({ entities: [{ id: 'e:ok', label: 'Valid', sourceResultIds: [resultId] }, null] }), 'utf8');
-    const meta = readFileSync(join(sessionDir, 'meta.json'), 'utf8');
-    const graph = readFileSync(join(sessionDir, 'graph.json'), 'utf8');
+    const before = sessionSnapshot(sessionDir);
     vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 10000);
     expect(await runGraphAdd({ session: sessionDir, dataFile })).toBe(1);
     expect(JSON.parse(vi.mocked(console.log).mock.lastCall![0])).toMatchObject({ error: { code: 'INVALID_GRAPH_DATA' } });
-    expect(readFileSync(join(sessionDir, 'meta.json'), 'utf8')).toBe(meta);
-    expect(readFileSync(join(sessionDir, 'graph.json'), 'utf8')).toBe(graph);
+    expect(sessionSnapshot(sessionDir)).toEqual(before);
   });
 
   it('rejects the entire batch when an entity id belongs to a structural node', async () => {
@@ -167,10 +171,9 @@ describe('graph-add command', () => {
     expect(loadSessionGraph(sessionDir).filterNodes((_id, attrs) => attrs.type === 'path').length).toBeLessThanOrEqual(1000);
   });
 
-  it('rebuilds the structural layer from approved bodies when graph.json is missing', () => {
-    const graphFile = join(sessionDir, 'graph.json');
-    rmSync(graphFile, { force: true });
-    expect(existsSync(graphFile)).toBe(false);
+  it('rebuilds the structural layer from approved bodies when the graph snapshot is missing', () => {
+    withSessionWrite(sessionDir, db => db.prepare('DELETE FROM graph_snapshot WHERE id = 1').run());
+    expect(withSessionRead(sessionDir, db => db.prepare('SELECT 1 FROM graph_snapshot').get())).toBeUndefined();
 
     const rebuilt = injectApprovedResults(sessionDir, getApprovedResults(sessionDir));
     expect(rebuilt.nodesAdded).toBeGreaterThan(0);

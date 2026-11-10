@@ -876,15 +876,10 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## results.json 把三层存储混成一个文件
 
 - ID: TF-20261107-492224
-- Status: inbox
-- Priority: normal
-- Owner: Claude
-- Source: design report review
-- Added: 2026-11-07
-- Updated: 2026-11-07
+- Status: done
 - Goal: `results.json` 同时装着 `docs/agent_search_integrated_report_2026-10-27.md` 4.4 要求分开的三层：Search Cache（查询、候选摘要、后端状态）、Evidence Store（抓取快照、定位、哈希、出处）、Verified Knowledge（已审核且值得复用的结论）。报告要求三者各有不同的 TTL 与失效策略，混在一起就无法分别治理。现状后果可量化：`writeResults`（`cli/src/deep/session.ts:304`）每次全量重写整个文件，抽取正文后正文占比超过 90%，一个 200 条结果的会话就是数 MB；而 `loadSessionResults` 在 20 多处被调用，其中 `loadSessionGraph`、`mutateSessionGraph`、`mutateSessionState`、`approveResults` 每次还会附带跑一遍有副作用的 `repairInvalidDependents`。结论是**分层**而不是分片——分片只是手段，报告 4.4 要的是三层各自的生命周期。
-- Task: Not promoted.
-- Next action: 需要设计。这是 `TF-20261107-024a82`（snapshot）与 `TF-20261107-23d219`（status 拆分）的共同前置，三者应一起设计。
+- Task: `TaskFlowDocs/achieved/2026-11-10-sqlite-session/`
+- Next action: None — completed and archived.
 
 ## 来源簇只按 hostname 判断，转载被当成独立来源
 

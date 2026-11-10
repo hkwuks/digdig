@@ -2,30 +2,13 @@
  * Query-graph subcommand - BFS subgraph extraction from knowledge graph
  */
 
-import { readFileSync, existsSync, statSync } from 'fs';
-import { join } from 'path';
+import { readFileSync } from 'fs';
 import { deserializeGraph, bfsSubgraph, serializeGraph, graphStats, GraphNodeAttrs, GraphEdgeAttrs } from '../deep/graph.js';
 import { createSuccessEnvelope, createErrorEnvelope } from '../protocol.js';
 import { sampleGraph, SamplingStrategy, SamplingResult } from '../deep/graph-sampling.js';
-import { getDefaultSessionRoot } from './session.js';
-
-/** Resolve graph file path — if directory (session), use graph.json inside it.
- *  Pure name (no separators) is resolved to the default session root.
- */
-function resolveGraphFile(path: string): string {
-    // Pure name without path separators: resolve to default sessions dir
-    if (!path.includes('/') && !path.includes('\\')) {
-        path = join(getDefaultSessionRoot(), path);
-    }
-    try {
-        if (statSync(path).isDirectory()) {
-            return join(path, 'graph.json');
-        }
-    } catch {
-        // Not a file/dir, return as-is
-    }
-    return path;
-}
+import { withSessionRead } from '../deep/session-store.js';
+import { SessionStateError } from '../deep/session-lock.js';
+import { resolveGraphInput } from './graph-input.js';
 
 /** Format subgraph as human-readable text descriptions */
 function formatSubgraphAsText(
@@ -53,7 +36,7 @@ export interface QueryGraphOptions {
 }
 
 export async function runQueryGraph(options: QueryGraphOptions): Promise<number> {
-    const graphFile = resolveGraphFile(options.graphFile);
+    const { graphFile, sessionDir } = resolveGraphInput(options.graphFile);
 
     if (!graphFile) {
         const envelope = createErrorEnvelope(
@@ -67,7 +50,8 @@ export async function runQueryGraph(options: QueryGraphOptions): Promise<number>
 
     let graphData: any;
     try {
-        const raw = readFileSync(graphFile, 'utf-8');
+        const row = sessionDir ? withSessionRead(sessionDir, db => db.prepare('SELECT data FROM graph_snapshot WHERE id = 1').get()) : undefined;
+        const raw = sessionDir ? String(row?.data ?? '') : readFileSync(graphFile, 'utf-8');
         const parsed = JSON.parse(raw);
 
         // Handle envelope format
@@ -85,6 +69,10 @@ export async function runQueryGraph(options: QueryGraphOptions): Promise<number>
             return 1;
         }
     } catch (error) {
+        if (error instanceof SessionStateError) {
+            console.log(JSON.stringify(createErrorEnvelope(error.code, error.message, { retryable: error.code === 'SESSION_BUSY' }), null, 2));
+            return 1;
+        }
         const envelope = createErrorEnvelope(
             'FILE_READ_FAILED',
             `Failed to read graph file: ${graphFile}`,

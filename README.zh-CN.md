@@ -15,7 +15,7 @@
   <a href="https://github.com/hkwuks/digdig/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/hkwuks/digdig?style=flat-square&color=green" alt="license">
   </a>
-  <img src="https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen?style=flat-square" alt="node version">
+  <img src="https://img.shields.io/badge/node-%3E%3D24.15.0-brightgreen?style=flat-square" alt="node version">
 </p>
 
 <p align="center">
@@ -1053,7 +1053,7 @@ dg --session <session-name> --queries "tokio vs async-std,benchmark 2026" --redu
 
 ### 会话覆盖度
 
-带 `--session` 的搜索只显示本次调用找到的结果；此前轮次仍参与融合打分，但不进入输出。`dg coverage <session>` 按需恢复全会话视野，只读 `results.json` —— 不需要图谱、不需要审批、不需要抽取。
+带 `--session` 的搜索只显示本次调用找到的结果；此前轮次仍参与融合打分，但不进入输出。`dg coverage <session>` 根据已保存的结果按需恢复全会话视野，不需要图谱、审批或抽取。
 
 它报的是可数事实而不是结论：每轮的查询与引擎、每轮首次引入了多少结果、有多少条是更早轮次已见过的、哪些 URL 跨轮重复出现、每一轮独有（不跨轮）的词、实际用到的域名，以及常用一手来源站（arXiv、GitHub、Stack Overflow、各类包仓库）里还没碰过哪些。某一轮的全部结果都是旧的就说明该方向已经饱和。跨所有轮次出现的词属于会话主题，会被排除，因此每轮由它真正新增的内容来命名。
 
@@ -1086,10 +1086,10 @@ dg --session <session-name> --queries "tokio vs async-std,benchmark 2026" --redu
 
 每个会话在 `.digdig/sessions/<session-name>/` 下存储状态和 Agent 输入文件：
 
-- **`results.json`** — 累积的搜索结果（URL 去重，多轮搜索）
-- **`graph.json`** — 知识图谱（结构层 + 语义层）
-- **`meta.json`** — 会话元数据（所有者、描述、时间戳）
+- **`session.sqlite`** — 会话元数据、搜索结果、正文、图谱及 claim/evidence/review 状态
 - **`agent-inputs/`** — 写命令使用的 UTF-8 JSON；保留以便检查和重试
+
+旧 JSON 会话在首次访问时自动迁移，包括只读访问。原 JSON 文件保留且不再更新，数据库成为唯一可写状态。不要用旧版 digdig 同时访问同一会话。SQLite WAL 仅支持单机本地文件系统，不支持网络文件系统；数据库打开时不要只复制主文件，因为可能同时存在 WAL 文件。
 
 ### 知识图谱
 

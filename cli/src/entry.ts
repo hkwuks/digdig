@@ -13,6 +13,8 @@
 
 import { runCli } from './runCli.js';
 import { SearXNGService } from './service.js';
+import { SessionStateError } from './deep/session-lock.js';
+import { createErrorEnvelope } from './protocol.js';
 
 export async function main(): Promise<void> {
     const args = process.argv.slice(2);
@@ -24,7 +26,11 @@ export async function main(): Promise<void> {
             process.exitCode = exitCode;
         }
     } catch (error) {
-        console.error(`Fatal error: ${error instanceof Error ? error.message : String(error)}`);
+        if (error instanceof SessionStateError) {
+            console.log(JSON.stringify(createErrorEnvelope(error.code, error.message, { retryable: error.code === 'SESSION_BUSY' }), null, 2));
+        } else {
+            console.error(`Fatal error: ${error instanceof Error ? error.message : String(error)}`);
+        }
         process.exitCode = 1;
     }
 }

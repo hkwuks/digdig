@@ -2,10 +2,10 @@
 
 ## One Pool, One Pipeline
 
-All results, whether from `dg` search, external tools (tavily/exa), or any other source, go into **the same `results.json` pool** in the session directory. There is no separate path for external results. Everything follows the same flow:
+All results, whether from `dg` search, external tools (tavily/exa), or any other source, go into the same result pool in the session database. There is no separate path for external results. Everything follows the same flow:
 
 ```text
-results.json pool (all deduped results)
+session result pool (all deduped results)
   status: pending | approved
 
 pending

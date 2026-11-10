@@ -2,6 +2,7 @@
 
 import { ContentExtractor, ExtractedContent } from '../deep/extractor.js';
 import { createErrorEnvelope, createSuccessEnvelope } from '../protocol.js';
+import { SessionStateError } from '../deep/session-lock.js';
 import { getPendingExtractionResults, loadSessionResults, recordExtractionOutcome, resolveSessionPath } from '../deep/session.js';
 import { dedupe, resultUrlKey } from '../deep/dedupe.js';
 
@@ -100,6 +101,10 @@ export async function runExtract(extractor: ContentExtractor, options: ExtractOp
         }), null, 2));
         return 0;
     } catch (error) {
+        if (error instanceof SessionStateError) {
+            console.log(JSON.stringify(createErrorEnvelope(error.code, error.message, { retryable: error.code === 'SESSION_BUSY' }), null, 2));
+            return 1;
+        }
         console.log(JSON.stringify(createErrorEnvelope('EXTRACT_FAILED', error instanceof Error ? error.message : 'Content extraction failed', { retryable: true }), null, 2));
         return 1;
     }

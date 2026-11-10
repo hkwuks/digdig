@@ -1,16 +1,19 @@
 /**
  * Session state is the authority for discovery, extracted bodies, and approval.
- * Every mutation uses an atomic same-directory write so an interrupted command
- * cannot turn a valid session into an empty one.
+ * Session mutations share a SQLite transaction to preserve related state.
  */
 
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'fs';
-import { dirname, isAbsolute, join, relative, resolve } from 'path';
+import { existsSync, mkdirSync } from 'fs';
+import { isAbsolute, join, relative, resolve } from 'path';
 import { DirectedGraph, MultiDirectedGraph } from 'graphology';
 import { buildStructuralEdges, deserializeGraph, graphStats, GraphEdgeAttrs, GraphNodeAttrs, resultId, serializeGraph } from './graph.js';
 import { resultUrlKey } from './dedupe.js';
 import { getDefaultSessionRoot, loadSessionMeta, SessionMeta } from '../commands/session.js';
 import { assertClaimsStoreReadable, loadClaims, loadEvidences, loadReviews, saveClaims, saveEvidences, saveReviews } from '../claims/store.js';
+import { SessionStateError } from './session-lock.js';
+import { withSessionRead, withSessionWrite } from './session-store.js';
+import { readResults as readStoredResults, writeResults as writeStoredResults } from './session-store-results.js';
+export { SessionStateError } from './session-lock.js';
 
 export type ResultContentType = 'search' | 'extracted';
 export type ResultStatus = 'pending' | 'approved';
@@ -109,50 +112,8 @@ export interface SessionResultsFile {
     data: { results: SessionResult[]; rounds: number };
 }
 
-export class SessionStateError extends Error {
-    constructor(readonly code: 'SESSION_BUSY' | 'SESSION_CORRUPTED', message: string) {
-        super(message);
-    }
-}
-
-const SESSION_LOCK_STALE_MS = 30_000;
-
-function atomicWriteJson(file: string, value: unknown): void {
-    const temp = join(dirname(file), `.${file.split(/[\\/]/).pop()}.${process.pid}.${Date.now()}.tmp`);
-    writeFileSync(temp, JSON.stringify(value, null, 2), 'utf-8');
-    try {
-        renameSync(temp, file);
-    } catch (error) {
-        try { rmSync(temp, { force: true }); } catch { /* preserve the original write error */ }
-        throw error;
-    }
-}
-
 function withSessionLock<T>(sessionDir: string, action: () => T): T {
-    mkdirSync(sessionDir, { recursive: true });
-    const lockDir = join(sessionDir, '.lock');
-    let acquired = false;
-    try {
-        try {
-            mkdirSync(lockDir);
-            acquired = true;
-        } catch (error) {
-            try {
-                const age = Date.now() - statSync(lockDir).mtimeMs;
-                if (age > SESSION_LOCK_STALE_MS) rmSync(lockDir, { recursive: true, force: true });
-                else throw error;
-                mkdirSync(lockDir);
-                acquired = true;
-            } catch {
-                throw new SessionStateError('SESSION_BUSY', `Session is busy: ${sessionDir}`);
-            }
-        }
-        return action();
-    } finally {
-        if (acquired) {
-            try { rmSync(lockDir, { recursive: true, force: true }); } catch { /* lock cleanup is best effort */ }
-        }
-    }
+    return withSessionWrite(sessionDir, action);
 }
 
 /** Keep related session artifacts consistent while one command updates them. */
@@ -303,27 +264,23 @@ function pruneGraphProvenance(graph: DirectedGraph<GraphNodeAttrs, GraphEdgeAttr
 }
 
 function writeResults(sessionDir: string, results: SessionResult[], rounds: number): void {
-    atomicWriteJson(join(sessionDir, 'results.json'), { status: 'ok', data: { results, rounds } } satisfies SessionResultsFile);
+    withSessionWrite(sessionDir, db => writeStoredResults(db, results, rounds));
 }
 
 function readResultsFile(sessionDir: string): SessionResultsFile | undefined {
-    const file = join(sessionDir, 'results.json');
-    if (!existsSync(file)) return undefined;
     try {
-        const parsed = JSON.parse(readFileSync(file, 'utf-8')) as SessionResultsFile;
-        if (parsed.status !== 'ok' || !Array.isArray(parsed.data?.results) || !Number.isSafeInteger(parsed.data.rounds)) {
-            throw new Error('invalid results envelope');
-        }
-        return parsed;
+        return withSessionRead(sessionDir, readStoredResults);
     } catch (error) {
-        throw new SessionStateError('SESSION_CORRUPTED', `Cannot read session results: ${file}`);
+        if (error instanceof SessionStateError) throw error;
+        throw new SessionStateError('SESSION_CORRUPTED', `Cannot read session results: ${sessionDir}`);
     }
 }
 
 function touchMeta(sessionDir: string): void {
     const existing = loadSessionMeta(sessionDir);
     if (!existing) return;
-    atomicWriteJson(join(sessionDir, 'meta.json'), { ...existing, updatedAt: Date.now() });
+    withSessionWrite(sessionDir, db => db.prepare("INSERT INTO session_meta (key, data) VALUES ('meta', ?) ON CONFLICT(key) DO UPDATE SET data=excluded.data")
+        .run(JSON.stringify({ ...existing, updatedAt: Date.now() })));
 }
 
 /** A result may enter evidence and semantic workflows only with a captured body. */
@@ -361,7 +318,7 @@ export function initSessionDir(sessionDir: string, owner?: string, description?:
         updatedAt: now,
         query: query || existing?.query || '',
     };
-    atomicWriteJson(join(sessionDir, 'meta.json'), meta);
+    withSessionWrite(sessionDir, db => db.prepare("INSERT INTO session_meta (key, data) VALUES ('meta', ?) ON CONFLICT(key) DO UPDATE SET data=excluded.data").run(JSON.stringify(meta)));
 }
 
 /** Agent write inputs must belong to exactly the session being mutated. */
@@ -492,6 +449,14 @@ export function appendSessionResults(
     });
 }
 
+export function appendAndInjectSessionResults(sessionDir: string, newResults: SessionResultInput[]): ReturnType<typeof appendSessionResults> {
+    return withSessionWrite(sessionDir, () => {
+        const result = appendSessionResults(sessionDir, newResults);
+        injectApprovedResults(sessionDir, result.approvedResults);
+        return result;
+    });
+}
+
 /** A search result still waiting for a body, and not yet given up on. */
 export function isPendingExtraction(result: SessionResult): boolean {
     return result.contentType === 'search'
@@ -526,7 +491,7 @@ function repairInvalidDependents(sessionDir: string, results: SessionResult[]): 
             .map(result => [result.id, result.skippedAt ? 'sourceSkipped' : 'contentChanged'] as const),
     );
     if (!invalidReasons.size) return;
-    try {
+    {
         assertClaimsStoreReadable(sessionDir);
         const evidences = loadEvidences(sessionDir);
         const affectedClaims = new Set<string>();
@@ -563,17 +528,15 @@ function repairInvalidDependents(sessionDir: string, results: SessionResult[]): 
             saveClaims(sessionDir, claims);
             if (evidenceChanged) saveEvidences(sessionDir, evidences);
         }
-    } catch { /* Preserve corrupt claim artifacts for their dedicated repair commands. */ }
+    }
 
-    try {
+    {
         const { graph, missing } = readSessionGraph(sessionDir);
         if (!missing) {
             let graphChanged = false;
             for (const resultIdValue of invalidReasons.keys()) graphChanged = pruneGraphProvenance(graph, resultIdValue) || graphChanged;
             if (graphChanged) writeSessionGraph(sessionDir, graph);
         }
-    } catch (error) {
-        if (!(error instanceof SessionStateError)) throw error;
     }
 }
 
@@ -603,6 +566,14 @@ export function approveResults(sessionDir: string, selections: ApprovalSelection
         writeResults(sessionDir, results, state?.data.rounds ?? 0);
         touchMeta(sessionDir);
         return { approved: approvedResults.length, total: results.length, approvedResults };
+    });
+}
+
+export function approveAndInjectResults(sessionDir: string, selections: ApprovalSelection[]): { approval: ApprovalResult; injectInfo: { nodesAdded: number; edgesAdded: number } } {
+    return withSessionWrite(sessionDir, () => {
+        const approval = approveResults(sessionDir, selections);
+        const injectInfo = approval.error ? { nodesAdded: 0, edgesAdded: 0 } : injectApprovedResults(sessionDir, approval.approvedResults);
+        return { approval, injectInfo };
     });
 }
 
@@ -696,19 +667,23 @@ export function mergeExtractedContent(sessionDir: string, extracted: Array<{ url
 }
 
 function readSessionGraph(sessionDir: string): { graph: DirectedGraph<GraphNodeAttrs, GraphEdgeAttrs>; missing: boolean } {
-    const file = join(sessionDir, 'graph.json');
-    if (!existsSync(file)) return { graph: new MultiDirectedGraph<GraphNodeAttrs, GraphEdgeAttrs>(), missing: true };
     try {
-        const parsed = JSON.parse(readFileSync(file, 'utf-8'));
+        const row = withSessionRead(sessionDir, db => db.prepare('SELECT data FROM graph_snapshot WHERE id = 1').get());
+        if (!row) return { graph: new MultiDirectedGraph<GraphNodeAttrs, GraphEdgeAttrs>(), missing: true };
+        const parsed = JSON.parse(String(row.data));
         const graphData = parsed.status === 'ok' && parsed.data?.graph ? parsed.data.graph : null;
         if (!graphData) throw new Error('invalid graph envelope');
         return { graph: deserializeGraph(graphData), missing: false };
-    } catch {
-        throw new SessionStateError('SESSION_CORRUPTED', `Cannot read session graph: ${file}`);
+    } catch (error) {
+        if (error instanceof SessionStateError) throw error;
+        throw new SessionStateError('SESSION_CORRUPTED', `Cannot read session graph: ${sessionDir}`);
     }
 }
 
 export function loadSessionGraph(sessionDir: string): DirectedGraph<GraphNodeAttrs, GraphEdgeAttrs> {
+    if (!['session.sqlite', 'meta.json', 'results.json', 'graph.json', 'claims'].some(name => existsSync(join(sessionDir, name)))) {
+        return new MultiDirectedGraph<GraphNodeAttrs, GraphEdgeAttrs>();
+    }
     return withSessionLock(sessionDir, () => {
         repairInvalidDependents(sessionDir, loadSessionResults(sessionDir));
         return readSessionGraph(sessionDir).graph;
@@ -716,7 +691,8 @@ export function loadSessionGraph(sessionDir: string): DirectedGraph<GraphNodeAtt
 }
 
 function writeSessionGraph(sessionDir: string, graph: DirectedGraph<GraphNodeAttrs, GraphEdgeAttrs>): void {
-    atomicWriteJson(join(sessionDir, 'graph.json'), { status: 'ok', data: { graph: serializeGraph(graph), stats: graphStats(graph) } });
+    const value = { status: 'ok', data: { graph: serializeGraph(graph), stats: graphStats(graph) } };
+    withSessionWrite(sessionDir, db => db.prepare('INSERT INTO graph_snapshot (id, data) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET data=excluded.data').run(JSON.stringify(value)));
     touchMeta(sessionDir);
 }
 
@@ -757,7 +733,7 @@ export function injectApprovedResults(sessionDir: string, approved: SessionResul
     return mutateSessionGraph(sessionDir, graph => {
         const beforeNodes = graph.order;
         const beforeEdges = graph.size;
-        // Rebuild all approved structure when graph.json is absent, then add this approval.
+        // Rebuild all approved structure when the graph is absent, then add this approval.
         buildApprovedStructuralEdges(graph, getApprovedResults(sessionDir));
         return { nodesAdded: graph.order - beforeNodes, edgesAdded: graph.size - beforeEdges };
     });
