@@ -727,6 +727,15 @@ async function runSearch(
     }
 }
 
+function reportEmptySession(count: number): boolean {
+    if (count) return false;
+    console.log(JSON.stringify(createErrorEnvelope('EMPTY_SESSION', 'This session has no stored results to report on', {
+        retryable: false, hint: 'Run a search with --session before reporting on this session',
+    }), null, 2));
+    process.exitCode = 1;
+    return true;
+}
+
 export function createProgram(argv: string[] = []): Command {
     const program = new Command();
 
@@ -949,6 +958,7 @@ Examples:
   dg graph-preprocess my-session --top 50 --format md`)
         .action(async (session, opts, command) => {
             const sessionDir = resolveSessionPath(session);
+            if (reportEmptySession(loadSessionResults(sessionDir).length)) return;
             const result = graphPreprocess(sessionDir, {
                 top: opts.top,
                 coOccurrenceThreshold: opts.coOccurrenceThreshold,
@@ -993,8 +1003,9 @@ Examples:
   dg suggest-queries my-session --format md`)
         .action(async (session, opts, command) => {
             const sessionDir = resolveSessionPath(session);
-            const graph = loadSessionGraph(sessionDir);
             const results = loadSessionResults(sessionDir);
+            if (reportEmptySession(results.length)) return;
+            const graph = loadSessionGraph(sessionDir);
             const stage = determineSearchStage(graph);
 
             const data = generateQuerySuggestions(graph, results, stage);
@@ -1046,8 +1057,9 @@ Examples:
   dg session-report my-session --format md`)
         .action(async (session, opts, command) => {
             const sessionDir = resolveSessionPath(session);
-            const graph = loadSessionGraph(sessionDir);
             const results = loadSessionResults(sessionDir);
+            if (reportEmptySession(results.length)) return;
+            const graph = loadSessionGraph(sessionDir);
 
             const analysis = getSessionAnalysis(graph, results, getPendingResults(sessionDir));
 
@@ -1322,6 +1334,7 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
             }
             const sessionDir = resolveSessionPath(opts.session);
             const sessionResults = loadSessionResults(sessionDir);
+            if (!opts.skipFile && !opts.unskipFile && !opts.approveFile && reportEmptySession(sessionResults.length)) return;
             const sessionGraph = loadSessionGraph(sessionDir);
 
             const readSelections = (option: string, file: string | undefined): Array<{ id: string; revision: number }> | undefined => {

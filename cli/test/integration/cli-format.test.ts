@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { createProgram } from '../../src/runCli.js';
-import { initSessionDir } from '../../src/deep/session.js';
+import { appendSessionResults, initSessionDir } from '../../src/deep/session.js';
 
 /**
  * `-f, --format` is declared on the root program AND on each subcommand, so
@@ -31,6 +31,7 @@ let sessionDir: string;
 beforeEach(() => {
   sessionDir = mkdtempSync(join(tmpdir(), 'sxng-format-'));
   initSessionDir(sessionDir);
+  appendSessionResults(sessionDir, [{ url: 'https://example.com', title: 'Example', origins: [{ tool: 'digdig', query: 'q' }] }]);
 });
 
 afterEach(() => {
