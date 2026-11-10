@@ -47,6 +47,28 @@ describe('graph-add command', () => {
     expect(loadSessionGraph(sessionDir).hasNode('e:tokio')).toBe(false);
   });
 
+  it('rejects the entire batch when an entity id belongs to a structural node', async () => {
+    const dataFile = join(sessionDir, 'agent-inputs', 'collision.json');
+    const before = loadSessionGraph(sessionDir).export();
+    writeFileSync(dataFile, JSON.stringify({ entities: [
+      { id: 'e:new', label: 'New', sourceResultIds: [resultId] },
+      { id: resultId, label: 'Fake Entity', sourceResultIds: [resultId] },
+    ] }), 'utf8');
+
+    expect(await runGraphAdd({ session: sessionDir, dataFile })).toBe(1);
+    expect(JSON.parse(vi.mocked(console.log).mock.lastCall![0])).toMatchObject({ error: { code: 'GRAPH_NODE_ID_CONFLICT' } });
+    expect(loadSessionGraph(sessionDir).export()).toEqual(before);
+  });
+
+  it('still updates an existing entity', async () => {
+    const dataFile = join(sessionDir, 'agent-inputs', 'update.json');
+    writeFileSync(dataFile, JSON.stringify({ entities: [{ id: 'e:a', label: 'Before', sourceResultIds: [resultId] }] }), 'utf8');
+    expect(await runGraphAdd({ session: sessionDir, dataFile })).toBe(0);
+    writeFileSync(dataFile, JSON.stringify({ entities: [{ id: 'e:a', label: 'After', sourceResultIds: [resultId] }] }), 'utf8');
+    expect(await runGraphAdd({ session: sessionDir, dataFile })).toBe(0);
+    expect(loadSessionGraph(sessionDir).getNodeAttribute('e:a', 'label')).toBe('After');
+  });
+
   it('removes semantic data and revokes eligibility when an approved source is skipped', async () => {
     const dataFile = join(sessionDir, 'agent-inputs', 'semantic.json');
     writeFileSync(dataFile, JSON.stringify({
