@@ -611,15 +611,10 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## C6 — 跳过最后来源使 claim 永久卡在 verifying
 
 - ID: TF-20261103-cd89a3
-- Status: inbox
-- Priority: normal
-- Owner: Claude
-- Source: code-review:2026-11-03-claims-commands
-- Added: 2026-11-03
-- Updated: 2026-11-03
+- Status: done
 - Goal: 跳过最后一个来源会让 claim 永久卡在 verifying：session.ts:539-545 令证据失效并删掉 review，policy-aggregate 随后报 No claims with verdicts to aggregate 且 exit 0，没有路径把 claim 复位
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: `TaskFlowDocs/achieved/2026-11-10-claim-evidence-state/`
+- Next action: None — completed and archived.
 
 ## C10 — agent-inputs 路径校验在 Windows 上可绕过
 
