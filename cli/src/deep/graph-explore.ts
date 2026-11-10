@@ -398,7 +398,7 @@ export interface TraverseResult {
 export function traversePath(
     graph: DirectedGraph<GraphNodeAttrs, GraphEdgeAttrs>,
     pathId: string,
-): TraverseResult | { error: string; availablePaths: string[] } {
+): TraverseResult | { error: string; availablePaths: string[]; code?: 'PATH_INVALID' } {
     if (!graph.hasNode(pathId)) {
         const availablePaths = findAvailablePaths(graph);
         return {
@@ -417,6 +417,9 @@ export function traversePath(
     }
 
     const entityIds = pathAttrs.entities || [];
+    if (entityIds.some(id => !graph.hasNode(id))) {
+        return { error: `Path "${pathId}" references a missing entity`, code: 'PATH_INVALID', availablePaths: findAvailablePaths(graph) };
+    }
     const hops: TraverseResult['hops'] = [];
 
     for (let i = 0; i < entityIds.length; i++) {

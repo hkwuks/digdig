@@ -33,8 +33,9 @@ export async function runGraphTraverse(options: GraphTraverseOptions): Promise<n
     const result = traversePath(graph, options.pathId);
 
     if ('error' in result) {
-        const envelope = createErrorEnvelope('PATH_NOT_FOUND', result.error, {
+        const envelope = createErrorEnvelope(result.code ?? 'PATH_NOT_FOUND', result.error, {
             details: { availablePaths: result.availablePaths },
+            ...(result.code === 'PATH_INVALID' ? { hint: '重新运行 graph-add 生成路径' } : {}),
         });
         console.log(JSON.stringify(envelope, null, 2));
         return 1;

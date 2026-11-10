@@ -3,7 +3,8 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { runGraphAdd } from '../../src/commands/graph-add.js';
-import { appendSessionResults, approveResults, getApprovedResults, initSessionDir, injectApprovedResults, loadSessionGraph, loadSessionResults, setSkipped } from '../../src/deep/session.js';
+import { runGraphTraverse } from '../../src/commands/graph-traverse.js';
+import { appendSessionResults, approveResults, getApprovedResults, initSessionDir, injectApprovedResults, loadSessionGraph, loadSessionResults, mutateSessionGraph, setSkipped } from '../../src/deep/session.js';
 
 describe('graph-add command', () => {
   let sessionDir: string;
@@ -96,6 +97,40 @@ describe('graph-add command', () => {
     expect(await runGraphAdd({ session: sessionDir, dataFile })).toBe(0);
     const graph = loadSessionGraph(sessionDir);
     expect(graph.edges('e:a', 'e:b')).toHaveLength(2);
+  });
+
+  it('persists traversable paths without duplicating them on repeated graph-add', async () => {
+    const dataFile = join(sessionDir, 'agent-inputs', 'paths.json');
+    writeFileSync(dataFile, JSON.stringify({
+      entities: ['a', 'b', 'c'].map(id => ({ id: `e:${id}`, label: id, sourceResultIds: [resultId] })),
+      edges: [['a', 'b'], ['b', 'c']].map(([a, b]) => ({ source: `e:${a}`, target: `e:${b}`, relation: 'depends_on', sourceResultIds: [resultId] })),
+    }), 'utf8');
+    expect(await runGraphAdd({ session: sessionDir, dataFile })).toBe(0);
+    const graph = loadSessionGraph(sessionDir);
+    const paths = graph.filterNodes((_id, attrs) => attrs.type === 'path');
+    expect(paths.length).toBeGreaterThan(0);
+    expect(await runGraphTraverse({ session: sessionDir, pathId: paths[0] })).toBe(0);
+    expect(await runGraphAdd({ session: sessionDir, dataFile })).toBe(0);
+    expect(loadSessionGraph(sessionDir).filterNodes((_id, attrs) => attrs.type === 'path')).toEqual(paths);
+  });
+
+  it('returns a structured error when a path references a missing entity', async () => {
+    mutateSessionGraph(sessionDir, graph => {
+      graph.addNode('e:present', { type: 'entity', label: 'Present' });
+      graph.addNode('p:stale', { type: 'path', label: 'Stale', entities: ['e:present', 'e:missing'] });
+    });
+    expect(await runGraphTraverse({ session: sessionDir, pathId: 'p:stale' })).toBe(1);
+    expect(JSON.parse(vi.mocked(console.log).mock.lastCall![0])).toMatchObject({ error: { code: 'PATH_INVALID' } });
+  });
+
+  it('bounds dense path generation and reports truncation', async () => {
+    const dataFile = join(sessionDir, 'agent-inputs', 'dense.json');
+    const entities = Array.from({ length: 10 }, (_, i) => ({ id: `e:${i}`, label: `${i}`, sourceResultIds: [resultId] }));
+    const edges = entities.flatMap((source, i) => entities.slice(i + 1).map(target => ({ source: source.id, target: target.id, relation: 'related', sourceResultIds: [resultId] })));
+    writeFileSync(dataFile, JSON.stringify({ entities, edges }), 'utf8');
+    expect(await runGraphAdd({ session: sessionDir, dataFile })).toBe(0);
+    expect(JSON.parse(vi.mocked(console.log).mock.lastCall![0])).toMatchObject({ data: { pathsTruncated: true } });
+    expect(loadSessionGraph(sessionDir).filterNodes((_id, attrs) => attrs.type === 'path').length).toBeLessThanOrEqual(1000);
   });
 
   it('rebuilds the structural layer from approved bodies when graph.json is missing', () => {
