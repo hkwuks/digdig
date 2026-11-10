@@ -1,15 +1,20 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { readFileSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { tmpdir } from 'os';
 import { fileURLToPath } from 'url';
 import { createProgram, runCli } from '../../src/runCli.js';
 import { appendSessionResults, loadSessionResults } from '../../src/deep/session.js';
+import { config } from '../../src/config.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkgVersion = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf-8')).version;
+const originalBaseUrl = config.baseUrl;
+
+beforeEach(() => { config.baseUrl = 'https://searxng.example'; });
 
 afterEach(() => {
+    config.baseUrl = originalBaseUrl;
     vi.restoreAllMocks();
 });
 

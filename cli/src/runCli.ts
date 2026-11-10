@@ -9,7 +9,7 @@ import { dirname, join } from 'path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf-8'));
-import { SearXNGService, SearchOptions, SearchResult, SearchResponse } from './service.js';
+import { SearXNGService, SearchOptions, SearchResult, SearchResponse, assertSearXNGConfig } from './service.js';
 import { createSuccessEnvelope, createErrorEnvelope } from './protocol.js';
 import { SearchError } from './errors.js';
 import { config } from './config.js';
@@ -397,6 +397,7 @@ async function searchOneQuery(
     searchOptions: SearchOptions,
     limit: number
 ): Promise<{ providerResponses: SearchResponse[]; sxngResponse: SearchResponse | null }> {
+    if (plan.usable.length === 0 || plan.sxngEngines.length > 0) assertSearXNGConfig();
     const providerResponses: SearchResponse[] = [];
     for (const provider of plan.usable) {
         providerResponses.push(await PROVIDER_IMPLS[provider].search(searchOptions.query, limit));
@@ -1293,6 +1294,13 @@ Examples:
     return program;
 }
 
+function printConfigError(error: unknown): boolean {
+    if (!(error instanceof SearchError) || error.code !== 'CONFIG_MISSING') return false;
+    console.log(JSON.stringify(createErrorEnvelope(error.code, error.message, { retryable: error.retryable, hint: error.hint }), null, 2));
+    process.exitCode = 1;
+    return true;
+}
+
 export async function runCli(args: string[], service: SearXNGService): Promise<number | null> {
     const program = createProgram(args);
 
@@ -1308,7 +1316,13 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
         }
 
         if (opts.health) {
-            const health = await service.healthCheck();
+            let health;
+            try {
+                health = await service.healthCheck();
+            } catch (error) {
+                if (printConfigError(error)) return;
+                throw error;
+            }
             const envelope = health.status === 'healthy'
                 ? createSuccessEnvelope(health)
                 : createErrorEnvelope(
@@ -1495,6 +1509,7 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                 console.log(JSON.stringify(envelope, null, 2));
                 process.exitCode = 0;
             } catch (error) {
+                if (printConfigError(error)) return;
                 const envelope = createErrorEnvelope(
                     'ENGINES_FETCH_FAILED',
                     error instanceof Error ? error.message : 'Failed to fetch engines',
@@ -1523,6 +1538,7 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                 console.log(JSON.stringify(envelope, null, 2));
                 process.exitCode = 0;
             } catch (error) {
+                if (printConfigError(error)) return;
                 const envelope = createErrorEnvelope(
                     'CATEGORIES_FETCH_FAILED',
                     error instanceof Error ? error.message : 'Failed to fetch categories',

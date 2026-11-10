@@ -11,6 +11,9 @@
  * code.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { config } from '../../src/config.js';
+
+const originalBaseUrl = config.baseUrl;
 
 vi.mock('axios');
 
@@ -42,6 +45,7 @@ const SERVER_CONFIG = {
 
 describe('SearXNGService failure propagation', () => {
     beforeEach(() => {
+        config.baseUrl = 'https://searxng.example';
         vi.clearAllMocks();
         mockedAxios.isAxiosError.mockImplementation(
             (value: unknown) => (value as { isAxiosError?: boolean })?.isAxiosError === true,
@@ -49,6 +53,7 @@ describe('SearXNGService failure propagation', () => {
     });
 
     afterEach(() => {
+        config.baseUrl = originalBaseUrl;
         vi.restoreAllMocks();
     });
 

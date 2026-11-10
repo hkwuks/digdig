@@ -132,6 +132,14 @@ function mapUnresponsive(raw: any): UnresponsiveEngine[] {
     }).filter(entry => entry.engine.length > 0);
 }
 
+export function assertSearXNGConfig(): void {
+    try {
+        const url = new URL(config.baseUrl);
+        if (url.protocol === 'http:' || url.protocol === 'https:') return;
+    } catch { /* Report all invalid endpoint forms consistently. */ }
+    throw new SearchError('CONFIG_MISSING', 'SearXNG baseUrl is missing or invalid', 'searxng');
+}
+
 export class SearXNGService {
     private client: AxiosInstance;
 
@@ -168,6 +176,7 @@ export class SearXNGService {
      * A failure now propagates; the caller decides what to report.
      */
     async getEngines(): Promise<string[]> {
+        assertSearXNGConfig();
         const response = await this.client.get('/config');
         const engines = response.data.engines || [];
         return engines
@@ -177,12 +186,14 @@ export class SearXNGService {
 
     /** The server's categories. Same contract as `getEngines`: failure throws. */
     async getCategories(): Promise<string[]> {
+        assertSearXNGConfig();
         const response = await this.client.get('/config');
         const categories = response.data.categories || [];
         return categories.map((c: any) => typeof c === 'string' ? c : c?.name).filter(Boolean);
     }
 
     async search(options: SearchOptions): Promise<SearchResponse> {
+        assertSearXNGConfig();
         const params: Record<string, string> = {
             q: options.query,
             format: 'json'
@@ -270,6 +281,7 @@ export class SearXNGService {
         engines?: string[];
         error?: string;
     }> {
+        assertSearXNGConfig();
         try {
             const response = await this.client.get('/healthz', { timeout: 5000 });
             const engines = await this.getEngines();
