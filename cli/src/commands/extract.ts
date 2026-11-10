@@ -58,11 +58,16 @@ export async function runExtract(extractor: ContentExtractor, options: ExtractOp
             const failure = failureFrom(response) ?? (retained.has(resultUrlKey(response)) ? undefined : { code: 'tool' as const, message: 'Duplicate extracted body' });
             return failure ? { url: response.url, failure } : { ...response, extractor: options.jina ? 'jina' : options.obscura ? 'obscura' : 'default' };
         });
+        const responded = new Set(responses.map(response => resultUrlKey(response)));
+        for (const url of urls) {
+            if (!responded.has(resultUrlKey({ url }))) outcomes.push({ url, failure: { code: 'tool', message: 'Extractor returned no result' } });
+        }
         const session = sessionDir ? recordExtractionOutcome(sessionDir, outcomes) : undefined;
         const failures = outcomes.filter((outcome): outcome is { url: string; failure: NonNullable<ReturnType<typeof failureFrom>> } => 'failure' in outcome);
         const failed = failures.map(outcome => outcome.url);
         const rateLimited = failures.find(outcome => outcome.failure.retryAfterMs !== undefined);
-        if (rateLimited) {
+        const stats = { total: urls.length, success: extracted.length, failed: failed.length };
+        if (rateLimited && extracted.length === 0) {
             console.log(JSON.stringify(createErrorEnvelope(
                 'JINA_RATE_LIMITED',
                 rateLimited.failure.message,
@@ -70,6 +75,7 @@ export async function runExtract(extractor: ContentExtractor, options: ExtractOp
                     retryable: true,
                     details: {
                         failed,
+                        stats,
                         session,
                         retryAfterMs: rateLimited.failure.retryAfterMs,
                         retryAt: rateLimited.failure.retryAt,
@@ -78,12 +84,19 @@ export async function runExtract(extractor: ContentExtractor, options: ExtractOp
             ), null, 2));
             return 1;
         }
+        if (extracted.length === 0) {
+            console.log(JSON.stringify(createErrorEnvelope('EXTRACT_FAILED', 'No URLs were extracted successfully', {
+                retryable: true, details: { failed, stats, ...(session ? { session } : {}) },
+            }), null, 2));
+            return 1;
+        }
         console.log(JSON.stringify(createSuccessEnvelope({
             extracted,
             failed,
             skipped: [],
-            stats: { total: urls.length, success: extracted.length, failed: failed.length },
+            stats,
             ...(session ? { session } : {}),
+            ...(rateLimited ? { rateLimit: { retryAfterMs: rateLimited.failure.retryAfterMs, retryAt: rateLimited.failure.retryAt } } : {}),
         }), null, 2));
         return 0;
     } catch (error) {

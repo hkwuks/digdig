@@ -112,6 +112,8 @@ dg --health                   # Check server status
 
 Extract full article content from web pages. Use `--obscura` as a fallback for JS-heavy pages. Jina is rate-limited: inspect the default extraction first, then let the Agent decide whether a specific URL needs `--jina`.
 
+A batch succeeds when at least one URL is extracted; inspect `failed` and any `rateLimit` details for the remaining URLs. If every URL fails, the command returns an error and a nonzero exit status.
+
 ```bash
 dg extract --urls "https://example.com/a,https://example.com/b"
 dg extract --session <session-name>
