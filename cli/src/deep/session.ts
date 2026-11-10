@@ -25,6 +25,8 @@ export interface ResultOrigin {
 export interface ResultFailure {
     code: 'network' | 'parse' | 'empty' | 'tool';
     message: string;
+    retryAfterMs?: number;
+    retryAt?: number;
 }
 
 export interface SessionResult {
@@ -639,7 +641,7 @@ export function recordExtractionOutcome(
             const result = byKey.get(resultUrlKey({ url: outcome.url }));
             if (!result) continue;
             if (outcome.failure) {
-                result.failureCount = (result.failureCount ?? 0) + 1;
+                if (outcome.failure.retryAfterMs === undefined) result.failureCount = (result.failureCount ?? 0) + 1;
                 result.lastFailedAt = Date.now();
                 result.lastFailure = outcome.failure;
                 touch(result);
