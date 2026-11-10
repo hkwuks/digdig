@@ -147,7 +147,7 @@ Deep search enables multi-round iterative research with session accumulation, co
 > - Abandon the session and output results outside it
 > - Use a different search flow that bypasses the existing session
 >
-> **Exception**: Only create a new session if the current one is **corrupted** (e.g. `results.json` is unreadable). A search backend returning 0 results or errors is NOT corruption; switch backends, not sessions.
+> **Exception**: Only create a new session if the current one is **corrupted** (e.g. its session database is unreadable). Preserve the existing files for recovery. A search backend returning 0 results or errors is NOT corruption; switch backends, not sessions.
 
 ### Query Plan (L2/L3 Hard Requirement)
 
@@ -167,7 +167,7 @@ For L2/L3 research, keep a small **Query Plan in the Agent's working notes**. It
 All results go into the same pool, same pipeline:
 
 ```text
-dg search or results-add -> results.json (pending)
+dg search or results-add -> session results (pending)
 dg extract --session     -> writes content + extractedAt on success
 dg --quality             -> Agent reviews pending results
 dg --approve-file        -> approved results enter the structural graph
@@ -177,7 +177,7 @@ L2/L3 only:
   Agent adjusts final output and cites only approved claims.
 ```
 
-- **All results** (dg + external) become `pending` in the same `results.json`
+- **All results** (dg + external) become `pending` in the same session database
 - **Extract** does not add results. A successful session merge writes both `content` and `extractedAt`.
 - **Approve** accepts only entries reported as `verified: true`, then injects them into graph (structural edges).
 - **Failed extraction** stays pending. It cannot be approved or graph-injected until a later extraction succeeds.

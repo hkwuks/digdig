@@ -331,7 +331,7 @@ dg strategy-info <session> --format json
 | Abandon the session because "SearXNG is down" | The session owns the state, not the backend |
 | Use a different search flow that bypasses the session's pipeline | Every result goes through the same pending -> approve -> graph flow |
 
-**Rule**: A backend failure is NOT session corruption. The session stores state; it is decoupled from any single search source. Only abandon a session when its data files are actually corrupted (`results.json` unreadable), never because a backend returned errors.
+**Rule**: A backend failure is NOT session corruption. The session stores state independently of any search source. If the session database is unreadable, preserve its files for recovery; do not abandon it because a backend returned errors.
 
 #### Phase 8: Graph Exploration (navigate the knowledge space once the graph is built)
 

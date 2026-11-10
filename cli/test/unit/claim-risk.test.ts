@@ -1,28 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { readFileSync } from 'fs';
 import { runClaimAdd } from '../../src/commands/claim.js';
 import { loadClaims, saveClaims } from '../../src/claims/store.js';
 import { readSessionJsonInput } from '../../src/commands/json-input.js';
+import { readRecords } from '../../src/deep/session-store-claims.js';
 
-vi.mock('fs', async original => ({ ...await original<typeof import('fs')>(), existsSync: vi.fn(() => true), readFileSync: vi.fn() }));
 vi.mock('../../src/deep/session.js', () => ({ resolveSessionPath: () => 'session', initSessionDir: vi.fn(), mutateSessionState: (_: unknown, fn: () => unknown) => fn() }));
 vi.mock('../../src/commands/json-input.js', () => ({ isJsonObject: (v: unknown) => !!v && typeof v === 'object' && !Array.isArray(v), readSessionJsonInput: vi.fn() }));
 vi.mock('../../src/claims/deterministic-checks.js', () => ({ searchCandidates: () => [] }));
 vi.mock('../../src/claims/store.js', async original => ({ ...await original<typeof import('../../src/claims/store.js')>(), saveClaims: vi.fn() }));
+vi.mock('../../src/deep/session-store.js', () => ({ withSessionRead: (_: unknown, fn: (db: unknown) => unknown) => fn({}) }));
+vi.mock('../../src/deep/session-store-claims.js', () => ({ readRecords: vi.fn(() => []), writeRecords: vi.fn() }));
 
 describe('claim risk validation', () => {
   beforeEach(() => { vi.clearAllMocks(); vi.spyOn(console, 'log').mockImplementation(() => {}); });
 
   it('normalizes case before saving', async () => {
     vi.mocked(readSessionJsonInput).mockReturnValue({ ok: true, source: '--claim-file', value: { text: 'claim', riskLevel: 'HIGH' } } as never);
-    vi.mocked(readFileSync).mockReturnValue(JSON.stringify({ status: 'ok', data: { items: [] } }));
     expect(await runClaimAdd('session', { claimFile: 'input' })).toBe(0);
     expect(vi.mocked(saveClaims).mock.calls[0][1][0].riskLevel).toBe('high');
   });
 
   it('defaults an omitted risk to medium', async () => {
     vi.mocked(readSessionJsonInput).mockReturnValue({ ok: true, source: '--claim-file', value: { text: 'claim' } } as never);
-    vi.mocked(readFileSync).mockReturnValue(JSON.stringify({ status: 'ok', data: { items: [] } }));
     expect(await runClaimAdd('session', { claimFile: 'input' })).toBe(0);
     expect(vi.mocked(saveClaims).mock.calls[0][1][0].riskLevel).toBe('medium');
   });
@@ -40,7 +39,7 @@ describe('claim risk validation', () => {
   });
 
   it('rejects an invalid historical risk level without changing it', () => {
-    vi.mocked(readFileSync).mockReturnValue(JSON.stringify({ status: 'ok', data: { items: [{ id: 'cl_1', riskLevel: 'HIGH' }] } }));
+    vi.mocked(readRecords).mockReturnValue([{ id: 'cl_1', riskLevel: 'HIGH' }]);
     expect(() => loadClaims('session')).toThrow('Invalid riskLevel');
     expect(saveClaims).not.toHaveBeenCalled();
   });

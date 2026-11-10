@@ -1,13 +1,11 @@
 /**
- * Claims store — CRUD operations for claims/*.json files.
- *
- * Each session directory has a claims/ subdirectory with four files
- * using the same envelope format as results.json/graph.json:
- *   { "status": "ok", "data": { "claims": [...] } }
+ * Claims store — CRUD operations within the session database.
  */
 
-import { readFileSync, existsSync, mkdirSync, renameSync, rmSync, writeFileSync } from 'fs';
-import { dirname, join } from 'path';
+import { basename, dirname, join } from 'path';
+import { withSessionRead, withSessionWrite } from '../deep/session-store.js';
+import { readRecords, writeRecords, type ClaimTable } from '../deep/session-store-claims.js';
+import { SessionStateError } from '../deep/session-lock.js';
 import {
   Claim,
   EvidenceSpan,
@@ -38,19 +36,7 @@ function reviewsFile(sessionDir: string): string {
   return join(claimsDir(sessionDir), 'reviews.json');
 }
 
-function ensureClaimsDir(sessionDir: string): void {
-  const dir = claimsDir(sessionDir);
-  if (!existsSync(dir)) {
-    mkdirSync(dir, { recursive: true });
-  }
-}
-
 // ── Generic loader / writer ─────────────────────────────────────────
-
-interface Envelope<T> {
-  status: 'ok';
-  data: { items: T[] };
-}
 
 export class ClaimsStateError extends Error {
   constructor(readonly file: string, detail?: string) {
@@ -59,15 +45,11 @@ export class ClaimsStateError extends Error {
 }
 
 function loadArray<T>(file: string): T[] {
-  if (!existsSync(file)) return [];
   try {
-    const raw = readFileSync(file, 'utf-8');
-    const parsed = JSON.parse(raw) as Envelope<T>;
-    if (parsed.status === 'ok' && Array.isArray(parsed.data?.items)) {
-      return parsed.data.items;
-    }
-    throw new Error('invalid claims envelope');
-  } catch {
+    const table = basename(file, '.json') as ClaimTable;
+    return withSessionRead(dirname(dirname(file)), db => readRecords<T>(db, table)) ?? [];
+  } catch (error) {
+    if (error instanceof SessionStateError) throw error;
     throw new ClaimsStateError(file);
   }
 }
@@ -81,14 +63,8 @@ export function assertClaimsStoreReadable(sessionDir: string): void {
 }
 
 function writeArray<T>(file: string, items: T[]): void {
-  const dir = dirname(file);
-  if (!existsSync(dir)) {
-    mkdirSync(dir, { recursive: true });
-  }
-  const temp = join(dir, `.${file.split(/[\\/]/).pop()}.${process.pid}.${Date.now()}.tmp`);
-  writeFileSync(temp, JSON.stringify({ status: 'ok', data: { items } } as Envelope<T>, null, 2), 'utf-8');
-  try { renameSync(temp, file); }
-  catch (error) { try { rmSync(temp, { force: true }); } catch { /* preserve write error */ } throw error; }
+  const table = basename(file, '.json') as ClaimTable;
+  withSessionWrite(dirname(dirname(file)), db => writeRecords(db, table, items as object[]));
 }
 
 // ── Claims ──────────────────────────────────────────────────────────
@@ -102,7 +78,6 @@ export function loadClaims(sessionDir: string): Claim[] {
 }
 
 export function saveClaims(sessionDir: string, claims: Claim[]): void {
-  ensureClaimsDir(sessionDir);
   writeArray(claimsFile(sessionDir), claims);
 }
 
@@ -120,7 +95,6 @@ export function loadEvidences(sessionDir: string): EvidenceSpan[] {
 }
 
 export function saveEvidences(sessionDir: string, evidences: EvidenceSpan[]): void {
-  ensureClaimsDir(sessionDir);
   writeArray(evidencesFile(sessionDir), evidences);
 }
 
@@ -138,7 +112,6 @@ export function loadVerdicts(sessionDir: string): Verdict[] {
 }
 
 export function saveVerdicts(sessionDir: string, verdicts: Verdict[]): void {
-  ensureClaimsDir(sessionDir);
   writeArray(verdictsFile(sessionDir), verdicts);
 }
 
@@ -156,7 +129,6 @@ export function loadReviews(sessionDir: string): Review[] {
 }
 
 export function saveReviews(sessionDir: string, reviews: Review[]): void {
-  ensureClaimsDir(sessionDir);
   writeArray(reviewsFile(sessionDir), reviews);
 }
 

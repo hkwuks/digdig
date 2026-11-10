@@ -20,9 +20,8 @@ import {
 } from './indexer.js';
 import { DEFAULT_BOOST } from './types.js';
 import {
-  appendSessionResults,
+  appendAndInjectSessionResults,
   getPendingResults,
-  injectApprovedResults,
   initSessionDir,
   resolveSessionPath,
   SessionResultInput,
@@ -208,9 +207,8 @@ export async function docSearch(opts: DocSearchOptions): Promise<DocSearchResult
   // Local documents are extracted results, so they join the round already in
   // progress instead of opening one — `needsRound` handles that on its own.
   const sessionDir = resolveSessionPath(opts.session);
-  initSessionDir(sessionDir); // ensure meta.json exists
-  const { added, total, approvedResults } = appendSessionResults(sessionDir, results);
-  injectApprovedResults(sessionDir, approvedResults);
+  initSessionDir(sessionDir);
+  const { added } = appendAndInjectSessionResults(sessionDir, results);
 
   const pendingCount = getPendingResults(sessionDir).length;
 

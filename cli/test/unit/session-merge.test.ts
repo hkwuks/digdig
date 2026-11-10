@@ -17,8 +17,7 @@ vi.mock('../../src/deep/session.js', async original => ({
     ...await original<typeof import('../../src/deep/session.js')>(),
     resolveSessionPath: () => 'session', initSessionDir: vi.fn(),
     loadSessionResults: () => [], countPendingResults: () => 0,
-    injectApprovedResults: vi.fn(),
-    appendSessionResults: (_: string, results: any[]) => {
+    appendAndInjectSessionResults: (_: string, results: any[]) => {
         state.stored = results;
         return { added: results.length, updated: 0, total: results.length, round: 1, approvedResults: [] };
     },

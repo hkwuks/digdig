@@ -19,7 +19,7 @@
   <a href="https://github.com/hkwuks/digdig/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/hkwuks/digdig?style=flat-square&color=green" alt="license">
   </a>
-  <img src="https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen?style=flat-square" alt="node version">
+  <img src="https://img.shields.io/badge/node-%3E%3D24.15.0-brightgreen?style=flat-square" alt="node version">
 </p>
 
 ## ✨ Features

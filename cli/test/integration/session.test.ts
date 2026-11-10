@@ -21,6 +21,7 @@ import {
 } from '../../src/deep/session.js';
 import { loadClaims, loadEvidences, loadReviews, saveClaims, saveEvidences, saveReviews, saveVerdicts } from '../../src/claims/store.js';
 import { runPolicyAggregate } from '../../src/commands/review.js';
+import { withSessionWrite } from '../../src/deep/session-store.js';
 
 describe('session result contract', () => {
   let sessionDir: string;
@@ -316,11 +317,13 @@ describe('session result contract', () => {
     injectApprovedResults(sessionDir, approval.approvedResults);
     expect(loadSessionGraph(sessionDir).hasNode(initial.id)).toBe(true);
 
-    const resultsFile = join(sessionDir, 'results.json');
-    const state = JSON.parse(readFileSync(resultsFile, 'utf8'));
-    state.data.results[0].skippedAt = Date.now();
-    state.data.results[0].revision += 1;
-    writeFileSync(resultsFile, JSON.stringify(state, null, 2), 'utf8');
+    withSessionWrite(sessionDir, db => {
+      const row = db.prepare('SELECT data FROM results WHERE id = ?').get(initial.id)!;
+      const result = JSON.parse(String(row.data));
+      result.skippedAt = Date.now();
+      result.revision += 1;
+      db.prepare('UPDATE results SET data = ? WHERE id = ?').run(JSON.stringify(result), initial.id);
+    });
 
     expect(loadSessionGraph(sessionDir).hasNode(initial.id)).toBe(false);
   });

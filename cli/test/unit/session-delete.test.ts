@@ -8,6 +8,15 @@ vi.mock('fs', () => ({
     statSync: vi.fn(() => ({ isDirectory: () => true })),
     rmSync: vi.fn(),
 }));
+vi.mock('../../src/deep/session-store.js', () => ({
+    withSessionRead: (_: unknown, action: (db: unknown) => unknown) => action({
+        prepare: (sql: string) => ({
+            get: () => sql.includes("'meta'")
+                ? { data: JSON.stringify({ updatedAt: Date.now() - 7200000 }) }
+                : sql.includes('count(*)') ? { count: 0 } : undefined,
+        }),
+    }),
+}));
 
 describe('session deletion arguments', () => {
     afterEach(() => vi.restoreAllMocks());

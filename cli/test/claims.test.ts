@@ -193,10 +193,12 @@ describe('store (CRUD)', () => {
   });
 
   it('should save and load evidences', () => {
+    saveClaims(sessionDir, [{ id: 'cl_001', text: 'c', riskLevel: 'low', status: 'pending', sessionDir, createdAt: 0 }]);
     const evs: EvidenceSpan[] = [
       {
         id: 'ev_001',
         claimId: 'cl_001',
+        resultId: 'r:article',
         resultUrl: 'https://example.com',
         quote: 'test quote',
         charStart: 0,
@@ -210,6 +212,8 @@ describe('store (CRUD)', () => {
   });
 
   it('should save and load verdicts', () => {
+    saveClaims(sessionDir, [{ id: 'cl_001', text: 'c', riskLevel: 'low', status: 'pending', sessionDir, createdAt: 0 }]);
+    saveEvidences(sessionDir, [{ id: 'ev_001', claimId: 'cl_001', resultId: 'r:article', quote: 'q', charStart: 0, charEnd: 1, contentHash: 'x', extractedAt: 1 }]);
     const vds: Verdict[] = [
       {
         id: 'vd_001',
@@ -225,6 +229,7 @@ describe('store (CRUD)', () => {
   });
 
   it('should save and load reviews', () => {
+    saveClaims(sessionDir, [{ id: 'cl_001', text: 'c', riskLevel: 'low', status: 'pending', sessionDir, createdAt: 0 }]);
     const revs: Review[] = [
       {
         claimId: 'cl_001',
@@ -250,6 +255,10 @@ describe('store (CRUD)', () => {
   });
 
   it('should filter reviews by decision', () => {
+    saveClaims(sessionDir, [
+      { id: 'cl_001', text: 'a', riskLevel: 'low', status: 'pending', sessionDir, createdAt: 0 },
+      { id: 'cl_002', text: 'b', riskLevel: 'low', status: 'pending', sessionDir, createdAt: 0 },
+    ]);
     saveReviews(sessionDir, [
       { claimId: 'cl_001', decision: 'approved', autoPass: true, checks: { sourceIndependent: true, hasRefute: false, allSupport: true }, matchedRule: 'dualSourceSupport', reviewer: 'agent', reviewedAt: 0 },
       { claimId: 'cl_002', decision: 'needsReview', autoPass: false, checks: { sourceIndependent: false, hasRefute: true, allSupport: false }, matchedRule: 'singleRefute', reviewer: 'agent', reviewedAt: 0 },
@@ -259,9 +268,13 @@ describe('store (CRUD)', () => {
   });
 
   it('should get evidence/verdicts by claim ID', () => {
+    saveClaims(sessionDir, [
+      { id: 'cl_001', text: 'a', riskLevel: 'low', status: 'pending', sessionDir, createdAt: 0 },
+      { id: 'cl_002', text: 'b', riskLevel: 'low', status: 'pending', sessionDir, createdAt: 0 },
+    ]);
     const evs: EvidenceSpan[] = [
-      { id: 'ev_001', claimId: 'cl_001', resultUrl: 'https://x.com', quote: 'q', charStart: 0, charEnd: 1, contentHash: 'a', extractedAt: 0 },
-      { id: 'ev_002', claimId: 'cl_002', resultUrl: 'https://y.com', quote: 'r', charStart: 0, charEnd: 1, contentHash: 'b', extractedAt: 0 },
+      { id: 'ev_001', claimId: 'cl_001', resultId: 'r:article', resultUrl: 'https://x.com', quote: 'q', charStart: 0, charEnd: 1, contentHash: 'a', extractedAt: 0 },
+      { id: 'ev_002', claimId: 'cl_002', resultId: 'r:report', resultUrl: 'https://y.com', quote: 'r', charStart: 0, charEnd: 1, contentHash: 'b', extractedAt: 0 },
     ];
     saveEvidences(sessionDir, evs);
     expect(getEvidenceForClaim(sessionDir, 'cl_001')).toHaveLength(1);
@@ -514,6 +527,7 @@ describe('deterministic checks', () => {
       saveEvidences(sessionDir, [{
         id: 'ev_001',
         claimId: 'cl_002',
+        resultId: 'r:report',
         resultUrl: 'https://other-source.org/report',
         quote: 'Existing evidence remains stored.',
         charStart: 0,

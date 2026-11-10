@@ -7,27 +7,16 @@
  * Fallback: --fallback-rules applies simple rule-based obfuscation (experimental).
  */
 
-import { readFileSync, writeFileSync, existsSync, statSync } from 'fs';
-import { join } from 'path';
+import { readFileSync, writeFileSync, existsSync, renameSync, rmSync } from 'fs';
+import { basename, dirname, join } from 'path';
+import { randomUUID } from 'crypto';
 import { deserializeGraph, serializeGraph, graphStats, GraphNodeAttrs, GraphEdgeAttrs } from '../deep/graph.js';
 import { runGraphObfuscate, ObfuscationConfig, ObfuscationResult } from '../deep/graph-obfuscate.js';
 import { DirectedGraph } from 'graphology';
 import { createSuccessEnvelope, createErrorEnvelope } from '../protocol.js';
-import { getDefaultSessionRoot } from './session.js';
-
-function resolveGraphFile(path: string): string {
-    if (!path.includes('/') && !path.includes('\\')) {
-        path = join(getDefaultSessionRoot(), path);
-    }
-    try {
-        if (statSync(path).isDirectory()) {
-            return join(path, 'graph.json');
-        }
-    } catch {
-        // Not a file/dir, return as-is
-    }
-    return path;
-}
+import { loadSessionGraph, mutateSessionGraph } from '../deep/session.js';
+import { withSessionRead } from '../deep/session-store.js';
+import { resolveGraphInput } from './graph-input.js';
 
 function loadGraph(graphFile: string): DirectedGraph<GraphNodeAttrs, GraphEdgeAttrs> | null {
     if (!existsSync(graphFile)) {
@@ -48,11 +37,14 @@ function loadGraph(graphFile: string): DirectedGraph<GraphNodeAttrs, GraphEdgeAt
 function saveGraph(graphFile: string, graph: DirectedGraph<GraphNodeAttrs, GraphEdgeAttrs>): void {
     const serialized = serializeGraph(graph);
     const stats = graphStats(graph);
-    writeFileSync(
-        graphFile,
-        JSON.stringify({ status: 'ok', data: { graph: serialized, stats } }, null, 2),
-        'utf-8'
-    );
+    const temp = join(dirname(graphFile), `.${basename(graphFile)}.${randomUUID()}.tmp`);
+    try {
+        writeFileSync(temp, JSON.stringify({ status: 'ok', data: { graph: serialized, stats } }, null, 2), 'utf-8');
+        renameSync(temp, graphFile);
+    } catch (error) {
+        try { rmSync(temp, { force: true }); } catch { /* preserve the original error */ }
+        throw error;
+    }
 }
 
 function formatAsMarkdown(result: ObfuscationResult): string {
@@ -102,9 +94,11 @@ export interface GraphObfuscateOptions {
 }
 
 export async function runGraphObfuscateCommand(options: GraphObfuscateOptions): Promise<number> {
-    const graphFile = resolveGraphFile(options.graphFile);
-
-    const graph = loadGraph(graphFile);
+    const { graphFile, sessionDir } = resolveGraphInput(options.graphFile);
+    const exists = sessionDir
+        ? Boolean(withSessionRead(sessionDir, db => db.prepare('SELECT 1 FROM graph_snapshot WHERE id = 1').get()))
+        : existsSync(graphFile);
+    const graph = sessionDir ? (exists ? loadSessionGraph(sessionDir) : null) : loadGraph(graphFile);
     if (!graph) {
         const envelope = createErrorEnvelope(
             'GRAPH_LOAD_FAILED',
@@ -121,11 +115,18 @@ export async function runGraphObfuscateCommand(options: GraphObfuscateOptions): 
         skipEntityTypes: options.skipEntityTypes,
     };
 
-    const result = runGraphObfuscate(graph, config);
+    const result = sessionDir && mode === 'fallback_rules'
+        ? mutateSessionGraph(sessionDir, current => runGraphObfuscate(current, config))
+        : runGraphObfuscate(graph, config);
 
     // Save graph if fallback rules were applied (they mutate the graph)
-    if (mode === 'fallback_rules' && result.fallbackResults && result.fallbackResults.length > 0) {
-        saveGraph(graphFile, graph);
+    if (!sessionDir && mode === 'fallback_rules' && result.fallbackResults && result.fallbackResults.length > 0) {
+        try {
+            saveGraph(graphFile, graph);
+        } catch (error) {
+            console.log(JSON.stringify(createErrorEnvelope('GRAPH_WRITE_FAILED', error instanceof Error ? error.message : 'Cannot write graph'), null, 2));
+            return 1;
+        }
     }
 
     if (options.format === 'md') {

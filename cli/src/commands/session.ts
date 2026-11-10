@@ -2,10 +2,12 @@
  * Session management subcommands - list, delete
  */
 
-import { readFileSync, readdirSync, rmSync, statSync } from 'fs';
+import { readdirSync, rmSync, statSync } from 'fs';
 import { join } from 'path';
 import { createErrorEnvelope, createSuccessEnvelope } from '../protocol.js';
 import { resolveStatePath } from '../legacy.js';
+import { withSessionRead } from '../deep/session-store.js';
+import { SessionStateError } from '../deep/session-lock.js';
 
 export interface SessionMeta {
     owner: string;
@@ -20,15 +22,19 @@ export function getDefaultSessionRoot(): string {
     return resolveStatePath('sessions');
 }
 
-/** Load session meta.json */
+/** Load session metadata without creating a missing session. */
 export function loadSessionMeta(sessionDir: string): SessionMeta | null {
-    const file = join(sessionDir, 'meta.json');
-    try {
-        const raw = readFileSync(file, 'utf-8');
-        return JSON.parse(raw);
-    } catch {
-        return null;
-    }
+    return withSessionRead(sessionDir, db => {
+        const row = db.prepare("SELECT data FROM session_meta WHERE key = 'meta'").get();
+        if (!row) return null;
+        try {
+            const value = JSON.parse(String(row.data));
+            if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('invalid metadata');
+            return value as SessionMeta;
+        } catch {
+            throw new SessionStateError('SESSION_CORRUPTED', `Cannot read session metadata: ${sessionDir}`);
+        }
+    }) ?? null;
 }
 
 /** List all sessions under a root directory */
@@ -63,29 +69,14 @@ export function listSessions(rootDir: string): Array<{
         const sessionDir = join(rootDir, entry.name);
         const meta = loadSessionMeta(sessionDir);
 
-        let rounds = 0;
-        let results = 0;
-        try {
-            const raw = readFileSync(join(sessionDir, 'results.json'), 'utf-8');
-            const parsed = JSON.parse(raw);
-            if (parsed.status === 'ok' && parsed.data) {
-                rounds = parsed.data.rounds || 0;
-                results = parsed.data.results?.length || 0;
-            }
-        } catch { /* empty */ }
-
-        let nodes = 0;
-        let edges = 0;
-        try {
-            const raw = readFileSync(join(sessionDir, 'graph.json'), 'utf-8');
-            const parsed = JSON.parse(raw);
-            if (parsed.status === 'ok' && parsed.data?.stats) {
-                nodes = parsed.data.stats.nodes || 0;
-                edges = parsed.data.stats.edges || 0;
-            }
-        } catch { /* empty */ }
-
-        sessions.push({ name: entry.name, path: sessionDir, meta, rounds, results, nodes, edges });
+        const counts = withSessionRead(sessionDir, db => {
+            const round = db.prepare("SELECT data FROM session_meta WHERE key = 'rounds'").get();
+            const count = db.prepare('SELECT count(*) AS count FROM results').get();
+            const graph = db.prepare('SELECT data FROM graph_snapshot WHERE id = 1').get();
+            const stats = graph ? JSON.parse(String(graph.data)).data?.stats : undefined;
+            return { rounds: round ? Number(JSON.parse(String(round.data))) : 0, results: Number(count?.count ?? 0), nodes: stats?.nodes ?? 0, edges: stats?.edges ?? 0 };
+        }) ?? { rounds: 0, results: 0, nodes: 0, edges: 0 };
+        sessions.push({ name: entry.name, path: sessionDir, meta, ...counts });
     }
 
     return sessions.sort((a, b) => {

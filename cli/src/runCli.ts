@@ -10,6 +10,7 @@ import { dirname, join } from 'path';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf-8'));
 import { SearXNGService, SearchOptions, SearchResult, SearchResponse, assertSearXNGConfig } from './service.js';
+import { SessionStateError } from './deep/session-lock.js';
 import { createSuccessEnvelope, createErrorEnvelope } from './protocol.js';
 import { SearchError } from './errors.js';
 import { config } from './config.js';
@@ -27,7 +28,7 @@ import { ContentExtractor } from './deep/extractor.js';
 import { resultUrlKey, sourceKey } from './deep/dedupe.js';
 import { fuseResults, mergeEnvelopeMetadata } from './deep/fuse.js';
 import { deserializeGraph, graphStats, GraphNodeAttrs, GraphEdgeAttrs } from './deep/graph.js';
-import { initSessionDir, resolveSessionPath, appendSessionResults, loadSessionResults, loadSessionGraph, countPendingResults, getPendingResults, approveResults, injectApprovedResults, hasVerifiedContent, setSkipped } from './deep/session.js';
+import { initSessionDir, resolveSessionPath, appendAndInjectSessionResults, loadSessionResults, loadSessionGraph, countPendingResults, getPendingResults, approveAndInjectResults, hasVerifiedContent, setSkipped } from './deep/session.js';
 import { runSessionList, runSessionDelete, getDefaultSessionRoot } from './commands/session.js';
 import { graphPreprocess } from './deep/graph-preprocess.js';
 import { checkQueryRedundancy, RedundancyConfig } from './deep/query-redundancy.js';
@@ -645,16 +646,15 @@ async function runSearch(
             toolFor: engine => originTool(engine),
         });
 
-        let sessionInfo: ReturnType<typeof appendSessionResults> | null = null;
+        let sessionInfo: ReturnType<typeof appendAndInjectSessionResults> | null = null;
         if (options.session) {
-            sessionInfo = appendSessionResults(options.session, fusion.display.map((result, index) => ({
+            sessionInfo = appendAndInjectSessionResults(options.session, fusion.display.map((result, index) => ({
                 ...result,
                 // The fused position, so `rank` and `fusionScore` describe the same
                 // order instead of one provider's and one RRF's.
                 rank: index + 1,
                 origins: fusion.originsByKey.get(resultUrlKey(result)),
             })));
-            injectApprovedResults(options.session, sessionInfo.approvedResults);
             const pendingCount = countPendingResults(options.session);
             if (pendingCount >= 30) {
                 console.error(`[session] ${pendingCount} pending results awaiting Agent review. Run --quality to list them.`);
@@ -704,6 +704,10 @@ async function runSearch(
 
         return 0;
     } catch (error) {
+        if (error instanceof SessionStateError) {
+            console.log(JSON.stringify(createErrorEnvelope(error.code, error.message, { retryable: error.code === 'SESSION_BUSY' }), null, 2));
+            return 1;
+        }
         // `retryable` and the hint come from the error, not from this block.
         // They used to be the literals `true` and a SearXNG hint, which meant a
         // DeepSeek 401 was reported as retryable and blamed on a server the
@@ -755,8 +759,8 @@ export function createProgram(argv: string[] = []): Command {
         .option('--queries <queries...>', 'Multi-query with RRF fusion (comma- or space-separated)')
         .option('--merge <file>', 'Merge new results with previous search JSON')
         .option('--session <dir|new>', 'Session dir, or "new" to auto-create')
-        .option('--owner <name>', 'Session owner (stored in meta.json)')
-        .option('--desc <text>', 'Session description (stored in meta.json)')
+        .option('--owner <name>', 'Session owner')
+        .option('--desc <text>', 'Session description')
         .option('--graph <file>', 'Save search result metadata to knowledge graph file')
         .option('--redundancy <action>', 'Query redundancy check: warn | adjust | skip')
         .option('--quality', 'List pending results with what the session has gathered, as counted facts')
@@ -980,7 +984,7 @@ Examples:
         .option('-f, --format <fmt>', 'Output format: json (default), md')
         .addHelpText('after', `
 Reports what has been searched and what came back, without deciding what it means.
-Reads results.json only, so it works before any result has been approved.
+Reads session results, so it works before any result has been approved.
 
 Examples:
   dg coverage my-session
@@ -1401,7 +1405,7 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                     .map(selection => sessionResults.find(result => result.id === selection.id))
                     .filter((result): result is typeof pending[number] => Boolean(result))
                     .map(result => describeResult(result));
-                const approval = approveResults(sessionDir, selections);
+                const { approval, injectInfo } = approveAndInjectResults(sessionDir, selections);
 
                 if (approval.error) {
                     console.log(JSON.stringify(createErrorEnvelope(
@@ -1415,9 +1419,6 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                     process.exitCode = 1;
                     return;
                 }
-
-                // Inject only the results selected by this approval action.
-                const injectInfo = injectApprovedResults(sessionDir, approval.approvedResults);
 
                 console.log(JSON.stringify(createSuccessEnvelope({
                     approved: approval.approved,

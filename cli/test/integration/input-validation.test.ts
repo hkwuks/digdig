@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { runCli } from '../../src/runCli.js';
@@ -7,6 +7,7 @@ import { appendSessionResults, approveResults, initSessionDir, loadSessionResult
 import { loadVerdicts, saveClaims } from '../../src/claims/store.js';
 import { runEvidenceVerify } from '../../src/commands/evidence.js';
 import { runResultsAdd } from '../../src/commands/results-add.js';
+import { loadSessionMeta } from '../../src/commands/session.js';
 
 describe('input validation before session writes', () => {
     let session: string;
@@ -23,7 +24,7 @@ describe('input validation before session writes', () => {
         resultsFile = join(session, 'agent-inputs', 'results.json');
         writeFileSync(evidenceFile, JSON.stringify({ resultId: 'r:a', quote: 'body', charStart: 0, charEnd: 4 }));
         writeFileSync(resultsFile, JSON.stringify([{ url: 'https://example.com', title: 'A', content: 'body', extractor: 'test' }]));
-        initialMeta = readFileSync(join(session, 'meta.json'), 'utf8');
+        initialMeta = JSON.stringify(loadSessionMeta(session));
         vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 10000);
         vi.spyOn(console, 'log').mockImplementation(() => undefined);
         process.exitCode = 0;
@@ -45,7 +46,7 @@ describe('input validation before session writes', () => {
         await runCli(args, {} as never);
         expect(process.exitCode).toBe(1);
         expect(JSON.parse(vi.mocked(console.log).mock.lastCall![0])).toMatchObject({ status: 'error', error: { code: expect.stringMatching(/^INVALID_/) } });
-        expect(readFileSync(join(session, 'meta.json'), 'utf8')).toBe(initialMeta);
+        expect(JSON.stringify(loadSessionMeta(session))).toBe(initialMeta);
     });
 
     it('rejects a non-string contentHash without changing metadata', async () => {
@@ -53,20 +54,20 @@ describe('input validation before session writes', () => {
         await runCli(['evidence-verify', session, '--claim-id', 'cl_001', '--evidence-file', evidenceFile, '--stance', 'support', '--reason', 'test'], {} as never);
         expect(process.exitCode).toBe(1);
         expect(JSON.parse(vi.mocked(console.log).mock.lastCall![0])).toMatchObject({ status: 'error', error: { code: 'INVALID_EVIDENCE' } });
-        expect(readFileSync(join(session, 'meta.json'), 'utf8')).toBe(initialMeta);
+        expect(JSON.stringify(loadSessionMeta(session))).toBe(initialMeta);
     });
 
     it('rejects an invalid result kind without importing it or changing metadata', async () => {
         await runCli(['results-add', session, '--kind', 'bogus', '--data-file', resultsFile, '--tool', 'test', '--query', 'q'], {} as never);
         expect(process.exitCode).toBe(1);
         expect(JSON.parse(vi.mocked(console.log).mock.lastCall![0])).toMatchObject({ status: 'error', error: { code: 'INVALID_RESULTS' } });
-        expect(readFileSync(join(session, 'meta.json'), 'utf8')).toBe(initialMeta);
+        expect(JSON.stringify(loadSessionMeta(session))).toBe(initialMeta);
     });
 
     it('also validates direct command calls', async () => {
         expect(await runEvidenceVerify(session, { claimId: 'c', stance: 'bogus' as never, reason: 'test' })).toBe(1);
         expect(await runResultsAdd({ session, kind: 'bogus' as never, dataFile: resultsFile })).toBe(1);
-        expect(readFileSync(join(session, 'meta.json'), 'utf8')).toBe(initialMeta);
+        expect(JSON.stringify(loadSessionMeta(session))).toBe(initialMeta);
     });
 
     it.each([0, 1])('accepts confidence boundary %s and persists it', async confidence => {
