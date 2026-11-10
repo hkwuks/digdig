@@ -943,3 +943,11 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Goal: `cli/test/benchmark/performance.bench.ts` 有四处 `expect(elapsed).toBeLessThan(N)`：`getEntityDegree (1000 nodes)` 卡 5ms（`:89`）、`Jaccard (50 history queries)` 卡 5ms（`:130`）、`graph sampling (900 nodes)` 卡 100ms（`:113`）、`graph explore (900 nodes)` 卡 100ms（`:151`）。这些是单次 `performance.now()` 采样，在共享 runner 上随负载波动。实测：PR #36 的内容在 `test (node 22.x)` 上 `Jaccard` 测出 **5.720312000000007ms**，超 5ms 阈值 14% 判失败，而同一提交在 `test (node 20.x)` 与 PR 检查上都是 pass。该假失败让 main 上的合并提交（`42384672676`）显示为 failure，直到下一次推送覆盖。文件本身含 `// A single wall-clock sample is susceptible to Windows scheduler jitter.`（`:87-88`）——作者知道这个问题，但断言没有相应调整。`vitest.config.ts` 的 `include` 同时匹配 `test/**/*.test.ts` 与 `test/**/*.bench.ts`，所以这些基准在每次 CI 都跑，不是可选的性能门禁。
 - Task: Not promoted.
 - Next action: 需要设计。可选方向：①把绝对阈值改为包络（多次采样取中位数/最小值，或与同机基线比较）；②把 `.bench.ts` 从 `vitest.config.ts` 的 `include` 移出去，基准改为手动运行；③保留断言但放大阈值到有意义的量级（例如 5ms → 50ms）。先确认这些基准是否需要在 CI 里充当门禁——如果只是「性能没明显退化」的信号，方向②最省。
+
+## 修复 Windows 测试读取真实配置和 README 换行导致的四项失败
+
+- ID: TF-20261110-757928
+- Status: done
+- Goal: 修复 Windows 测试读取真实配置和 README 换行导致的四项失败
+- Task: `TaskFlowDocs/achieved/2026-11-10-windows-test-isolation/`
+- Next action: None — completed and archived.
