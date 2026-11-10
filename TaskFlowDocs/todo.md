@@ -577,15 +577,10 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## C7 — graph-add 覆盖结构性结果节点
 
 - ID: TF-20261103-30a192
-- Status: inbox
-- Priority: normal
-- Owner: Claude
-- Source: code-review:2026-11-03-claims-commands
-- Added: 2026-11-03
-- Updated: 2026-11-03
+- Status: done
 - Goal: graph-add 会让语义实体覆盖结构性结果节点：graph-add.ts:64-80 直接使用 entity.id，与已有 r:/q:/d: 节点冲突时 mergeNodeAttributes 改写其 label 并报 entitiesAdded:0。实测真实结果节点被改名为 Fake Entity 且 graph-explore 找不到它
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: `TaskFlowDocs/achieved/2026-11-10-graph-node-collision/`
+- Next action: None — completed and archived.
 
 ## C9 — graph-add 畸形输入抛未捕获 TypeError
 

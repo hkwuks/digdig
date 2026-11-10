@@ -59,6 +59,9 @@ export async function runGraphAdd(options: GraphAddOptions): Promise<number> {
         const invalidEntity = (parsed.entities ?? []).find(entity => !entity.label || !sourceIdsAreApproved(entity.sourceResultIds, approvedIds));
         const invalidEdge = (parsed.edges ?? []).find(edge => !edge.source || !edge.target || !edge.relation || !sourceIdsAreApproved(edge.sourceResultIds, approvedIds));
         if (invalidEntity || invalidEdge) return { invalidProvenance: true };
+        const collision = (parsed.entities ?? []).map(entity => entity.id || entityId(entity.label))
+            .find(id => graph.hasNode(id) && graph.getNodeAttribute(id, 'type') !== 'entity');
+        if (collision) return { collision };
         let entitiesAdded = 0;
         for (const entity of parsed.entities ?? []) {
             const id = entity.id || entityId(entity.label);
@@ -113,6 +116,10 @@ export async function runGraphAdd(options: GraphAddOptions): Promise<number> {
             'INVALID_RESULT_PROVENANCE',
             'Every semantic entity and edge requires one or more currently approved extracted sourceResultIds',
         ), null, 2));
+        return 1;
+    }
+    if ('collision' in mutation) {
+        console.log(JSON.stringify(createErrorEnvelope('GRAPH_NODE_ID_CONFLICT', `Entity ID conflicts with an existing non-entity node: ${mutation.collision}`), null, 2));
         return 1;
     }
     const { entitiesAdded, edgesAdded, skippedEdges } = mutation;
