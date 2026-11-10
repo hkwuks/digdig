@@ -91,12 +91,12 @@
 - Files: README、项目内 skill、测试、任务记录及 PR 模板。
 - Implementation checklist:
   - [x] 补充自动迁移、Node 基线、旧版本与网络文件系统限制的说明。
-  - [ ] 运行全量测试、类型检查、CI，审查 schema、迁移和失败处理。
-  - [ ] 审核变更与现有 Todo 关联，记录不在范围内的后续。
+  - [x] 运行全量测试、类型检查、CI，审查 schema、迁移和失败处理。
+  - [x] 审核变更与现有 Todo 关联，记录不在范围内的后续。
 - Acceptance: PRD 全部验收通过，行为变化和限制清楚。
 - Verification: `npm.cmd test -- --maxWorkers=2`、`npx.cmd tsc --noEmit`、最低 Node 及其他目标平台 CI。
 - Rollback: 未发布前保留代码分支与原 JSON，不写真实用户会话。
-- Status: pending
+- Status: done
 
 ## Checkpoints
 
@@ -104,10 +104,13 @@
 
 ## Verification / Review
 
+- 2026-11-10 Step 4: Windows and Linux CI pass; PR review pending
+
 - 2026-11-10 Step 3: Windows Node 24.15: transactional fault tests and full suite 718 passed
 
 - 2026-11-10：Windows、Node 24.15.0，`npm.cmd test`：64 文件、718 测试通过；`npx.cmd tsc --noEmit` 和 `npm.cmd run build` 通过，编译后 `node dist/index.js --help` 可运行。Linux 及 CI 尚待验证。
 - 编译后的 CLI 对隔离旧会话执行 `--quality --format json` 返回 `ok`，生成数据库，源 results.json 的 SHA-256 前后一致。尝试直接运行未编译 TypeScript 的子进程因项目已有的 axios 类型导入失败；发布入口使用编译产物，上述验证覆盖实际入口。
+- GitHub Actions run 42817841799：Linux 的 Node 24.15.0 和 24.x，build、test 共四项通过（提交 4e5c4ce）。
 - 审核：旧会话文件只用于迁移读取；独立图文件使用临时文件原子替换；审批/图和证据相关更新在事务中回滚。测试中的旧 JSON 路径断言已改为检查 SQLite，虚构关联改为满足存储外键的有效数据；不改变领域规则。
 - 范围限制：图仍是整体快照；历史快照生命周期、TTL 和关联 Todo 保持后续处理；WAL 不支持跨机器网络文件系统，也不支持新旧版本并发写同一会话。
 
