@@ -429,6 +429,10 @@ async function runSearch(
         redundancy?: 'warn' | 'adjust' | 'skip';
     }
 ): Promise<number> {
+    if (options.limit !== undefined && (!Number.isSafeInteger(options.limit) || options.limit <= 0)) {
+        console.log(JSON.stringify(createErrorEnvelope('INVALID_LIMIT', 'Limit must be a positive safe integer'), null, 2));
+        return 1;
+    }
     const queries = options.queries || (options.query ? [options.query] : []);
 
     if (queries.length === 0) {
@@ -723,6 +727,10 @@ async function runSearch(
     }
 }
 
+function parseLimit(value: string): number {
+    return /^\d+$/.test(value) ? Number(value) : NaN;
+}
+
 function reportEmptySession(count: number): boolean {
     if (count) return false;
     console.log(JSON.stringify(createErrorEnvelope('EMPTY_SESSION', 'This session has no stored results to report on', {
@@ -742,7 +750,7 @@ export function createProgram(argv: string[] = []): Command {
         .argument('[query]', 'Search query')
         .option('-e, --engines <engines>', `Comma-separated list of search engines; "${EXTERNAL_PROVIDERS.join('"/"')}" route to non-SearXNG providers`)
         .option('-c, --categories <cats>', 'Comma-separated list of categories')
-        .option('-l, --limit <n>', 'Maximum number of results', val => parseInt(val, 10))
+        .option('-l, --limit <n>', 'Maximum number of results', parseLimit)
         .option('-p, --page <n>', 'Page number for pagination', val => parseInt(val, 10))
         .option('--lang <code>', 'Language code (e.g., en, zh, ja)')
         .option('--time <range>', 'Time range: day, week, month, year, all')
@@ -1147,7 +1155,7 @@ the command will list available path node IDs.`)
         .argument('<session>', 'Session directory or name')
         .description('Keyword search across entity labels (discover entities before exploring)')
         .requiredOption('--keyword <term>', 'Search keyword')
-        .option('-l, --limit <n>', 'Max results', val => parseInt(val, 10), 10)
+        .option('-l, --limit <n>', 'Max results', parseLimit, 10)
         .option('-f, --format <fmt>', 'Output format: md (default), json')
         .addHelpText('after', `
 Examples:
@@ -1156,10 +1164,16 @@ Examples:
 
 See also: graph-explore (for viewing relations of a known entity)`)
         .action(async (session, opts, command) => {
+            const limit = command.parent?.getOptionValueSource('limit') === 'cli' ? command.parent.opts().limit : opts.limit;
+            if (!Number.isSafeInteger(limit) || limit <= 0) {
+                console.log(JSON.stringify(createErrorEnvelope('INVALID_LIMIT', 'Limit must be a positive safe integer'), null, 2));
+                process.exitCode = 1;
+                return;
+            }
             const code = await runGraphSearch({
                 session,
                 keyword: opts.keyword,
-                limit: opts.limit,
+                limit,
                 format: command.optsWithGlobals().format === 'json' ? 'json' : 'md',
             });
             process.exitCode = code;
