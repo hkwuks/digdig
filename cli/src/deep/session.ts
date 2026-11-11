@@ -4,6 +4,7 @@
  */
 
 import { existsSync, mkdirSync } from 'fs';
+import { createHash } from 'crypto';
 import { isAbsolute, join, relative, resolve } from 'path';
 import { DirectedGraph, MultiDirectedGraph } from 'graphology';
 import { buildStructuralEdges, deserializeGraph, graphStats, GraphEdgeAttrs, GraphNodeAttrs, resultId, serializeGraph } from './graph.js';
@@ -12,6 +13,7 @@ import { getDefaultSessionRoot, loadSessionMeta, SessionMeta } from '../commands
 import { assertClaimsStoreReadable, loadClaims, loadEvidences, loadReviews, saveClaims, saveEvidences, saveReviews } from '../claims/store.js';
 import { SessionStateError } from './session-lock.js';
 import { withSessionRead, withSessionWrite } from './session-store.js';
+import { bodyVersionId, ensureBodyVersion } from './session-db.js';
 import { readResults as readStoredResults, writeResults as writeStoredResults } from './session-store-results.js';
 export { SessionStateError } from './session-lock.js';
 
@@ -42,6 +44,8 @@ export interface SessionResult {
     content?: string;
     extractor?: string;
     extractedAt?: number;
+    approvedSnapshotId?: string;
+    contentNeedsApproval?: boolean;
     origins: ResultOrigin[];
     status: ResultStatus;
     skippedAt?: number;
@@ -263,6 +267,53 @@ function pruneGraphProvenance(graph: DirectedGraph<GraphNodeAttrs, GraphEdgeAttr
     return changed;
 }
 
+function markGraphProvenancePending(graph: DirectedGraph<GraphNodeAttrs, GraphEdgeAttrs>, resultIdValue: string): boolean {
+    let changed = false;
+    graph.forEachNode((node, attrs) => {
+        if (attrs.sourceResultIds?.includes(resultIdValue) && !attrs.pendingSourceResultIds?.includes(resultIdValue)) {
+            graph.mergeNodeAttributes(node, { pendingSourceResultIds: [...(attrs.pendingSourceResultIds ?? []), resultIdValue] });
+            changed = true;
+        }
+    });
+    graph.forEachEdge((edge, attrs) => {
+        if (attrs.sourceResultIds?.includes(resultIdValue) && !attrs.pendingSourceResultIds?.includes(resultIdValue)) {
+            graph.mergeEdgeAttributes(edge, { pendingSourceResultIds: [...(attrs.pendingSourceResultIds ?? []), resultIdValue] });
+            changed = true;
+        }
+    });
+    return changed;
+}
+
+export function visibleSessionGraph(graph: DirectedGraph<GraphNodeAttrs, GraphEdgeAttrs>, results: SessionResult[]): DirectedGraph<GraphNodeAttrs, GraphEdgeAttrs> {
+    const visible = graph.copy();
+    const pendingResults = new Set(results.filter(result => result.status !== 'approved' || result.skippedAt).map(result => result.id));
+    const dropNodes: string[] = [];
+    visible.forEachNode((node, attrs) => {
+        if (attrs.type === 'result' && pendingResults.has(node)) { dropNodes.push(node); return; }
+        if (!attrs.pendingSourceResultIds?.length || !attrs.sourceResultIds?.length) return;
+        const active = attrs.sourceResultIds.filter(id => !attrs.pendingSourceResultIds!.includes(id));
+        if (!active.length) dropNodes.push(node);
+        else visible.mergeNodeAttributes(node, { sourceResultIds: active });
+    });
+    for (const node of dropNodes) visible.dropNode(node);
+    const dropEdges: string[] = [];
+    const affectedPathEdges: Array<[string, string]> = [];
+    visible.forEachEdge((edge, attrs, source, target) => {
+        if (!attrs.pendingSourceResultIds?.length || !attrs.sourceResultIds?.length) return;
+        const active = attrs.sourceResultIds.filter(id => !attrs.pendingSourceResultIds!.includes(id));
+        if (!active.length) { dropEdges.push(edge); affectedPathEdges.push([source, target]); }
+        else visible.mergeEdgeAttributes(edge, { sourceResultIds: active });
+    });
+    for (const edge of dropEdges) visible.dropEdge(edge);
+    const dropPaths: string[] = [];
+    visible.forEachNode((node, attrs) => {
+        if (attrs.type === 'path' && attrs.entities && (attrs.entities.some(entity => graph.hasNode(entity) && !visible.hasNode(entity))
+            || affectedPathEdges.some(([source, target]) => attrs.entities!.includes(source) && attrs.entities!.includes(target)))) dropPaths.push(node);
+    });
+    for (const node of dropPaths) visible.dropNode(node);
+    return visible;
+}
+
 function writeResults(sessionDir: string, results: SessionResult[], rounds: number): void {
     withSessionWrite(sessionDir, db => writeStoredResults(db, results, rounds));
 }
@@ -376,6 +427,7 @@ export function appendSessionResults(
                 if (bodyChanged) {
                     existing.contentType = 'extracted';
                     existing.content = nextContent;
+                    if (existing.approvedSnapshotId) existing.contentNeedsApproval = true;
                     changed = true;
                 }
                 if (existing.extractor !== (input.extractor || 'default')) {
@@ -487,10 +539,10 @@ export function getApprovedResults(sessionDir: string): SessionResult[] {
 function repairInvalidDependents(sessionDir: string, results: SessionResult[]): void {
     const invalidReasons = new Map(
         results
-            .filter(result => result.skippedAt || result.status !== 'approved' || !hasVerifiedContent(result))
+            .filter(result => result.skippedAt || result.contentNeedsApproval || (result.approvedSnapshotId !== undefined
+                && (typeof result.content !== 'string' || result.approvedSnapshotId !== bodyVersionId(result.id, result.content))))
             .map(result => [result.id, result.skippedAt ? 'sourceSkipped' : 'contentChanged'] as const),
     );
-    if (!invalidReasons.size) return;
     {
         assertClaimsStoreReadable(sessionDir);
         const evidences = loadEvidences(sessionDir);
@@ -503,7 +555,29 @@ function repairInvalidDependents(sessionDir: string, results: SessionResult[]): 
             if (reason) {
                 affectedClaims.add(evidence.claimId);
             }
-            if (reason && !evidence.invalid) {
+            if (evidence.invalid && evidence.invalidatedAt !== undefined) affectedClaims.add(evidence.claimId);
+            const result = results.find(item => item.id === evidence.resultId);
+            const changedAgain = reason === 'contentChanged' && evidence.invalid && evidence.relocationStatus === 'matched'
+                && typeof result?.content === 'string' && evidence.snapshotId !== bodyVersionId(result.id, result.content);
+            if (reason && (!evidence.invalid || changedAgain)) {
+                if (reason === 'contentChanged' && evidence.snapshotId && result?.content) {
+                    const oldSnapshot = withSessionRead(sessionDir, db => db.prepare('SELECT content FROM body_versions WHERE id = ? AND result_id = ?').get(evidence.snapshotId!, evidence.resultId));
+                    const oldContent = typeof oldSnapshot?.content === 'string' ? oldSnapshot.content : '';
+                    const oldQuote = oldContent.slice(evidence.charStart, evidence.charEnd);
+                    const oldValid = evidence.charStart >= 0 && evidence.charEnd > evidence.charStart && evidence.charEnd <= oldContent.length
+                        && oldQuote === evidence.quote && createHash('sha256').update(oldQuote).digest('hex') === evidence.contentHash;
+                    const first = result.content.indexOf(evidence.quote);
+                    const unique = oldValid && evidence.quote.length > 0 && first >= 0 && result.content.indexOf(evidence.quote, first + 1) < 0;
+                    if (unique) {
+                        evidence.anchorHistory = [...(evidence.anchorHistory ?? []), { snapshotId: evidence.snapshotId, charStart: evidence.charStart, charEnd: evidence.charEnd, extractedAt: evidence.extractedAt, snapshotBinding: evidence.snapshotBinding }];
+                        evidence.snapshotId = withSessionWrite(sessionDir, db => ensureBodyVersion(db, result.id, result.content!));
+                        evidence.snapshotBinding = 'anchored';
+                        evidence.charStart = first;
+                        evidence.charEnd = first + evidence.quote.length;
+                        if (result.extractedAt !== undefined) evidence.extractedAt = result.extractedAt;
+                        evidence.relocationStatus = 'matched';
+                    } else evidence.relocationStatus = 'needs_check';
+                }
                 evidence.invalid = true;
                 evidence.invalidatedAt = now;
                 evidence.invalidationReason = reason;
@@ -534,7 +608,9 @@ function repairInvalidDependents(sessionDir: string, results: SessionResult[]): 
         const { graph, missing } = readSessionGraph(sessionDir);
         if (!missing) {
             let graphChanged = false;
-            for (const resultIdValue of invalidReasons.keys()) graphChanged = pruneGraphProvenance(graph, resultIdValue) || graphChanged;
+            for (const [resultIdValue, reason] of invalidReasons) {
+                graphChanged = (reason === 'sourceSkipped' ? pruneGraphProvenance(graph, resultIdValue) : markGraphProvenancePending(graph, resultIdValue)) || graphChanged;
+            }
             if (graphChanged) writeSessionGraph(sessionDir, graph);
         }
     }
@@ -559,8 +635,30 @@ export function approveResults(sessionDir: string, selections: ApprovalSelection
         for (const result of results) {
             if (selected.has(result.id) && result.status !== 'approved') {
                 result.status = 'approved';
+                result.approvedSnapshotId = bodyVersionId(result.id, result.content!);
+                result.contentNeedsApproval = false;
                 touch(result);
                 approvedResults.push(result);
+            }
+        }
+        if (approvedResults.length) {
+            const evidence = loadEvidences(sessionDir);
+            const claims = loadClaims(sessionDir);
+            const changedClaims = new Set<string>();
+            for (const item of evidence) {
+                const result = approvedResults.find(candidate => candidate.id === item.resultId);
+                if (!result?.content || !item.invalid || item.invalidationReason !== 'contentChanged' || item.relocationStatus !== 'matched') continue;
+                const currentId = withSessionWrite(sessionDir, db => ensureBodyVersion(db, result.id, result.content!));
+                if (item.snapshotId !== currentId || result.content.slice(item.charStart, item.charEnd) !== item.quote) continue;
+                item.invalid = false;
+                delete item.invalidatedAt;
+                delete item.invalidationReason;
+                changedClaims.add(item.claimId);
+            }
+            if (changedClaims.size) {
+                for (const claim of claims) if (changedClaims.has(claim.id)) claim.status = 'verifying';
+                saveEvidences(sessionDir, evidence);
+                saveClaims(sessionDir, claims);
             }
         }
         writeResults(sessionDir, results, state?.data.rounds ?? 0);
@@ -634,6 +732,7 @@ export function recordExtractionOutcome(
             if (typeof outcome.content !== 'string' || !outcome.content.trim()) continue;
             const wasSkipped = result.skippedAt !== undefined;
             const changedBody = result.contentType !== 'extracted' || result.content !== outcome.content;
+            if (changedBody && result.approvedSnapshotId) result.contentNeedsApproval = true;
             result.contentType = 'extracted';
             result.content = outcome.content;
             result.extractor = outcome.extractor || 'default';
@@ -686,7 +785,24 @@ export function loadSessionGraph(sessionDir: string): DirectedGraph<GraphNodeAtt
     }
     return withSessionLock(sessionDir, () => {
         repairInvalidDependents(sessionDir, loadSessionResults(sessionDir));
-        return readSessionGraph(sessionDir).graph;
+        return visibleSessionGraph(readSessionGraph(sessionDir).graph, loadSessionResults(sessionDir));
+    });
+}
+
+export function listPendingGraph(sessionDir: string): { nodes: object[]; edges: object[] } {
+    if (!['session.sqlite', 'meta.json', 'results.json', 'graph.json', 'claims'].some(name => existsSync(join(sessionDir, name)))) return { nodes: [], edges: [] };
+    return withSessionLock(sessionDir, () => {
+        repairInvalidDependents(sessionDir, loadSessionResults(sessionDir));
+        const graph = readSessionGraph(sessionDir).graph;
+        const nodes: object[] = [];
+        const edges: object[] = [];
+        graph.forEachNode((id, attrs) => {
+            if (attrs.pendingSourceResultIds?.length) nodes.push({ id, ...attrs });
+        });
+        graph.forEachEdge((id, attrs, source, target) => {
+            if (attrs.pendingSourceResultIds?.length) edges.push({ id, source, target, ...attrs });
+        });
+        return { nodes, edges };
     });
 }
 

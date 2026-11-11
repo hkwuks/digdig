@@ -8,6 +8,7 @@ import { createErrorEnvelope, createSuccessEnvelope } from '../protocol.js';
 import { resolveStatePath } from '../legacy.js';
 import { withSessionRead } from '../deep/session-store.js';
 import { SessionStateError } from '../deep/session-lock.js';
+import { loadSessionGraph } from '../deep/session.js';
 
 export interface SessionMeta {
     owner: string;
@@ -72,11 +73,11 @@ export function listSessions(rootDir: string): Array<{
         const counts = withSessionRead(sessionDir, db => {
             const round = db.prepare("SELECT data FROM session_meta WHERE key = 'rounds'").get();
             const count = db.prepare('SELECT count(*) AS count FROM results').get();
-            const graph = db.prepare('SELECT data FROM graph_snapshot WHERE id = 1').get();
-            const stats = graph ? JSON.parse(String(graph.data)).data?.stats : undefined;
-            return { rounds: round ? Number(JSON.parse(String(round.data))) : 0, results: Number(count?.count ?? 0), nodes: stats?.nodes ?? 0, edges: stats?.edges ?? 0 };
-        }) ?? { rounds: 0, results: 0, nodes: 0, edges: 0 };
-        sessions.push({ name: entry.name, path: sessionDir, meta, ...counts });
+            const graph = db.prepare('SELECT 1 FROM graph_snapshot WHERE id = 1').get();
+            return { rounds: round ? Number(JSON.parse(String(round.data))) : 0, results: Number(count?.count ?? 0), hasGraph: Boolean(graph) };
+        }) ?? { rounds: 0, results: 0, hasGraph: false };
+        const graph = counts.hasGraph ? loadSessionGraph(sessionDir) : undefined;
+        sessions.push({ name: entry.name, path: sessionDir, meta, rounds: counts.rounds, results: counts.results, nodes: graph?.order ?? 0, edges: graph?.size ?? 0 });
     }
 
     return sessions.sort((a, b) => {

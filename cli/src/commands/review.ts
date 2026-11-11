@@ -5,6 +5,7 @@
 import {
   loadClaims,
   loadReviews,
+  loadReviewHistory,
   loadEvidences,
   loadVerdicts,
   saveReviews,
@@ -118,9 +119,11 @@ export async function runReviewList(
 ): Promise<number> {
   const sessionDir = resolveSessionPath(session);
   let all;
+  let history;
   try {
     assertClaimsStoreReadable(sessionDir);
     all = loadReviews(sessionDir);
+    history = loadReviewHistory(sessionDir);
   } catch (error) {
     if (error instanceof ClaimsStateError) {
       console.log(JSON.stringify({ status: 'error', error: { code: 'CLAIMS_STATE_CORRUPTED', message: error.message } }, null, 2));
@@ -132,10 +135,11 @@ export async function runReviewList(
   const filtered = options.status
     ? all.filter(r => r.decision === options.status)
     : all;
+  const filteredHistory = options.status ? history.filter(r => r.decision === options.status) : history;
 
   const outputFormat = options.format || 'json';
   if (outputFormat === 'md') {
-    if (filtered.length === 0) {
+    if (filtered.length === 0 && filteredHistory.length === 0) {
       console.log('No reviews found.');
       return 0;
     }
@@ -145,8 +149,14 @@ export async function runReviewList(
     for (const r of filtered) {
       console.log(`| ${r.claimId} | ${r.decision} | ${r.matchedRule} | ${r.autoPass} |`);
     }
+    if (filteredHistory.length) {
+      console.log('\n### Historical reviews (not current)\n');
+      console.log('| Claim ID | Decision | Rule | Invalidated at |');
+      console.log('|----------|----------|------|----------------|');
+      for (const r of filteredHistory) console.log(`| ${r.claimId} | ${r.decision} | ${r.matchedRule} | ${r.invalidatedAt} |`);
+    }
   } else {
-    console.log(JSON.stringify(createSuccessEnvelope({ reviews: filtered }), null, 2));
+    console.log(JSON.stringify(createSuccessEnvelope({ reviews: filtered, history: filteredHistory }), null, 2));
   }
 
   return 0;

@@ -116,7 +116,7 @@ describe('legacy session migration', () => {
             const body = JSON.parse(String(db.prepare('SELECT data FROM body_snapshots WHERE result_id = ?').get('r1')?.data));
             const origins = db.prepare('SELECT data FROM origins WHERE result_id = ? ORDER BY ordinal').all('r1').map(row => JSON.parse(String(row.data)));
             expect(discovery).not.toHaveProperty('content');
-            expect({ ...discovery, ...body, origins }).toEqual(source);
+            expect({ ...discovery, ...body, origins }).toEqual({ ...source, approvedSnapshotId: expect.any(String) });
         } finally { db.close(); }
     });
 

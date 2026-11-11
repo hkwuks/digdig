@@ -3,6 +3,7 @@
 import { createErrorEnvelope, createSuccessEnvelope } from '../protocol.js';
 import { entityId, GraphEdgeAttrs, GraphNodeAttrs } from '../deep/graph.js';
 import { initSessionDir, mutateSessionGraph, resolveSessionPath } from '../deep/session.js';
+import { bodyVersionId } from '../deep/session-db.js';
 import { isJsonObject, readSessionJsonInput } from './json-input.js';
 import { extractPaths } from '../deep/path-extraction.js';
 
@@ -82,6 +83,7 @@ export async function runGraphAdd(options: GraphAddOptions): Promise<number> {
     initSessionDir(sessionDir);
     const mutation = mutateSessionGraph(sessionDir, (graph, approved) => {
         const approvedIds = new Set(approved.map(result => result.id));
+        const snapshotIds = Object.fromEntries(approved.filter(result => typeof result.content === 'string').map(result => [result.id, bodyVersionId(result.id, result.content!)]));
         const validEntities: EntityInput[] = [];
         const validEdges: EdgeInput[] = [];
         for (const entity of entities) {
@@ -103,6 +105,8 @@ export async function runGraphAdd(options: GraphAddOptions): Promise<number> {
                     type: 'entity', label: entity.label, entityType: entity.entityType, score: entity.score,
                     obfuscatedLabel: entity.obfuscatedLabel, frequency: entity.frequency,
                     sourceResultIds: entity.sourceResultIds,
+                    sourceSnapshotIds: Object.fromEntries(entity.sourceResultIds.map(id => [id, snapshotIds[id]])),
+                    sourceSnapshotBinding: Object.fromEntries(entity.sourceResultIds.map(id => [id, 'anchored' as const])),
                 });
                 entitiesAdded++;
             } else {
@@ -112,6 +116,9 @@ export async function runGraphAdd(options: GraphAddOptions): Promise<number> {
                     score: entity.score ?? previous.score, obfuscatedLabel: entity.obfuscatedLabel ?? previous.obfuscatedLabel,
                     frequency: entity.frequency ?? previous.frequency,
                     sourceResultIds: mergeIds(previous.sourceResultIds, entity.sourceResultIds),
+                    sourceSnapshotIds: { ...previous.sourceSnapshotIds, ...Object.fromEntries(entity.sourceResultIds.map(id => [id, snapshotIds[id]])) },
+                    sourceSnapshotBinding: { ...previous.sourceSnapshotBinding, ...Object.fromEntries(entity.sourceResultIds.map(id => [id, 'anchored' as const])) },
+                    pendingSourceResultIds: previous.pendingSourceResultIds?.filter(id => !entity.sourceResultIds.includes(id)),
                 });
             }
         }
@@ -136,9 +143,9 @@ export async function runGraphAdd(options: GraphAddOptions): Promise<number> {
             const matching = graph.findEdge(edge.source, edge.target, (_key, attrs) => attrs.relation === edge.relation);
             if (matching) {
                 const previous = graph.getEdgeAttributes(matching);
-                graph.replaceEdgeAttributes(matching, { ...previous, sourceResultIds: mergeIds(previous.sourceResultIds, edge.sourceResultIds) });
+                graph.replaceEdgeAttributes(matching, { ...previous, sourceResultIds: mergeIds(previous.sourceResultIds, edge.sourceResultIds), sourceSnapshotIds: { ...previous.sourceSnapshotIds, ...Object.fromEntries(edge.sourceResultIds.map(id => [id, snapshotIds[id]])) }, sourceSnapshotBinding: { ...previous.sourceSnapshotBinding, ...Object.fromEntries(edge.sourceResultIds.map(id => [id, 'anchored' as const])) }, pendingSourceResultIds: previous.pendingSourceResultIds?.filter(id => !edge.sourceResultIds.includes(id)) });
             } else {
-                graph.addEdge(edge.source, edge.target, { relation: edge.relation, weight: edge.weight ?? 1, sourceResultIds: edge.sourceResultIds });
+                graph.addEdge(edge.source, edge.target, { relation: edge.relation, weight: edge.weight ?? 1, sourceResultIds: edge.sourceResultIds, sourceSnapshotIds: Object.fromEntries(edge.sourceResultIds.map(id => [id, snapshotIds[id]])), sourceSnapshotBinding: Object.fromEntries(edge.sourceResultIds.map(id => [id, 'anchored' as const])) });
                 edgesAdded++;
             }
         }

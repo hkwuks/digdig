@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 import type { DatabaseSync } from 'node:sqlite';
 import { deserializeGraph } from './graph.js';
-import { openSessionDatabase, withTransaction } from './session-db.js';
+import { bindLegacyEvidence, bindLegacyGraph, bodyVersionId, ensureBodyVersion, openSessionDatabase, withTransaction } from './session-db.js';
 import { classifySqliteError, SessionStateError, withSessionLock } from './session-lock.js';
 
 type RecordValue = Record<string, unknown>;
@@ -66,7 +66,7 @@ export function openSessionStore(sessionDir: string, create: boolean): DatabaseS
 export function migrateLegacySession(sessionDir: string, db: DatabaseSync): boolean {
     return withTransaction(db, () => {
         if (db.prepare("SELECT 1 FROM session_meta WHERE key = 'migration_complete'").get()) return false;
-        for (const table of ['session_meta', 'results', 'origins', 'body_snapshots', 'claims', 'evidences', 'verdicts', 'verdict_evidence', 'reviews', 'graph_snapshot']) {
+        for (const table of ['session_meta', 'results', 'origins', 'body_snapshots', 'body_versions', 'claims', 'evidences', 'verdicts', 'verdict_evidence', 'reviews', 'graph_snapshot']) {
             if (db.prepare(`SELECT 1 FROM ${table} LIMIT 1`).get()) throw new Error('Incomplete session database contains uncommitted migration state');
         }
 
@@ -114,7 +114,11 @@ export function migrateLegacySession(sessionDir: string, db: DatabaseSync): bool
             const resultId = id(value.id, 'result id');
             const { origins, content, extractor, extractedAt, ...discovery } = value;
             if (origins !== undefined && (!Array.isArray(origins) || !origins.every(object))) throw new Error('Invalid legacy session origins');
+            if (typeof content === 'string' && discovery.status === 'approved') {
+                discovery.approvedSnapshotId = bodyVersionId(resultId, content);
+            }
             insertResult.run(resultId, JSON.stringify(discovery), origins === undefined ? 0 : 1);
+            if (typeof content === 'string') ensureBodyVersion(db, resultId, content);
             origins?.forEach((origin, index) => insertOrigin.run(resultId, index, JSON.stringify(origin)));
             if (content !== undefined || extractor !== undefined || extractedAt !== undefined) {
                 insertBody.run(resultId, JSON.stringify({ content, extractor, extractedAt }));
@@ -137,7 +141,9 @@ export function migrateLegacySession(sessionDir: string, db: DatabaseSync): bool
         }
         const insertReview = db.prepare('INSERT INTO reviews (claim_id, data) VALUES (?, ?)');
         for (const review of reviews) insertReview.run(id(review.claimId, 'claim id'), JSON.stringify(review));
+        bindLegacyEvidence(db);
         if (graph !== undefined) db.prepare('INSERT INTO graph_snapshot (id, data) VALUES (1, ?)').run(JSON.stringify(graph));
+        bindLegacyGraph(db);
         putMeta.run('migration_complete', 'true');
         return true;
     });

@@ -863,15 +863,15 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## SessionResult 没有 snapshot 概念，证据定位无法在重抽取后重新对齐
 
 - ID: TF-20261107-024a82
-- Status: inbox
+- Status: in_progress
 - Priority: normal
 - Owner: Claude
 - Source: design report review
 - Added: 2026-11-07
 - Updated: 2026-11-11
 - Goal: `SessionResult.content` 是裸字符串，没有 `normalized_text_hash`，没有 `extraction_version`。`EvidenceSpan`（`cli/src/claims/types.ts:46`）的 `charStart`/`charEnd` 是 UTF-16 偏移，正文重新抽取后偏移失效；现在只能靠 `contentHash` 校验失败来发现，**没有版本化的重定位机制**。`docs/agent_search_integrated_report_2026-10-27.md` 4.3 明确要求「重抽取或正文标准化版本变化时，应重新定位，不能沿用旧偏移」，并把 `Snapshot(id, url, final_url, mime, normalized_text_hash, extraction_version, access_level)` 列为一个独立实体。次要缺口：locator 只有文本偏移一种，报告还要求 PDF 页码/区域、表格行列、代码 commit+文件+行号、视频时间戳——「不应假装所有证据都能被表示为 UTF-8 文本中的一对 start/end」。
-- Task: Not promoted.
-- Next action: 与 TF-20261107-23d219 联合设计快照及状态语义。用户确认保留证据引用的旧快照，未引用快照的清理由后续策略决定；正文相同时复用快照并另记最新抽取信息。正文变化后证据先待重新定位，唯一准确匹配可重新定位，其他情况交由人工或 Agent 处理；旧 SQLite 会话中无法与当前正文准确对应的证据保留并标记待核对，不伪造历史快照。多 locator 类型留待后续。
+- Task: `TaskFlowDocs/2026-11-11-evidence-snapshots/`
+- Next action: Complete PRD / Spec / Plan and request approval.
 
 ## results.json 把三层存储混成一个文件
 

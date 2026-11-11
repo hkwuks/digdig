@@ -1091,6 +1091,10 @@ dg --session <session-name> --queries "tokio vs async-std,benchmark 2026" --redu
 
 旧 JSON 会话在首次访问时自动迁移，包括只读访问。原 JSON 文件保留且不再更新，数据库成为唯一可写状态。不要用旧版 digdig 同时访问同一会话。SQLite WAL 仅支持单机本地文件系统，不支持网络文件系统；数据库打开时不要只复制主文件，因为可能同时存在 WAL 文件。
 
+仅有 `graph.json` 的旧会话可传入会话目录；标准会话目录下也可直接传该文件路径。自定义位置仅含 `graph.json` 时，传文件路径按独立图处理。
+
+正文变化后，原证据引用的正文版本和审核历史会保留，新正文需要重新采信。证据在新正文中只有一处准确匹配时可重新定位；找不到或有多处匹配时需要核对。通过 `dg evidence-list <session> --claim-id <id> --include-invalid` 查看待处理证据，`dg review-list <session>` 查看历史审核，`dg graph-pending <session>` 查看待确认图事实。重新采信结果后，使用 `graph-add` 显式重新确认有依据的实体和关系。
+
 ### 知识图谱
 
 两层结构：

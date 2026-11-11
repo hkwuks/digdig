@@ -319,6 +319,7 @@ See SOP for detailed L1/L2/L3 complexity guidelines.
 | `dg results-add` | Append external results as pending |
 | `dg graph-preprocess` | Co-occurrence + term frequency analysis |
 | `dg graph-add` | Add entities/edges to graph |
+| `dg graph-pending` | List graph facts awaiting source reconfirmation |
 | `dg graph-search` | Discover entities by keyword |
 | `dg graph-explore` | View entity relations |
 | `dg graph-drill` | Follow specific relations |
@@ -335,7 +336,7 @@ See SOP for detailed L1/L2/L3 complexity guidelines.
 | `dg claim-list` | List claims |
 | `dg evidence-search` | Search candidate evidence (read-only) |
 | `dg evidence-verify` | Confirm evidence + submit stance (+ optional auto-policy) |
-| `dg evidence-list` | List evidence for a claim |
+| `dg evidence-list` | List evidence for a claim; `--include-invalid` shows evidence awaiting review or relocation |
 | `dg verdict-list` | List verdicts for a claim |
 | `dg policy-aggregate` | Run policy aggregation manually |
 | `dg review-list` | List reviews |

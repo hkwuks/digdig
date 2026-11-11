@@ -35,6 +35,9 @@ export interface GraphNodeAttrs {
     score?: number;
     reasoningPaths?: string[]; // path node IDs this entity participates in
     sourceResultIds?: string[]; // approved extracted results that support this semantic node
+    pendingSourceResultIds?: string[];
+    sourceSnapshotIds?: Record<string, string>;
+    sourceSnapshotBinding?: Record<string, 'anchored' | 'current_match' | 'needs_check'>;
     frequency?: number; // how many results mention this entity
     obfuscatedLabel?: string; // LLM-generated obfuscated label (Phase 5)
     // Result-specific
@@ -58,6 +61,9 @@ export interface GraphEdgeAttrs {
     relation: string;
     weight: number;
     sourceResultIds?: string[];
+    pendingSourceResultIds?: string[];
+    sourceSnapshotIds?: Record<string, string>;
+    sourceSnapshotBinding?: Record<string, 'anchored' | 'current_match' | 'needs_check'>;
 }
 
 function generateId(prefix: string, value: string): string {

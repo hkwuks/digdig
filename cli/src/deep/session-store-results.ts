@@ -1,6 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 import type { SessionResult, SessionResultsFile } from './session.js';
 import { SessionStateError } from './session-lock.js';
+import { ensureBodyVersion } from './session-db.js';
 
 export function readResults(db: DatabaseSync): SessionResultsFile {
     const rows = db.prepare('SELECT id, data, origins_present FROM results ORDER BY rowid').all();
@@ -34,6 +35,7 @@ export function writeResults(db: DatabaseSync, results: SessionResult[], rounds:
         if (ids.has(oldId)) continue;
         db.prepare('DELETE FROM origins WHERE result_id = ?').run(oldId);
         db.prepare('DELETE FROM body_snapshots WHERE result_id = ?').run(oldId);
+        db.prepare('DELETE FROM body_versions WHERE result_id = ?').run(oldId);
         db.prepare('DELETE FROM results WHERE id = ?').run(oldId);
     }
     const putResult = db.prepare('INSERT INTO results (id, data, origins_present) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET data=excluded.data, origins_present=excluded.origins_present');
@@ -42,6 +44,7 @@ export function writeResults(db: DatabaseSync, results: SessionResult[], rounds:
     for (const result of results) {
         const { origins, content, extractor, extractedAt, ...discovery } = result;
         putResult.run(result.id, JSON.stringify(discovery), origins === undefined ? 0 : 1);
+        if (typeof content === 'string') ensureBodyVersion(db, result.id, content);
         db.prepare('DELETE FROM origins WHERE result_id = ?').run(result.id);
         origins?.forEach((origin, index) => putOrigin.run(result.id, index, JSON.stringify(origin)));
         if (content !== undefined || extractor !== undefined || extractedAt !== undefined) putBody.run(result.id, JSON.stringify({ content, extractor, extractedAt }));
