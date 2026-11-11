@@ -101,7 +101,7 @@ const STOPWORDS = new Set([
   'the', 'which', 'who', 'whom', 'what',
 ]);
 
-function tokenize(text: string): string[] {
+export function tokenize(text: string): string[] {
   const normalized = text.toLowerCase();
   const tokens: string[] = [];
 
@@ -126,7 +126,7 @@ function tokenize(text: string): string[] {
   return tokens;
 }
 
-function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
+export function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
   if (a.size === 0 && b.size === 0) return 0;
   let intersection = 0;
   for (const word of a) {

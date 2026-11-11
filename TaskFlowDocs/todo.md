@@ -850,15 +850,15 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## status 字段混了「Agent 是否认可」与「内容是否还是批准时的那份」
 
 - ID: TF-20261107-23d219
-- Status: inbox
+- Status: done
 - Priority: normal
 - Owner: Claude
 - Source: design report review
 - Added: 2026-11-07
 - Updated: 2026-11-11
 - Goal: `SessionResult.status` 是 `pending`/`approved` 二值，同时承担两个语义：Agent 对这条结果的采信决定，以及这条结果的内容是否仍是批准时的那一份。`repairInvalidDependents`（`cli/src/deep/session.ts:520-560`）用 `result.status !== 'approved'` 判定 `contentChanged`，于是**所有**通向非 approved 的路径被一视同仁：Agent 主动 skip、正文被重新抽取、被跳过的结果被重新导入。三者触发同一套级联——`evidences` 标 `invalid`、受影响的 `claim` 回 `verifying`、对应 `review` 直接删除、语义图里 `sourceResultIds` 含该 id 的节点与边物理删除、`path` 节点因实体消失而删除、孤立 `query`/`domain` 节点也删除。D1 只是这个模型的第一个受害者：当时（`TaskFlowDocs/achieved/2026-11-03-session-reimport-downgrade/`）的修法是加 guard `(bodyChanged || wasSkipped)`，**根因未动**，任何新增的降级路径都会复现同类破坏。`docs/agent_search_integrated_report_2026-10-27.md` 4.3 的数据契约把这件事拆成三个独立实体（`SubQuestion.status`、`Claim.status`、`Evidence`），可作为拆分参照。
-- Task: Not promoted.
-- Next action: 与 TF-20261107-024a82 联合设计：拆开 Agent 采信决定与内容版本有效性；按快照变化和明确的 skip 语义处理依赖，避免仅凭 status 级联。用户确认旧证据在新正文唯一准确匹配并更新定位后，原审核转为待重新审核。设计完成后再确定实施范围。
+- Task: `TaskFlowDocs/achieved/2026-11-11-evidence-snapshots/`（PR #58）
+- Next action: None — 已随快照任务拆分采信与正文版本状态；保留历史审核并隔离待确认图，用户确认关闭。
 
 ## SessionResult 没有 snapshot 概念，证据定位无法在重抽取后重新对齐
 
@@ -879,15 +879,15 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## 来源簇只按 hostname 判断，转载被当成独立来源
 
 - ID: TF-20261107-ebc986
-- Status: inbox
+- Status: in_progress
 - Priority: normal
 - Owner: Claude
 - Source: design report review
 - Added: 2026-11-07
-- Updated: 2026-11-07
+- Updated: 2026-11-11
 - Goal: `computeSourceClusterId`（`cli/src/claims/deterministic-checks.ts:58-70`）把 publisher hostname 做 sha256 截 16 位当簇 ID。同一篇文章被 5 个站转载，5 个不同 hostname 就是 5 个「独立来源」，`policy.ts` 按来源域名数判定的规则（`dualSourceMixed`、`highRiskInsufficient`）因此会被骗过——`policy.ts:44` 的注释自己写的就是「Domain-level source independence」，即它知道这只是域名级而非内容级。`docs/agent_search_integrated_report_2026-10-27.md` 3.3 明写「证据数量不等于独立性：文章来源关系需要聚类；不能用 URL count 代替证据簇数」，2.6 节进一步要求「同一文章转载、共同通讯社稿、同一官方声明的多次改写应视作同一事实来源簇」。
-- Task: Not promoted.
-- Next action: 需要设计。真实来源簇识别需要正文相似度或 canonical URL 传播链，不是一行改动；先确认它在 Fast/Standard/Deep 哪一档启用（报告 4.1 里只有 Deep 有「来源簇与多样性约束」）。
+- Task: `TaskFlowDocs/2026-11-11-source-independence/`
+- Next action: Complete PRD / Spec / Plan and request approval.
 
 ## tokenize() 把含 CJK 的混合 token 整体当 CJK 分支处理，ASCII 部分被切成碎片且原词丢失
 

@@ -14,13 +14,13 @@ import {
   ClaimsStateError,
   assertClaimsStoreReadable,
 } from '../claims/store.js';
-import { computeSourceClusterId } from '../claims/deterministic-checks.js';
 import {
   aggregateAll,
   PolicyInput,
 } from '../claims/policy.js';
 import { mutateSessionState, resolveSessionPath } from '../deep/session.js';
 import { createSuccessEnvelope } from '../protocol.js';
+import { policyInput } from '../claims/policy-input.js';
 
 // policy-aggregate
 
@@ -49,14 +49,11 @@ export async function runPolicyAggregate(
 
       const reviewable: Array<{ claim: typeof allClaims[0]; input: PolicyInput }> = [];
       for (const claim of targets) {
-        const evidences = allEvidences.filter(evidence => evidence.claimId === claim.id && !evidence.invalid);
-        const validEvidenceIds = new Set(evidences.map(evidence => evidence.id));
-        const verdicts = allVerdicts.filter(verdict => verdict.claimId === claim.id && verdict.evidenceIds.some(id => validEvidenceIds.has(id)));
-        if (!verdicts.length) continue;
-        for (const evidence of evidences) evidence.sourceClusterId = computeSourceClusterId(evidence);
+        const input = policyInput(sessionDir, claim, allEvidences, allVerdicts);
+        if (!input.verdicts.length) continue;
         reviewable.push({
           claim,
-          input: { claimId: claim.id, riskLevel: claim.riskLevel, verdicts, evidences },
+          input,
         });
       }
       if (!reviewable.length) return [];
@@ -95,10 +92,10 @@ export async function runPolicyAggregate(
   if (outputFormat === 'md') {
     console.log('## Policy Aggregate Results\n');
     console.log(`Aggregated ${newReviews.length} claim(s)\n`);
-    console.log('| Claim ID | Decision | Rule | Auto-Pass |');
-    console.log('|----------|----------|------|-----------|');
+    console.log('| Claim ID | Decision | Rule | Auto-Pass | Source independence | Reason |');
+    console.log('|----------|----------|------|-----------|---------------------|--------|');
     for (const r of newReviews) {
-      console.log(`| ${r.claimId} | ${r.decision} | ${r.matchedRule} | ${r.autoPass} |`);
+      console.log(`| ${r.claimId} | ${r.decision} | ${r.matchedRule} | ${r.autoPass} | ${r.checks.sourceIndependence} | ${r.checks.sourceIndependenceReason} |`);
     }
   } else {
     console.log(JSON.stringify(createSuccessEnvelope({
@@ -144,10 +141,10 @@ export async function runReviewList(
       return 0;
     }
     console.log('## Reviews\n');
-    console.log('| Claim ID | Decision | Rule | Auto-Pass |');
-    console.log('|----------|----------|------|-----------|');
+    console.log('| Claim ID | Decision | Rule | Auto-Pass | Source independence | Reason |');
+    console.log('|----------|----------|------|-----------|---------------------|--------|');
     for (const r of filtered) {
-      console.log(`| ${r.claimId} | ${r.decision} | ${r.matchedRule} | ${r.autoPass} |`);
+      console.log(`| ${r.claimId} | ${r.decision} | ${r.matchedRule} | ${r.autoPass} | ${r.checks?.sourceIndependence ?? 'unknown'} | ${r.checks?.sourceIndependenceReason ?? 'Legacy review'} |`);
     }
     if (filteredHistory.length) {
       console.log('\n### Historical reviews (not current)\n');

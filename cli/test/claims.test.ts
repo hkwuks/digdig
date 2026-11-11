@@ -10,6 +10,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { createHash, randomBytes } from 'crypto';
+import { bodyVersionId } from '../src/deep/session-db.js';
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
@@ -825,9 +826,12 @@ describe('policy engine', () => {
   }
 
   function makeEvidence(overrides: Partial<EvidenceSpan> = {}): EvidenceSpan {
+    const id = overrides.id ?? 'ev_001';
     return {
       id: 'ev_001',
       claimId: 'cl_001',
+      resultId: `result-${id}`,
+      snapshotId: `snapshot-${id}`,
       resultUrl: 'https://source-a.com/article',
       quote: 'Supporting evidence text for the claim.',
       charStart: 0,
@@ -902,7 +906,7 @@ describe('policy engine', () => {
       expect(result.matchedRule).toBe('highRiskInsufficient');
     });
 
-    it('should pass to next rule when high risk has ≥2 sources', () => {
+    it('does not count an unsupported second source for a high-risk claim', () => {
       const result = aggregateClaim(makeInput({
         riskLevel: 'high',
         verdicts: [makeVerdict({ stance: 'support' })],
@@ -913,8 +917,8 @@ describe('policy engine', () => {
       }));
       // Skips rule #1 (no refute), then passes rule #2 (≥2 sources)
       // Then rule #3: dualSourceSupport → approved
-      expect(result.decision).toBe('approved');
-      expect(result.matchedRule).toBe('dualSourceSupport');
+      expect(result.decision).toBe('needsReview');
+      expect(result.matchedRule).toBe('highRiskInsufficient');
     });
 
     it('should not affect low/medium risk claims', () => {
@@ -929,7 +933,7 @@ describe('policy engine', () => {
   // ── Rule #3: dualSourceSupport ──────────────────────────────────
 
   describe('rule #3: dualSourceSupport', () => {
-    it('should auto-approve when ≥2 independent sources all support', () => {
+    it('does not auto-approve sources without an independence judgment', () => {
       const result = aggregateClaim(makeInput({
         verdicts: [
           makeVerdict({ id: 'vd_001', stance: 'support' }),
@@ -940,10 +944,10 @@ describe('policy engine', () => {
           makeEvidence({ id: 'ev_002', sourceClusterId: 'cluster_b' }),
         ],
       }));
-      expect(result.decision).toBe('approved');
-      expect(result.autoPass).toBe(true);
-      expect(result.matchedRule).toBe('dualSourceSupport');
-      expect(result.checks.sourceIndependent).toBe(true);
+      expect(result.decision).toBe('needsReview');
+      expect(result.autoPass).toBe(false);
+      expect(result.matchedRule).toBe('singleSource');
+      expect(result.checks.sourceIndependent).toBe(false);
       expect(result.checks.allSupport).toBe(true);
     });
 
@@ -979,7 +983,7 @@ describe('policy engine', () => {
         ],
       }));
       expect(result.decision).toBe('needsReview');
-      expect(result.matchedRule).toBe('dualSourceMixed');
+      expect(result.matchedRule).toBe('singleSource');
     });
   });
 
@@ -1071,7 +1075,7 @@ describe('policy engine', () => {
           makeEvidence({ id: 'ev_002', sourceClusterId: 'cluster_b' }),
         ],
       }));
-      expect(approved.autoPass).toBe(true);
+      expect(approved.autoPass).toBe(false);
 
       const rejected = aggregateClaim(makeInput({
         verdicts: [makeVerdict({ stance: 'refute' })],
@@ -1112,7 +1116,7 @@ describe('policy engine', () => {
       const results = aggregateAll(inputs);
       expect(results).toHaveLength(2);
       expect(results[0].claimId).toBe('cl_001');
-      expect(results[0].decision).toBe('approved');
+      expect(results[0].decision).toBe('needsReview');
       expect(results[1].claimId).toBe('cl_002');
       expect(results[1].decision).toBe('needsReview');
       expect(results[1].matchedRule).toBe('singleRefute');
@@ -1128,7 +1132,8 @@ describe('policy engine', () => {
       saveEvidences(sessionDir, [{
         id: 'ev_001', claimId: 'cl_001', resultId: 'r:article', resultUrl: 'https://example.com/article',
         quote: 'Tokio is the most widely used async runtime in the Rust ecosystem.',
-        charStart: 0, charEnd: 64, contentHash: 'fixture', extractedAt: 1_700_000_000_000,
+        charStart: 0, charEnd: 66, contentHash: createHash('sha256').update('Tokio is the most widely used async runtime in the Rust ecosystem.').digest('hex'),
+        snapshotId: bodyVersionId('r:article', 'Tokio is the most widely used async runtime in the Rust ecosystem. It provides a powerful asynchronous programming model. Many production systems rely on Tokio for network services.'), extractedAt: 1_700_000_000_000,
       }]);
       saveVerdicts(sessionDir, [{
         id: 'vd_001', claimId: 'cl_001', evidenceIds: ['ev_001'], stance: 'support', reason: 'fixture', createdAt: Date.now(),
