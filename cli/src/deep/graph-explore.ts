@@ -451,7 +451,6 @@ export function traversePath(
     // Collect source info: results that mention entities in this path
     const domainSet = new Set<string>();
     const resultIds = new Set<string>();
-    let resultCount = 0;
 
     for (const eId of entityIds) {
         if (!graph.hasNode(eId)) continue;
@@ -462,7 +461,6 @@ export function traversePath(
             const source = graph.source(edge);
             const sourceAttrs = graph.getNodeAttributes(source);
             if (sourceAttrs.type === 'result') {
-                resultCount++;
                 resultIds.add(source);
                 if (sourceAttrs.url) {
                     try {
@@ -486,7 +484,7 @@ export function traversePath(
         label: pathAttrs.label,
         hops,
         sources: {
-            resultCount,
+            resultCount: resultIds.size,
             domains: [...domainSet],
             resultIds: [...resultIds].sort(),
         },

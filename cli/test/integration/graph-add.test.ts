@@ -148,6 +148,7 @@ describe('graph-add command', () => {
     const paths = graph.filterNodes((_id, attrs) => attrs.type === 'path');
     expect(paths.length).toBeGreaterThan(0);
     expect(await runGraphTraverse({ session: sessionDir, pathId: paths[0] })).toBe(0);
+    expect(JSON.parse(vi.mocked(console.log).mock.lastCall![0]).data.sources).toMatchObject({ resultCount: 1, resultIds: [resultId] });
     expect(await runGraphAdd({ session: sessionDir, dataFile })).toBe(0);
     expect(loadSessionGraph(sessionDir).filterNodes((_id, attrs) => attrs.type === 'path')).toEqual(paths);
   });

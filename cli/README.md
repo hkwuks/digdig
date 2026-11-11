@@ -216,8 +216,10 @@ Configuration priority (highest to lowest):
 | `DIGDIG_TIMEOUT` | Request timeout in ms | `25000` |
 | `DIGDIG_REDUNDANCY_THRESHOLD` | Word-level Jaccard threshold for redundancy | `0.7` |
 | `DIGDIG_REDUNDANCY_BIGRAM_THRESHOLD` | Bigram-level Jaccard threshold (short queries) | `0.5` |
-| `OLLAMA_API_KEY` | [Ollama web search](https://ollama.com) API key; enable with `-e ollama` (not an automatic fallback) | *(none)* |
+| `OLLAMA_API_KEY` | [Ollama web search](https://ollama.com) API key; select via `-e ollama` or engine configuration (not an automatic fallback) | *(none)* |
 | `DEEPSEEK_API_KEY` | [DeepSeek Search](https://api-docs.deepseek.com/api/search) API key (optional backend; billed per successful request) | *(none)* |
+
+Engine selection uses explicit `--engines`, then `DIGDIG_DEFAULT_ENGINE`, then `DIGDIG_ALLOWED_ENGINES`; when all are empty, the backend chooses its defaults. A nonempty allowlist also restricts the default engine. Configured external providers must have API keys and may incur charges.
 
 > `SEARXNG_*` variable names are still read until `0.5.0` and emit one `[deprecation]` line on stderr; `DIGDIG_*` wins when both are set.
 
