@@ -1,5 +1,5 @@
 import { existsSync, statSync } from 'fs';
-import { basename, dirname, join } from 'path';
+import { basename, dirname, join, relative, resolve } from 'path';
 import { getDefaultSessionRoot } from './session.js';
 
 export function resolveGraphInput(input: string): { graphFile: string; sessionDir?: string } {
@@ -9,6 +9,7 @@ export function resolveGraphInput(input: string): { graphFile: string; sessionDi
     } catch { /* Preserve the original path for the caller's error. */ }
     const parent = dirname(path);
     const isSession = basename(path) === 'graph.json'
-        && ['session.sqlite', 'meta.json', 'results.json'].some(name => existsSync(join(parent, name)));
+        && (relative(resolve(getDefaultSessionRoot()), resolve(dirname(parent))) === ''
+            || ['session.sqlite', 'meta.json', 'results.json'].some(name => existsSync(join(parent, name))));
     return { graphFile: path, ...(isSession ? { sessionDir: parent } : {}) };
 }

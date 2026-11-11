@@ -79,6 +79,8 @@ After approval, the result nodes exist in the graph and can be referenced by `gr
 
 Once results are in the graph, run `graph-preprocess` and use `graph-add` for the semantic layer. Every entity and edge requires currently approved `sourceResultIds` from the supporting `resultProvenance` rows; result edges must use `resultProvenance[].id`, not a URL-derived guess. Give a new entity an explicit `id` when an edge in the same request references it.
 
+When a source body changes, its existing semantic facts are retained but need explicit reconfirmation. Run `dg graph-pending <session>` to inspect them, re-approve the changed result, then resubmit supported entities and edges with `graph-add`. A source becoming approved does not by itself reconfirm its semantic facts. `dg review-list` includes prior reviews marked as historical.
+
 ```bash
 dg graph-add <session> --data-file ./.digdig/sessions/<session>/agent-inputs/graph.json
 ```

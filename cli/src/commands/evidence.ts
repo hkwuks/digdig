@@ -1,6 +1,7 @@
 /** Evidence search, verification, and listing commands. */
 
 import { createHash } from 'crypto';
+import { bodyVersionId } from '../deep/session-db.js';
 import { EvidenceSpan, Verdict } from '../claims/types.js';
 import {
   assertClaimsStoreReadable,
@@ -161,6 +162,8 @@ export async function runEvidenceVerify(
           charStart: evidenceInput.charStart,
           charEnd: evidenceInput.charEnd,
           contentHash,
+          snapshotId: bodyVersionId(result.id, content),
+          snapshotBinding: 'anchored',
           extractedAt: result.extractedAt!,
         };
       if (!duplicate) evidences.push(evidence);
@@ -263,9 +266,9 @@ export async function runEvidenceList(
       return 0;
     }
     console.log('## Evidence\n');
-    console.log('| ID | Source | Quote |');
-    console.log('|----|--------|-------|');
-    for (const evidence of evidences) console.log(`| ${evidence.id} | ${evidence.resultUrl} | ${evidence.quote.slice(0, 60)}... |`);
+    console.log('| ID | Source | Quote | Status |');
+    console.log('|----|--------|-------|--------|');
+    for (const evidence of evidences) console.log(`| ${evidence.id} | ${evidence.resultUrl} | ${evidence.quote.slice(0, 60)}... | ${evidence.invalid ? (evidence.relocationStatus ?? evidence.snapshotBinding ?? 'invalid') : 'valid'} |`);
   } else {
     console.log(JSON.stringify(createSuccessEnvelope({ evidences }), null, 2));
   }

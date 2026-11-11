@@ -63,6 +63,11 @@ export interface EvidenceSpan {
   /** SHA256 hex digest of the exact quote slice */
   contentHash: string;
 
+  snapshotId?: string;
+  snapshotBinding?: 'current_match' | 'needs_check' | 'anchored';
+  relocationStatus?: 'matched' | 'needs_check';
+  anchorHistory?: Array<{ snapshotId: string; charStart: number; charEnd: number; extractedAt: number; snapshotBinding?: 'current_match' | 'needs_check' | 'anchored' }>;
+
   /** Timestamp of the source content extraction used for this evidence */
   extractedAt: number;
 

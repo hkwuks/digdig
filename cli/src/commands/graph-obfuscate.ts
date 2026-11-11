@@ -14,7 +14,7 @@ import { deserializeGraph, serializeGraph, graphStats, GraphNodeAttrs, GraphEdge
 import { runGraphObfuscate, ObfuscationConfig, ObfuscationResult } from '../deep/graph-obfuscate.js';
 import { DirectedGraph } from 'graphology';
 import { createSuccessEnvelope, createErrorEnvelope } from '../protocol.js';
-import { loadSessionGraph, mutateSessionGraph } from '../deep/session.js';
+import { loadSessionGraph, mutateSessionGraph, visibleSessionGraph } from '../deep/session.js';
 import { withSessionRead } from '../deep/session-store.js';
 import { resolveGraphInput } from './graph-input.js';
 
@@ -116,7 +116,14 @@ export async function runGraphObfuscateCommand(options: GraphObfuscateOptions): 
     };
 
     const result = sessionDir && mode === 'fallback_rules'
-        ? mutateSessionGraph(sessionDir, current => runGraphObfuscate(current, config))
+        ? mutateSessionGraph(sessionDir, (current, approved) => {
+            const visible = visibleSessionGraph(current, approved);
+            const output = runGraphObfuscate(visible, config);
+            visible.forEachNode((id, attrs) => {
+                if (attrs.obfuscatedLabel !== undefined && current.hasNode(id)) current.setNodeAttribute(id, 'obfuscatedLabel', attrs.obfuscatedLabel);
+            });
+            return output;
+        })
         : runGraphObfuscate(graph, config);
 
     // Save graph if fallback rules were applied (they mutate the graph)

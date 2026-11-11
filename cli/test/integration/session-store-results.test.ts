@@ -21,4 +21,14 @@ describe('SQLite result storage', () => {
             expect(discovery).not.toHaveProperty('origins');
         });
     });
+
+    it('retains distinct body versions and reuses a snapshot when only extraction metadata changes', () => {
+        const result: SessionResult = { id: 'r1', revision: 1, url: 'https://example.com', title: 'A', contentType: 'extracted', status: 'approved', content: 'first', extractor: 'test', extractedAt: 1, origins: [] };
+        withSessionWrite(dir, db => writeResults(db, [result], 1));
+        withSessionWrite(dir, db => writeResults(db, [{ ...result, extractor: 'other', extractedAt: 2 }], 1));
+        expect(withSessionRead(dir, db => db.prepare('SELECT count(*) AS count FROM body_versions').get()?.count)).toBe(1);
+        withSessionWrite(dir, db => writeResults(db, [{ ...result, content: 'second', status: 'pending' }], 1));
+        expect(withSessionRead(dir, db => db.prepare('SELECT count(*) AS count FROM body_versions').get()?.count)).toBe(2);
+        expect(withSessionRead(dir, db => readResults(db).data.results[0].content)).toBe('second');
+    });
 });

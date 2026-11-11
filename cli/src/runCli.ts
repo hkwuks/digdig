@@ -28,7 +28,7 @@ import { ContentExtractor } from './deep/extractor.js';
 import { resultUrlKey, sourceKey } from './deep/dedupe.js';
 import { fuseResults, mergeEnvelopeMetadata } from './deep/fuse.js';
 import { deserializeGraph, graphStats, GraphNodeAttrs, GraphEdgeAttrs } from './deep/graph.js';
-import { initSessionDir, resolveSessionPath, appendAndInjectSessionResults, loadSessionResults, loadSessionGraph, countPendingResults, getPendingResults, approveAndInjectResults, hasVerifiedContent, setSkipped } from './deep/session.js';
+import { initSessionDir, resolveSessionPath, appendAndInjectSessionResults, loadSessionResults, loadSessionGraph, listPendingGraph, countPendingResults, getPendingResults, approveAndInjectResults, hasVerifiedContent, setSkipped } from './deep/session.js';
 import { runSessionList, runSessionDelete, getDefaultSessionRoot } from './commands/session.js';
 import { graphPreprocess } from './deep/graph-preprocess.js';
 import { checkQueryRedundancy, RedundancyConfig } from './deep/query-redundancy.js';
@@ -998,6 +998,15 @@ Examples:
         });
 
     program
+        .command('graph-pending')
+        .argument('<session>', 'Session directory or name')
+        .description('List semantic graph facts awaiting source reconfirmation')
+        .action((session: string) => {
+            console.log(JSON.stringify(createSuccessEnvelope(listPendingGraph(resolveSessionPath(session))), null, 2));
+            process.exitCode = 0;
+        });
+
+    program
         .command('suggest-queries')
         .argument('<session>', 'Session directory or name')
         .description('Output query suggestion data for Agent follow-up query generation')
@@ -1244,10 +1253,12 @@ Examples:
         .argument('<session>', 'Session directory or name')
         .description('List evidence for a claim')
         .requiredOption('--claim-id <id>', 'Claim ID')
+        .option('--include-invalid', 'Include evidence awaiting review or relocation')
         .option('-f, --format <fmt>', 'Output format: json (default), md')
         .action(async (session, opts, command) => {
             const code = await runEvidenceList(session, {
                 claimId: opts.claimId,
+                includeInvalid: opts.includeInvalid,
                 format: command.optsWithGlobals().format,
             });
             process.exitCode = code;

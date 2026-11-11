@@ -128,6 +128,11 @@ export function loadReviews(sessionDir: string): Review[] {
   return loadArray<Review>(reviewsFile(sessionDir));
 }
 
+export function loadReviewHistory(sessionDir: string): Array<Review & { current: false; invalidatedAt: number }> {
+  return withSessionRead(sessionDir, db => db.prepare('SELECT data, invalidated_at FROM review_history ORDER BY id').all()
+    .map(row => ({ ...JSON.parse(String(row.data)), current: false as const, invalidatedAt: Number(row.invalidated_at) }))) ?? [];
+}
+
 export function saveReviews(sessionDir: string, reviews: Review[]): void {
   writeArray(reviewsFile(sessionDir), reviews);
 }

@@ -17,6 +17,13 @@ export function writeRecords(db: DatabaseSync, table: ClaimTable, records: objec
     const column = table === 'reviews' ? 'claim_id' : 'id';
     const retained = new Set(records.map(record => recordId((record as Record<string, unknown>)[key])));
     if (retained.size !== records.length) throw new SessionStateError('SESSION_CORRUPTED', `Duplicate ${table} identifier`);
+    if (table === 'reviews') {
+        const next = new Map(records.map(record => [recordId((record as Record<string, unknown>)[key]), JSON.stringify(record)]));
+        const archive = db.prepare('INSERT INTO review_history (claim_id, data, invalidated_at) VALUES (?, ?, ?)');
+        for (const row of db.prepare('SELECT claim_id, data FROM reviews').all()) {
+            if (next.get(String(row.claim_id)) !== String(row.data)) archive.run(String(row.claim_id), String(row.data), Date.now());
+        }
+    }
     for (const row of db.prepare(`SELECT ${column} AS id FROM ${table}`).all()) {
         const id = String(row.id);
         if (retained.has(id)) continue;

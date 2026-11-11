@@ -8,6 +8,7 @@ import { createSuccessEnvelope, createErrorEnvelope } from '../protocol.js';
 import { sampleGraph, SamplingStrategy, SamplingResult } from '../deep/graph-sampling.js';
 import { withSessionRead } from '../deep/session-store.js';
 import { SessionStateError } from '../deep/session-lock.js';
+import { loadSessionGraph } from '../deep/session.js';
 import { resolveGraphInput } from './graph-input.js';
 
 /** Format subgraph as human-readable text descriptions */
@@ -56,7 +57,7 @@ export async function runQueryGraph(options: QueryGraphOptions): Promise<number>
 
         // Handle envelope format
         if (parsed.status === 'ok' && parsed.data?.graph) {
-            graphData = parsed.data.graph;
+            graphData = sessionDir ? serializeGraph(loadSessionGraph(sessionDir)) : parsed.data.graph;
         } else if (parsed.nodes && parsed.edges) {
             graphData = parsed;
         } else {

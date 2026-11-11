@@ -1113,6 +1113,10 @@ Each session stores state and Agent input files in `.digdig/sessions/<session-na
 
 Existing JSON sessions migrate automatically on first access, including read-only access. Original JSON files remain unchanged as historical backups; the database becomes the only writable session state. Do not access the same session concurrently with older digdig versions. SQLite WAL requires a local filesystem shared by processes on one host; network filesystems are unsupported. Do not copy only the database file while it is open: SQLite may also use WAL files.
 
+For a legacy session containing only `graph.json`, pass its session directory; a file path under the standard session root also identifies the session. Such a file path elsewhere is treated as a standalone graph.
+
+When extracted text changes, previously cited body versions and review history are retained. The new text requires approval; evidence with a unique exact match is relocated, while ambiguous or missing matches need review. Use `dg evidence-list <session> --claim-id <id> --include-invalid` for pending evidence, `dg review-list <session>` for historical reviews and `dg graph-pending <session>` for graph facts awaiting reconfirmation. Re-approve the result, then use `graph-add` to explicitly reconfirm supported entities and edges.
+
 ### Knowledge Graph
 
 Two layers:
