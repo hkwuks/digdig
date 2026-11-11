@@ -1,6 +1,6 @@
 # Plan — 搜索轮次和查询历史一致性（D2、D6、D9）
 > Task version: v1
-> Status: checking
+> Status: completed
 
 ## Spec Pointers
 
