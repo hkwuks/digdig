@@ -858,7 +858,7 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Updated: 2026-11-11
 - Goal: `SessionResult.status` 是 `pending`/`approved` 二值，同时承担两个语义：Agent 对这条结果的采信决定，以及这条结果的内容是否仍是批准时的那一份。`repairInvalidDependents`（`cli/src/deep/session.ts:520-560`）用 `result.status !== 'approved'` 判定 `contentChanged`，于是**所有**通向非 approved 的路径被一视同仁：Agent 主动 skip、正文被重新抽取、被跳过的结果被重新导入。三者触发同一套级联——`evidences` 标 `invalid`、受影响的 `claim` 回 `verifying`、对应 `review` 直接删除、语义图里 `sourceResultIds` 含该 id 的节点与边物理删除、`path` 节点因实体消失而删除、孤立 `query`/`domain` 节点也删除。D1 只是这个模型的第一个受害者：当时（`TaskFlowDocs/achieved/2026-11-03-session-reimport-downgrade/`）的修法是加 guard `(bodyChanged || wasSkipped)`，**根因未动**，任何新增的降级路径都会复现同类破坏。`docs/agent_search_integrated_report_2026-10-27.md` 4.3 的数据契约把这件事拆成三个独立实体（`SubQuestion.status`、`Claim.status`、`Evidence`），可作为拆分参照。
 - Task: Not promoted.
-- Next action: 与 TF-20261107-024a82 联合设计：拆开 Agent 采信决定与内容版本有效性；按快照变化和明确的 skip 语义处理依赖，避免仅凭 status 级联。设计完成后再确定实施范围。
+- Next action: 与 TF-20261107-024a82 联合设计：拆开 Agent 采信决定与内容版本有效性；按快照变化和明确的 skip 语义处理依赖，避免仅凭 status 级联。用户确认旧证据在新正文唯一准确匹配并更新定位后，原审核转为待重新审核。设计完成后再确定实施范围。
 
 ## SessionResult 没有 snapshot 概念，证据定位无法在重抽取后重新对齐
 
@@ -871,7 +871,7 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Updated: 2026-11-11
 - Goal: `SessionResult.content` 是裸字符串，没有 `normalized_text_hash`，没有 `extraction_version`。`EvidenceSpan`（`cli/src/claims/types.ts:46`）的 `charStart`/`charEnd` 是 UTF-16 偏移，正文重新抽取后偏移失效；现在只能靠 `contentHash` 校验失败来发现，**没有版本化的重定位机制**。`docs/agent_search_integrated_report_2026-10-27.md` 4.3 明确要求「重抽取或正文标准化版本变化时，应重新定位，不能沿用旧偏移」，并把 `Snapshot(id, url, final_url, mime, normalized_text_hash, extraction_version, access_level)` 列为一个独立实体。次要缺口：locator 只有文本偏移一种，报告还要求 PDF 页码/区域、表格行列、代码 commit+文件+行号、视频时间戳——「不应假装所有证据都能被表示为 UTF-8 文本中的一对 start/end」。
 - Task: Not promoted.
-- Next action: 与 TF-20261107-23d219 联合设计快照及状态语义。用户确认保留证据引用的旧快照，未引用快照的清理由后续策略决定；正文变化后证据先待重新定位，唯一准确匹配可重新定位，其他情况交由人工或 Agent 处理。需明确旧 SQLite 数据迁移、审批与审核的后续行为；多 locator 类型留待后续。
+- Next action: 与 TF-20261107-23d219 联合设计快照及状态语义。用户确认保留证据引用的旧快照，未引用快照的清理由后续策略决定；正文相同时复用快照并另记最新抽取信息。正文变化后证据先待重新定位，唯一准确匹配可重新定位，其他情况交由人工或 Agent 处理；旧 SQLite 会话中无法与当前正文准确对应的证据保留并标记待核对，不伪造历史快照。多 locator 类型留待后续。
 
 ## results.json 把三层存储混成一个文件
 
