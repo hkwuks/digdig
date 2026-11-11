@@ -912,3 +912,17 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Goal: 修复 Windows 测试读取真实配置和 README 换行导致的四项失败
 - Task: `TaskFlowDocs/achieved/2026-11-10-windows-test-isolation/`
 - Next action: None — completed and archived.
+
+## 研究 L2 搜索建图和证据审核的收益与成本
+
+- ID: TF-20261111-7984b6
+- Status: inbox
+- Priority: normal
+- Owner: unassigned
+- Source: 用户提出研究 L2 搜索建图与审核价值，2026-11-11
+- Kind: internal
+- Added: 2026-11-11
+- Updated: 2026-11-11
+- Goal: 研究 L2 搜索中实体图和 Claim—Evidence—Review 的独立收益与组合成本。对同一批具有代表性的 L2 问题，设计可比较的基线、单独启用建图或审核、以及两者同时启用的对照；区分相同证据输入下的质量差异和端到端搜索效果。评估结论正确性、引用支持率、覆盖与遗漏、搜索和工具调用次数、耗时及 token 成本，明确评价依据与统计不确定性，再讨论 L2 哪些步骤应按需启用，不预设取消或保留。L1 现已无需建图和审核；L3 不在本条变更范围。
+- Task: Not promoted.
+- Next action: 设计可复现的对照研究并讨论评价标准；当前仅登记，不实施。与 TF-20261110-a7e5c1 的抽取能力和插件研究相关，但不重复该项范围。
