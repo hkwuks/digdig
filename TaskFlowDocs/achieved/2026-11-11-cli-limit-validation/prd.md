@@ -1,6 +1,6 @@
 # PRD — 搜索数量参数修复
 > Task version: v1
-> Status: in_progress
+> Status: completed
 
 ## Goal
 

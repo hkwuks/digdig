@@ -1,6 +1,6 @@
 # Plan — 搜索引擎配置与图来源计数
 > Task version: v1
-> Status: in_progress
+> Status: completed
 
 ## Spec Pointers
 
@@ -75,11 +75,11 @@ P11 `TF-20261103-0c810d` 为主项；D11 `TF-20261103-761aa5` 只处理来源计
 - Files: README、CHANGELOG、Todo、测试及 PR。
 - Implementation checklist:
   - [x] 更新用户文档和 D11 子项，保留其他未完成项。
-  - [ ] 运行定向、完整测试、类型检查、构建并核验 CI。
+  - [x] 运行定向、完整测试、类型检查、构建并核验 CI。
 - Acceptance: 已确认行为及项目检查通过。
 - Verification: 本地测试和 GitHub CI。
 - Rollback: 工作树保留至合并。
-- Status: in_progress
+- Status: done
 
 ## Checkpoints
 
@@ -95,6 +95,7 @@ P11 `TF-20261103-0c810d` 为主项；D11 `TF-20261103-761aa5` 只处理来源计
 - 2026-11-11：补充空列表后的完整回归为 69 文件、783 项通过，`tsc --noEmit` 和 `tsc` 通过。
 - 2026-11-11：合入已合并 PR #62 的 main 时，仅 CHANGELOG 条目冲突；保留双方条目并检查自动合并后的 CLI 参数和引擎代码。
 - 2026-11-11：合并后全量 `vitest run --maxWorkers=2` 70 文件、797 项通过，`tsc --noEmit` 通过。
+- 2026-11-11：PR #63 最终提交四项 CI 全通过并以合并提交 `8ebc829` 合入。
 
 ## Change Log
 

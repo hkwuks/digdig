@@ -1,6 +1,6 @@
 # PRD — 搜索引擎配置与图来源计数
 > Task version: v1
-> Status: in_progress
+> Status: completed
 
 ## Goal
 

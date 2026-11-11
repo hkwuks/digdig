@@ -1,6 +1,6 @@
 # Plan — 搜索数量参数修复
 > Task version: v1
-> Status: in_progress
+> Status: completed
 
 ## Spec Pointers
 
@@ -75,11 +75,11 @@
 - Files: 文档、Todo、测试和 PR。
 - Implementation checklist:
   - [x] 定向、类型、全量测试及构建通过，检查调用方。
-  - [ ] 更新说明与 Todo，按仓库模板提交 PR，验证 CI。
+  - [x] 更新说明与 Todo，按仓库模板提交 PR，验证 CI。
 - Acceptance: 已确认行为与测试、CI 一致。
 - Verification: 本地测试和 GitHub CI。
 - Rollback: 保留工作树至合并。
-- Status: in_progress
+- Status: done
 
 ## Checkpoints
 
@@ -90,6 +90,7 @@
 - 2026-11-11：Commander 受控复现 `-l 2` 被根命令接收，子命令仍为默认 10。
 - 2026-11-11：工作树依赖 `npm ci` 完成；尚未实施代码修复。
 - 2026-11-11：新增真实 CLI 回归先复现 9 项失败，修复后覆盖图搜索、非法输入和无副作用；`tsc --noEmit` 通过，完整测试 `vitest run --maxWorkers=2` 70 文件、787 项通过。
+- 2026-11-11：PR #62 四项 CI 全通过并以合并提交 `ffa3dd7` 合入；与 PR #63 组合后 797 项通过。
 
 ## Change Log
 
