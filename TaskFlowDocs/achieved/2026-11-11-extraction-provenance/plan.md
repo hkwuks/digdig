@@ -1,6 +1,6 @@
 # Plan — 真实抽取方法与正文保留
 > Task version: v1
-> Status: in_progress
+> Status: completed
 
 ## Spec Pointers
 
@@ -76,11 +76,11 @@
 - Files: README、CHANGELOG、测试、TaskFlow 文档与 Todo。
 - Implementation checklist:
   - [x] 核对所有调用方、部分失败/限流及旧数据边界，更新说明；D11 未修子项保持开放。
-  - [ ] 运行定向、全量测试、类型检查、构建和 CI，按仓库模板创建待审阅 PR。
+  - [x] 运行定向、全量测试、类型检查、构建和 CI，按仓库模板创建待审阅 PR。
 - Acceptance: C14 和三项抽取细节可复现验证；其他 D11 不误关闭。
 - Verification: 完整本地测试、真实编译 CLI、Node 24.15/24.x CI。
 - Rollback: 不发布；保留工作树到审阅和合并。
-- Status: in_progress
+- Status: done
 
 ## Checkpoints
 
@@ -92,6 +92,7 @@
 - 2026-11-11：worktree 内 `npm ci` 成功，安装 127 个锁文件依赖。
 - 2026-11-11：修复前新增回归复现 6 项失败；修复后定向 26 项通过，`tsc --noEmit` 和 `tsc` 通过。全量默认并发 768 通过、2 项本地索引测试超时；`vitest run --maxWorkers=2` 69 文件、770 项通过（新增 3 个定向测试前）。
 - 2026-11-11：最终 `vitest run --maxWorkers=2` 69 文件、773 项通过；编译后的 CLI 经本地 HTTP 服务验证短正文、真实方法及 UTF-16 长度。
+- 2026-11-11：PR #61 已合并；GitHub CI 的 Node 24.15.0 和 24.x 构建及测试四项全部通过，合并提交 `8a2c89f`。D11 的抽取子项完成，其余子项仍开放。
 
 ## Change Log
 

@@ -1,6 +1,6 @@
 # PRD — 真实抽取方法与正文保留
 > Task version: v1
-> Status: in_progress
+> Status: completed
 
 ## Goal
 
