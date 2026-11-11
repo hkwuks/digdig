@@ -850,15 +850,15 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## status 字段混了「Agent 是否认可」与「内容是否还是批准时的那份」
 
 - ID: TF-20261107-23d219
-- Status: inbox
+- Status: done
 - Priority: normal
 - Owner: Claude
 - Source: design report review
 - Added: 2026-11-07
 - Updated: 2026-11-11
 - Goal: `SessionResult.status` 是 `pending`/`approved` 二值，同时承担两个语义：Agent 对这条结果的采信决定，以及这条结果的内容是否仍是批准时的那一份。`repairInvalidDependents`（`cli/src/deep/session.ts:520-560`）用 `result.status !== 'approved'` 判定 `contentChanged`，于是**所有**通向非 approved 的路径被一视同仁：Agent 主动 skip、正文被重新抽取、被跳过的结果被重新导入。三者触发同一套级联——`evidences` 标 `invalid`、受影响的 `claim` 回 `verifying`、对应 `review` 直接删除、语义图里 `sourceResultIds` 含该 id 的节点与边物理删除、`path` 节点因实体消失而删除、孤立 `query`/`domain` 节点也删除。D1 只是这个模型的第一个受害者：当时（`TaskFlowDocs/achieved/2026-11-03-session-reimport-downgrade/`）的修法是加 guard `(bodyChanged || wasSkipped)`，**根因未动**，任何新增的降级路径都会复现同类破坏。`docs/agent_search_integrated_report_2026-10-27.md` 4.3 的数据契约把这件事拆成三个独立实体（`SubQuestion.status`、`Claim.status`、`Evidence`），可作为拆分参照。
-- Task: Not promoted.
-- Next action: 与 TF-20261107-024a82 联合设计：拆开 Agent 采信决定与内容版本有效性；按快照变化和明确的 skip 语义处理依赖，避免仅凭 status 级联。用户确认旧证据在新正文唯一准确匹配并更新定位后，原审核转为待重新审核。设计完成后再确定实施范围。
+- Task: `TaskFlowDocs/achieved/2026-11-11-evidence-snapshots/`（PR #58）
+- Next action: None — 已随快照任务拆分采信与正文版本状态；保留历史审核并隔离待确认图，用户确认关闭。
 
 ## SessionResult 没有 snapshot 概念，证据定位无法在重抽取后重新对齐
 
