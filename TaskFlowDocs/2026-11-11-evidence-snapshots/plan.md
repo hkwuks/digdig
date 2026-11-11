@@ -115,7 +115,7 @@
 - 2026-11-11：上游 SQLite 回归 3 文件、23 项通过。本任务尚未实现，未宣称通过其验收。
 - 2026-11-11：Node 24.15.0 / Windows，`npm.cmd test -- --maxWorkers=2`：65 文件、733 项通过；`npm.cmd exec tsc -- --noEmit`、`npm.cmd run build`、`git diff --check` 通过。真实 v1 升级被终止后回滚重试和双进程竞争测试通过；实际编译 CLI 返回待确认图、需定位证据和非当前审核历史。CI 待 PR。
 - 复核：`session-migrate.test.ts` 旧结果恢复断言新增了设计所需的 approvedSnapshotId；原字段仍逐项相等。其余旧断言未因改变行为被弱化。新图路径测试覆盖标准目录与自定义路径，图查询及会话列表使用过滤后的有效图。
-- GitHub Actions run 42973468568：Linux Node 24.15.0 和 24.x 的 build、test 四项通过；PR #57 等待用户审阅。远端 main 新增 README 一行，已无冲突合入任务分支。
+- GitHub Actions run 42973468568：Linux Node 24.15.0 和 24.x 的 build、test 四项通过；PR #58 等待用户审阅。原 PR #57 因按项目规范重命名源分支而被 GitHub 关闭；远端 main 新增 README 一行，已无冲突合入任务分支。
 
 ## Change Log
 
