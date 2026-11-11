@@ -538,15 +538,15 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## P11 — defaultEngine 是死配置，allowedEngines 只在 -e 时校验
 
 - ID: TF-20261103-0c810d
-- Status: inbox
+- Status: in_progress
 - Priority: normal
 - Owner: Claude
 - Source: code-research:2026-11-03-cli-audit
 - Added: 2026-11-03
-- Updated: 2026-11-03
+- Updated: 2026-11-11
 - Goal: defaultEngine 是死配置：config.ts 定义且 README:990 有文档，但无任何代码读取；allowedEngines 只在传了 -e 时才校验，默认路径不受约束
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: `TaskFlowDocs/2026-11-11-engine-defaults-graph-sources/`
+- Next action: 完成回归验证并提交 PR，合并后归档。
 
 ## C1 — 空 quote / 反向区间被接受为证据并可自动批准
 
@@ -801,7 +801,7 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Updated: 2026-11-11
 - Goal: 一批已确认的小缺陷：graph-explore.ts:457-471 resultCount 按 mentions 入边自增而 resultIds 是 Set（一个结果同时提两个路径实体时 2 vs 1）；graph-sampling.ts:506 mixed 策略在没有 rngSeed 时固定播 42 且 CLI 从不传 seed，--strategy mixed 永远选 community_core_path；local-doc/searcher.ts:184 与 scanner.ts:146 frontmatter 标题重复拼接成 X — X；session.ts:651 对空字符串也赋值 excerpt，Jina/Obscura 的 excerpt:'' 会清掉搜索层摘要；graph-obfuscate.ts:48-55 --fallback-rules 用裸 writeFileSync 写 graph.json，绕开会话锁且非原子；extractor.ts:390-404 与 extract.ts:15-19 把 50-99 字符的 Defuddle 结果记为失败并丢弃可用文本；session.ts:654 写入的 contentLength 无人读取且 Defuddle 记词数、Jina/Obscura 记字符数
 - Task: Not promoted.
-- Next action: PR #56 已处理会话图事务写入和独立图原子替换；PR #61 已处理摘要覆盖、短正文和长度口径。其余图来源计数、混合采样、本地文档标题仍需处理；另需验证仅含 graph.json 的旧会话直接传入该文件路径时是否被误识别为独立图，导致绕过会话迁移。
+- Next action: PR #56 已处理会话图事务写入和独立图原子替换；PR #61 已处理摘要覆盖、短正文和长度口径。图来源计数由 `2026-11-11-engine-defaults-graph-sources` 修复，待其 PR 合并。废弃命令 mixed 采样按用户决定暂缓；本地文档标题仍需处理；另需验证仅含 graph.json 的旧会话直接传入该文件路径时是否被误识别为独立图，导致绕过会话迁移。
 
 ## SKILL.md 命令表漏了 doc-index / doc-search，且没有任何校验
 

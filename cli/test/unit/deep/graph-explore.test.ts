@@ -315,6 +315,16 @@ describe('graph-explore', () => {
     });
 
     describe('traversePath', () => {
+        it('counts each result once across edges and source attributes', () => {
+            const graph = buildGraphWithPaths();
+            graph.mergeNodeAttributes('e:tokio', { sourceResultIds: ['r:url1', 'r:attribute-only'] });
+            graph.mergeNodeAttributes('e:rust', { sourceResultIds: ['r:url1', 'r:attribute-only'] });
+            const result = traversePath(graph, 'p:chain_001');
+            expect('error' in result).toBe(false);
+            if ('error' in result) throw new Error(result.error);
+            expect(result.sources.resultIds).toEqual(['r:attribute-only', 'r:url1', 'r:url2', 'r:url3']);
+            expect(result.sources.resultCount).toBe(4);
+        });
         it('traverses a composition chain path node', () => {
             const graph = buildGraphWithPaths();
             const result = traversePath(graph, 'p:chain_001');

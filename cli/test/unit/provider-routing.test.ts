@@ -23,7 +23,7 @@ vi.mock('../../src/ollama-service.js', () => ({
 import { runCli } from '../../src/runCli.js';
 import { config } from '../../src/config.js';
 
-const originalKeys = { ollama: config.ollamaApiKey, deepseek: config.deepseekApiKey, defaultLimit: config.defaultLimit, baseUrl: config.baseUrl };
+const originalKeys = { ollama: config.ollamaApiKey, deepseek: config.deepseekApiKey, defaultLimit: config.defaultLimit, baseUrl: config.baseUrl, defaultEngine: config.defaultEngine, allowedEngines: config.allowedEngines };
 
 function providerResponse(engine: string, url: string) {
     return {
@@ -61,6 +61,8 @@ describe('provider routing', () => {
         config.ollamaApiKey = '';
         config.deepseekApiKey = '';
         config.defaultLimit = 10;
+        config.defaultEngine = '';
+        config.allowedEngines = [];
         config.baseUrl = 'https://searxng.example';
         deepseekSearch.mockResolvedValue(providerResponse('deepseek', 'https://deepseek.test'));
         ollamaSearch.mockResolvedValue(providerResponse('ollama', 'https://ollama.test'));
@@ -71,7 +73,92 @@ describe('provider routing', () => {
         config.deepseekApiKey = originalKeys.deepseek;
         config.defaultLimit = originalKeys.defaultLimit;
         config.baseUrl = originalKeys.baseUrl;
+        config.defaultEngine = originalKeys.defaultEngine;
+        config.allowedEngines = originalKeys.allowedEngines;
         vi.restoreAllMocks();
+    });
+
+    it('selects the configured default engine when none is explicitly requested', async () => {
+        config.defaultEngine = 'google';
+        config.allowedEngines = ['google', 'bing'];
+        const service = stubSxng();
+        await run(['q', '--format', 'json'], service);
+        expect(service.search).toHaveBeenCalledWith(expect.objectContaining({ engines: ['google'] }));
+    });
+
+    it('uses the allowed engines when there is no default', async () => {
+        config.allowedEngines = ['google', 'bing'];
+        const service = stubSxng();
+        await run(['q', '--format', 'json'], service);
+        expect(service.search).toHaveBeenCalledWith(expect.objectContaining({ engines: ['google', 'bing'] }));
+    });
+
+    it('rejects a default engine outside the allowlist before searching', async () => {
+        config.defaultEngine = 'bing';
+        config.allowedEngines = ['google'];
+        const service = stubSxng();
+        const envelope = await run(['q', '--format', 'json'], service);
+        expect(envelope).toMatchObject({ status: 'error', error: { code: 'INVALID_ENGINES' } });
+        expect(service.search).not.toHaveBeenCalled();
+    });
+
+    it('rejects an explicitly empty engine list instead of bypassing the allowlist', async () => {
+        config.allowedEngines = ['google'];
+        const service = stubSxng();
+        const envelope = await run(['q', '-e', ',,', '--format', 'json'], service);
+        expect(envelope).toMatchObject({ status: 'error', error: { code: 'INVALID_ENGINES' } });
+        expect(service.search).not.toHaveBeenCalled();
+    });
+
+    it('lets an allowed explicit engine override the default', async () => {
+        config.defaultEngine = 'google';
+        config.allowedEngines = ['google', 'bing'];
+        const service = stubSxng();
+        await run(['q', '-e', 'bing', '--format', 'json'], service);
+        expect(service.search).toHaveBeenCalledWith(expect.objectContaining({ engines: ['bing'] }));
+    });
+
+    it('routes a configured default external provider without SearXNG', async () => {
+        config.defaultEngine = 'deepseek';
+        config.allowedEngines = ['deepseek'];
+        config.deepseekApiKey = 'k';
+        config.baseUrl = '';
+        const service = stubSxng();
+        await run(['q', '--format', 'json'], service);
+        expect(deepseekSearch).toHaveBeenCalledTimes(1);
+        expect(service.search).not.toHaveBeenCalled();
+    });
+
+    it('rejects a default provider without a key before creating a session', async () => {
+        const { existsSync, mkdtempSync, rmSync } = await import('fs');
+        const { join } = await import('path');
+        const { tmpdir } = await import('os');
+        const root = mkdtempSync(join(tmpdir(), 'digdig-default-provider-'));
+        const session = join(root, 'session');
+        config.defaultEngine = 'deepseek';
+        const service = stubSxng();
+        try {
+            const envelope = await run(['q', '--session', session, '--format', 'json'], service);
+            expect(envelope).toMatchObject({ status: 'error', error: { code: 'PROVIDER_NOT_CONFIGURED' } });
+            expect(service.search).not.toHaveBeenCalled();
+            expect(existsSync(session)).toBe(false);
+        } finally { rmSync(root, { recursive: true, force: true }); }
+    });
+
+    it('keeps the backend default when neither engine setting is configured', async () => {
+        const service = stubSxng();
+        await run(['q', '--format', 'json'], service);
+        expect(service.search).toHaveBeenCalledWith(expect.objectContaining({ engines: [] }));
+    });
+
+    it('routes an allowed mixed provider list to each backend', async () => {
+        config.allowedEngines = ['google', 'deepseek'];
+        config.deepseekApiKey = 'k';
+        const service = stubSxng();
+        const envelope = await run(['q', '--format', 'json'], service);
+        expect(envelope.status).toBe('ok');
+        expect(deepseekSearch).toHaveBeenCalledTimes(1);
+        expect(service.search).toHaveBeenCalledWith(expect.objectContaining({ engines: ['google'] }));
     });
 
     it('errors instead of silently falling back when a selected provider has no key', async () => {

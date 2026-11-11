@@ -977,8 +977,10 @@ dg --categories-list
 | `DIGDIG_TIMEOUT` | 请求超时时间（毫秒） | `25000` |
 | `DIGDIG_REDUNDANCY_THRESHOLD` | 词级 Jaccard 冗余阈值 | `0.7` |
 | `DIGDIG_REDUNDANCY_BIGRAM_THRESHOLD` | 二元组 Jaccard 冗余阈值（短查询） | `0.5` |
-| `OLLAMA_API_KEY` | [Ollama 网页搜索](https://ollama.com) API 密钥；用 `-e ollama` 显式启用（不是自动回退） | *（无）* |
+| `OLLAMA_API_KEY` | [Ollama 网页搜索](https://ollama.com) API 密钥；通过 `-e ollama` 或引擎配置选择（不是自动回退） | *（无）* |
 | `DEEPSEEK_API_KEY` | [DeepSeek Search](https://api-docs.deepseek.com/api/search) API 密钥（可选后端；按成功请求计费） | *（无）* |
+
+引擎选择依次使用显式 `--engines`、`DIGDIG_DEFAULT_ENGINE`、`DIGDIG_ALLOWED_ENGINES`；均为空时由后端选择默认引擎。非空允许列表也会约束默认引擎。配置的外部提供商必须有 API 密钥，且可能产生费用。
 
 > `SEARXNG_*` 旧变量名在 `0.5.0` 前仍会被读取，用到时在 stderr 打一行 `[deprecation]`；两者同时设置时 `DIGDIG_*` 优先。
 

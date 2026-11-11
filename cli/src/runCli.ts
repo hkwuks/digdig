@@ -445,8 +445,13 @@ async function runSearch(
         return 1;
     }
 
-    if (options.engines && config.allowedEngines.length > 0) {
-        const invalid = options.engines.filter(e => !config.allowedEngines.includes(e));
+    if (options.engines && options.engines.length === 0) {
+        console.log(JSON.stringify(createErrorEnvelope('INVALID_ENGINES', 'At least one engine must be specified'), null, 2));
+        return 1;
+    }
+    const engines = options.engines ?? (config.defaultEngine ? [config.defaultEngine] : config.allowedEngines);
+    if (config.allowedEngines.length > 0) {
+        const invalid = engines.filter(e => !config.allowedEngines.includes(e));
         if (invalid.length > 0) {
             const envelope = createErrorEnvelope(
                 'INVALID_ENGINES',
@@ -460,8 +465,8 @@ async function runSearch(
 
     // A selected provider without its API key cannot run. Failing loudly beats
     // silently answering from SearXNG, which would make the provider look active.
-    if (options.engines) {
-        const unconfigured = planProviderSearch(options.engines).unconfigured;
+    if (engines.length > 0) {
+        const unconfigured = planProviderSearch(engines).unconfigured;
         if (unconfigured.length > 0) {
             const envelope = createErrorEnvelope(
                 'PROVIDER_NOT_CONFIGURED',
@@ -608,7 +613,6 @@ async function runSearch(
 
         // One invocation, N queries: the only difference from a single query is
         // how many responses land in the array.
-        const engines = options.engines ?? [];
         const plan = planProviderSearch(engines);
         const responses: SearchResponse[] = [];
         let searchRound: number | undefined;
