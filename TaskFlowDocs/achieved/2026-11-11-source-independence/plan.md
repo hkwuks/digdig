@@ -1,6 +1,6 @@
 # Plan — 来源簇只按 hostname 判断，转载被当成独立来源
 > Task version: v1
-> Status: in_progress
+> Status: completed
 
 ## Spec Pointers
 
