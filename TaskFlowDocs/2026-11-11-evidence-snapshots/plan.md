@@ -89,17 +89,19 @@
 - Files: README、CHANGELOG.md、项目 skill、全量测试及任务记录。
 - Implementation checklist:
   - [x] 更新新状态、升级、历史审核与图确认的使用文档。
-  - [ ] 审查迁移完整性、测试调整、关联 Todo 和 PR 模板；运行全量检查。
+  - [x] 审查迁移完整性、测试调整、关联 Todo 和 PR 模板；运行全量检查。
 - Acceptance: 用户确认的全部场景可观测，约束和未处理项清晰；本地主机和 CI 检查通过。
 - Verification: 定向和全量 Vitest、TypeScript、build、实际 CLI、GitHub CI。
 - Rollback: 不发布，保留迁移前 JSON；SQLite 生产备份与恢复步骤须先验证。
-- Status: in_progress
+- Status: done
 
 ## Checkpoints
 
 实现前需批准 v1；每步记录命令、结果和未决风险。若发现已批准数据契约无法实现，先更新任务版本并重新确认。
 
 ## Verification / Review
+
+- 2026-11-11 Step 4: Windows 733 tests and Linux CI four checks passed; review pending
 
 - 2026-11-11 Step 4: full local suite passed; CI and review pending
 
@@ -113,6 +115,7 @@
 - 2026-11-11：上游 SQLite 回归 3 文件、23 项通过。本任务尚未实现，未宣称通过其验收。
 - 2026-11-11：Node 24.15.0 / Windows，`npm.cmd test -- --maxWorkers=2`：65 文件、733 项通过；`npm.cmd exec tsc -- --noEmit`、`npm.cmd run build`、`git diff --check` 通过。真实 v1 升级被终止后回滚重试和双进程竞争测试通过；实际编译 CLI 返回待确认图、需定位证据和非当前审核历史。CI 待 PR。
 - 复核：`session-migrate.test.ts` 旧结果恢复断言新增了设计所需的 approvedSnapshotId；原字段仍逐项相等。其余旧断言未因改变行为被弱化。新图路径测试覆盖标准目录与自定义路径，图查询及会话列表使用过滤后的有效图。
+- GitHub Actions run 42973468568：Linux Node 24.15.0 和 24.x 的 build、test 四项通过；PR #57 等待用户审阅。远端 main 新增 README 一行，已无冲突合入任务分支。
 
 ## Change Log
 
