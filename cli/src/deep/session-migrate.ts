@@ -66,7 +66,7 @@ export function openSessionStore(sessionDir: string, create: boolean): DatabaseS
 export function migrateLegacySession(sessionDir: string, db: DatabaseSync): boolean {
     return withTransaction(db, () => {
         if (db.prepare("SELECT 1 FROM session_meta WHERE key = 'migration_complete'").get()) return false;
-        for (const table of ['session_meta', 'results', 'origins', 'body_snapshots', 'body_versions', 'claims', 'evidences', 'verdicts', 'verdict_evidence', 'reviews', 'graph_snapshot']) {
+        for (const table of ['session_meta', 'results', 'origins', 'body_snapshots', 'body_versions', 'claims', 'evidences', 'verdicts', 'verdict_evidence', 'reviews', 'graph_snapshot', 'search_queries']) {
             if (db.prepare(`SELECT 1 FROM ${table} LIMIT 1`).get()) throw new Error('Incomplete session database contains uncommitted migration state');
         }
 

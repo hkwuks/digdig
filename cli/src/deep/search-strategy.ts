@@ -41,7 +41,7 @@ const DEFAULT_CONFIG: StrategyConfig = {
 
 // ── Stage determination ───────────────────────────────────────────
 
-/** Count entities by their supporting result count; rounds are no longer semantic provenance. */
+/** Attribute each entity to its earliest currently valid supporting source. */
 function entityCountsByRound(
     graph: DirectedGraph<GraphNodeAttrs, GraphEdgeAttrs>
 ): Map<number, number> {
@@ -50,20 +50,17 @@ function entityCountsByRound(
     const roundForResult = (resultId: string): number | undefined => {
         if (!graph.hasNode(resultId)) return undefined;
         const attrs = graph.getNodeAttributes(resultId);
-        const rounds = attrs.origins?.map(origin => origin.round).filter((round): round is number => Number.isSafeInteger(round)) ?? [];
-        return rounds.length ? Math.max(...rounds) : undefined;
+        const rounds = attrs.origins?.map(origin => origin.round).filter((round): round is number => Number.isSafeInteger(round) && round! > 0) ?? [];
+        return rounds.length ? Math.min(...rounds) : undefined;
     };
 
     graph.forEachNode((_node: string, attrs: GraphNodeAttrs) => {
         if (attrs.type !== 'entity') return;
-        const sources = attrs.sourceResultIds;
+        const sources = attrs.sourceResultIds?.filter(id => !attrs.pendingSourceResultIds?.includes(id));
         const rounds = sources?.map(roundForResult).filter((round): round is number => round !== undefined) ?? [];
         if (rounds.length > 0) {
-            const bucket = Math.max(...rounds);
+            const bucket = Math.min(...rounds);
             counts.set(bucket, (counts.get(bucket) ?? 0) + 1);
-        } else {
-            // No round info → count as round 0
-            counts.set(0, (counts.get(0) ?? 0) + 1);
         }
     });
 
@@ -85,18 +82,17 @@ function countQueryRounds(graph: DirectedGraph<GraphNodeAttrs, GraphEdgeAttrs>):
  *  growthRate = (newEntitiesThisRound - newEntitiesLastRound) / max(newEntitiesLastRound, 1)
  *  When growth rate slows below threshold, it signals transition to deep-dive. */
 export function computeGrowthRate(
-    graph: DirectedGraph<GraphNodeAttrs, GraphEdgeAttrs>
+    graph: DirectedGraph<GraphNodeAttrs, GraphEdgeAttrs>,
+    latestRound = countQueryRounds(graph),
 ): number {
     const countsByRound = entityCountsByRound(graph);
-
-    if (countsByRound.size < 2) {
+    if (latestRound < 2) {
         // Not enough data → assume still growing
         return 1.0;
     }
 
-    const sortedRounds = Array.from(countsByRound.keys()).sort((a, b) => b - a);
-    const thisRound = sortedRounds[0];
-    const lastRound = sortedRounds[1];
+    const thisRound = latestRound;
+    const lastRound = latestRound - 1;
 
     const newThis = countsByRound.get(thisRound) ?? 0;
     const newLast = countsByRound.get(lastRound) ?? 0;
@@ -108,7 +104,8 @@ export function computeGrowthRate(
  *  Returns the stage recommendation — Agent may choose to ignore. */
 export function determineSearchStage(
     graph: DirectedGraph<GraphNodeAttrs, GraphEdgeAttrs>,
-    config?: Partial<StrategyConfig>
+    config?: Partial<StrategyConfig>,
+    latestRound = countQueryRounds(graph),
 ): SearchStage {
     const c = { ...DEFAULT_CONFIG, ...config };
 
@@ -116,12 +113,12 @@ export function determineSearchStage(
         return 'broad_exploration';
     }
 
-    const rounds = countQueryRounds(graph);
+    const rounds = latestRound;
     if (rounds < c.broadRounds) {
         return 'broad_exploration';
     }
 
-    const growthRate = computeGrowthRate(graph);
+    const growthRate = computeGrowthRate(graph, latestRound);
     if (growthRate < c.transitionThreshold) {
         return 'targeted_deep_dive';
     }
@@ -132,12 +129,13 @@ export function determineSearchStage(
 /** Get full strategy info for Agent decision-making. */
 export function getStrategyInfo(
     graph: DirectedGraph<GraphNodeAttrs, GraphEdgeAttrs>,
-    config?: Partial<StrategyConfig>
+    config?: Partial<StrategyConfig>,
+    latestRound = countQueryRounds(graph),
 ): StrategyInfo {
     const c = { ...DEFAULT_CONFIG, ...config };
-    const currentStage = determineSearchStage(graph, c);
-    const growthRate = computeGrowthRate(graph);
-    const roundNumber = countQueryRounds(graph);
+    const currentStage = determineSearchStage(graph, c, latestRound);
+    const growthRate = computeGrowthRate(graph, latestRound);
+    const roundNumber = latestRound;
 
     let transitionReason: string | undefined;
     if (currentStage === 'targeted_deep_dive') {

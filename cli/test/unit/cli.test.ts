@@ -4,7 +4,7 @@ import { join, dirname } from 'path';
 import { tmpdir } from 'os';
 import { fileURLToPath } from 'url';
 import { createProgram, runCli } from '../../src/runCli.js';
-import { appendSessionResults, loadSessionResults } from '../../src/deep/session.js';
+import { appendSessionResults, approveAndInjectResults, loadSessionResults, loadSessionRounds, mutateSessionGraph, recordSuccessfulQuery } from '../../src/deep/session.js';
 import { config } from '../../src/config.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -491,5 +491,73 @@ describe('CLI program (commander)', () => {
         } finally {
             rmSync(sessionDir, { recursive: true, force: true });
         }
+    });
+});
+
+describe('session query history', () => {
+    it('skips a previously successful zero-result query without requiring graph approval', async () => {
+        const dir = mkdtempSync(join(tmpdir(), 'dg-query-history-'));
+        const search = vi.fn().mockResolvedValue({ query: 'empty query', numberOfResults: 0, results: [], suggestions: [], answers: [], corrections: [], infoboxes: [], unresponsiveEngines: [] });
+        const output = vi.spyOn(console, 'log').mockImplementation(() => {});
+        try {
+            await runCli(['empty query', '--session', dir, '--format', 'json'], { search } as any);
+            await runCli(['empty query', '--session', dir, '--redundancy', 'skip', '--format', 'json'], { search } as any);
+            expect(search).toHaveBeenCalledTimes(1);
+            expect(JSON.parse(String(output.mock.calls.at(-1)![0])).data.skippedQueries).toEqual(['empty query']);
+        } finally { rmSync(dir, { recursive: true, force: true }); }
+    });
+
+    it('preserves successful query history when a later batch query fails', async () => {
+        const dir = mkdtempSync(join(tmpdir(), 'dg-query-partial-'));
+        const search = vi.fn().mockResolvedValueOnce({ query: 'first query', numberOfResults: 0, results: [], suggestions: [], answers: [], corrections: [], infoboxes: [], unresponsiveEngines: [] }).mockRejectedValueOnce(new Error('network failure'));
+        vi.spyOn(console, 'log').mockImplementation(() => {});
+        try {
+            await runCli(['--queries', 'first query,second query', '--session', dir, '--format', 'json'], { search } as any);
+            await runCli(['first query', '--session', dir, '--redundancy', 'skip', '--format', 'json'], { search } as any);
+            expect(search).toHaveBeenCalledTimes(2);
+        } finally { rmSync(dir, { recursive: true, force: true }); }
+    });
+
+    it('reads legacy result origins even while the result is pending', async () => {
+        const dir = mkdtempSync(join(tmpdir(), 'dg-query-legacy-'));
+        const search = vi.fn();
+        vi.spyOn(console, 'log').mockImplementation(() => {});
+        try {
+            appendSessionResults(dir, [{ url: 'https://example.com/old', title: 'old', origins: [{ tool: 'sxng', query: 'old query' }] }]);
+            await runCli(['old query', '--session', dir, '--redundancy', 'skip', '--format', 'json'], { search } as any);
+            expect(search).not.toHaveBeenCalled();
+        } finally { rmSync(dir, { recursive: true, force: true }); }
+    });
+
+    it('uses one round for a successful batch including an empty query', async () => {
+        const dir = mkdtempSync(join(tmpdir(), 'dg-query-round-'));
+        const search = vi.fn(async ({ query }: { query: string }) => ({ query, numberOfResults: query === 'first' ? 1 : 0, results: query === 'first' ? [{ url: 'https://example.com/first', title: 'First', engine: 'test', category: 'general' }] : [], suggestions: [], answers: [], corrections: [], infoboxes: [], unresponsiveEngines: [] }));
+        vi.spyOn(console, 'log').mockImplementation(() => {});
+        try {
+            await runCli(['--queries', 'first,second', '--session', dir, '--format', 'json'], { search } as any);
+            expect(loadSessionRounds(dir)).toBe(1);
+            expect(loadSessionResults(dir)[0].origins[0].round).toBe(1);
+            await runCli(['third', '--session', dir, '--format', 'json'], { search } as any);
+            expect(loadSessionRounds(dir)).toBe(2);
+        } finally { rmSync(dir, { recursive: true, force: true }); }
+    });
+
+    it('reports the same zero-growth latest round through strategy-info and session-report', async () => {
+        const dir = mkdtempSync(join(tmpdir(), 'dg-strategy-round-'));
+        const output = vi.spyOn(console, 'log').mockImplementation(() => {});
+        try {
+            appendSessionResults(dir, [{ url: 'https://example.com/first', title: 'First', origins: [{ tool: 'sxng', query: 'first' }] }]);
+            appendSessionResults(dir, [{ url: 'https://example.com/first', title: 'First', contentType: 'extracted', content: 'body', extractor: 'test', extractedAt: 1, origins: [] }]);
+            const first = loadSessionResults(dir)[0];
+            approveAndInjectResults(dir, [{ id: first.id, revision: first.revision }]);
+            mutateSessionGraph(dir, graph => graph.addNode('e:fixture', { type: 'entity', label: 'Fixture', sourceResultIds: [first.id] }));
+            recordSuccessfulQuery(dir, 'empty second round');
+            await runCli(['strategy-info', dir, '--format', 'json'], {} as any);
+            const strategy = JSON.parse(String(output.mock.calls.at(-1)![0])).data;
+            await runCli(['session-report', dir, '--format', 'json'], {} as any);
+            const report = JSON.parse(String(output.mock.calls.at(-1)![0])).data;
+            expect(strategy).toMatchObject({ roundNumber: 2, growthRate: -1 });
+            expect(report.strategy).toMatchObject({ roundNumber: 2, growthRate: -1, currentStage: strategy.currentStage });
+        } finally { rmSync(dir, { recursive: true, force: true }); }
     });
 });

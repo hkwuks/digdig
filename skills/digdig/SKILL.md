@@ -350,6 +350,7 @@ See SOP for detailed L1/L2/L3 complexity guidelines.
 - If searches fail, retry the same command with the required sandbox/network permission before using fallback tools
 - Use `--quality` after accumulating enough pending results (>=30 triggers a warning)
 - Use `--redundancy warn` to avoid repeating similar queries
+- Session redundancy history includes successful zero-result queries; failed or skipped queries are not recorded. Older sessions can recover only queries present in result origins.
 - **Ollama web search**: If `ollamaApiKey` is configured (via `dg init` or `OLLAMA_API_KEY` env var), `ollama` appears in `--engines-list`. L1: use `--engines ollama` to search via Ollama. L2/L3: Agent uses `results-add --tool ollama --kind search` to inject Ollama results into the session pipeline. Ollama is **not** an automatic fallback — an unreachable SearXNG fails the search rather than switching backends.
 - **DeepSeek Search**: Same rules with `deepseekApiKey` / `DEEPSEEK_API_KEY` and `--engines deepseek`. Billed per successful request, so prefer it for targeted L1 lookups rather than broad exploration.
 

@@ -706,15 +706,15 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## D2 — 抽取结果按当前轮而非发现轮盖 round
 
 - ID: TF-20261103-7f63b3
-- Status: inbox
+- Status: in_progress
 - Priority: normal
 - Owner: Claude
 - Source: code-review:2026-11-03-deep
 - Added: 2026-11-03
-- Updated: 2026-11-03
+- Updated: 2026-11-11
 - Goal: 抽取结果的 round 盖成当前轮而非发现轮：session.ts:404,412 用 importRound=Math.max(1,round)，round 在本批不开新轮时等于 currentRounds。实测第 1 轮发现、第 2 轮搜索别的、随后导入正文，该结果 origins 变成 [1,2]，coverage 误报它重复出现在第 2 轮并让第 2 轮 repeatedFromEarlier=1，而第 2 轮从未返回它
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: `TaskFlowDocs/2026-11-11-search-round-consistency/`
+- Next action: 验证并提交 D2、D6、D9 的共同修复。
 
 ## D3 — withIndexLock 抢锁失败删掉他人的锁
 
@@ -748,15 +748,15 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## D6 — 冗余查询历史从图里读，未批准时为空
 
 - ID: TF-20261103-0b46c5
-- Status: inbox
+- Status: in_progress
 - Priority: normal
 - Owner: Claude
 - Source: code-review:2026-11-03-deep
 - Added: 2026-11-03
 - Updated: 2026-11-03
 - Goal: 冗余查询历史从图里读，恰恰在结果未批准时为空：runCli.ts:345-354 的 loadSessionQueryHistory 只遍历 graph 的 query 节点，而 query 节点仅由 buildApprovedStructuralEdges 为已批准结果创建。实测新会话连跑 3 轮搜索、query 节点为 0，--redundancy skip/warn/adjust 从不触发
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: `TaskFlowDocs/2026-11-11-search-round-consistency/`
+- Next action: 与 D2、D9 在同一工作树内完成验证并提交。
 
 ## D7 — Jina 限流扣掉抽取重试预算
 
@@ -782,15 +782,15 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## D9 — search-strategy 按最新支撑轮分桶
 
 - ID: TF-20261103-ba958f
-- Status: inbox
+- Status: in_progress
 - Priority: normal
 - Owner: Claude
 - Source: code-review:2026-11-03-deep
 - Added: 2026-11-03
 - Updated: 2026-11-03
 - Goal: search-strategy 按最新支撑轮给实体分桶：search-strategy.ts:50-55 对每个实体取 Math.max(origin rounds)，被后一轮再次看到或批准的结果会把实体迁到最新桶、从首轮消失；computeGrowthRate 只比较最近两桶，饱和轮可读成 +19 增长。与 coverage.firstRound 的口径不一致
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: `TaskFlowDocs/2026-11-11-search-round-consistency/`
+- Next action: 与 D2、D6 在同一工作树内完成验证并提交。
 
 ## D10 — path 节点无生产路径，graph-traverse 恒失败
 

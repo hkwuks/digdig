@@ -36,13 +36,13 @@ export function getSessionAnalysis(
     graph: DirectedGraph<GraphNodeAttrs, GraphEdgeAttrs>,
     sessionResults: SessionResult[],
     pending: SessionResult[],
-    options?: { strategyConfig?: Partial<StrategyConfig> }
+    options?: { strategyConfig?: Partial<StrategyConfig>; latestRound?: number }
 ): SessionAnalysis {
     // Counted facts about what the session has gathered.
     const facts = buildPendingReport(sessionResults, pending);
 
     // Strategy info
-    const strategy = getStrategyInfo(graph, options?.strategyConfig);
+    const strategy = getStrategyInfo(graph, options?.strategyConfig, options?.latestRound);
 
     // Query suggestions
     const suggestions = generateQuerySuggestions(
