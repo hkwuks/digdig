@@ -415,15 +415,15 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## P2 — graph-search 的 -l/--limit 失效
 
 - ID: TF-20261103-d06a7c
-- Status: inbox
+- Status: in_progress
 - Priority: normal
 - Owner: Claude
 - Source: code-research:2026-11-03-cli-audit
 - Added: 2026-11-03
-- Updated: 2026-11-03
+- Updated: 2026-11-11
 - Goal: graph-search 的 -l/--limit 失效：根命令与子命令重复声明 -l，子命令 opts.limit 恒为 undefined，回落到默认 10。实测 --keyword alpha -l 2 仍返回 10 条
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: `TaskFlowDocs/2026-11-11-cli-limit-validation/`
+- Next action: Complete PRD / Spec / Plan and request approval.
 
 ## P3 — --graph <file> 是空选项
 
@@ -456,8 +456,8 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Added: 2026-11-03
 - Updated: 2026-11-03
 - Goal: -l abc / -l -5 静默放行：parseInt 得到 NaN 或负数，axios 丢掉 NaN 参数，limit 无校验，实测 -l abc 返回 30 条（服务端默认）；NaN 还让融合后的 slice 变成空操作
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: 关联 `TaskFlowDocs/2026-11-11-cli-limit-validation/`，与 P2 一并修复。
+- Next action: 完成验证并随 P2 的 PR 交付，合并后关闭。
 
 ## P6 — baseUrl 缺失时报错误导、retryable 判定错
 

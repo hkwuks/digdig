@@ -154,7 +154,7 @@ obscura --version
 |--------|-------------|
 | `-e, --engines <list>` | Comma-separated list of search engines (e.g., `google,github`); `ollama` and `deepseek` route to those providers instead of SearXNG |
 | `-c, --categories <list>` | Comma-separated list of categories (e.g., `it,science`) |
-| `-l, --limit <n>` | Maximum number of results (default: 10) |
+| `-l, --limit <n>` | Maximum number of results, as a positive safe integer (default: 10) |
 | `-p, --page <n>` | Page number for pagination |
 | `--lang <code>` | Language code (e.g., `en`, `zh`, `ja`) |
 | `--time <range>` | Time range: `day`, `week`, `month`, `year`, `all` |
