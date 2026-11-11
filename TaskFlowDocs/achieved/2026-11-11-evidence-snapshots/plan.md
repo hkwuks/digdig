@@ -1,6 +1,6 @@
 # Plan — SessionResult 没有 snapshot 概念，证据定位无法在重抽取后重新对齐
 > Task version: v1
-> Status: in_progress
+> Status: completed
 
 ## Spec Pointers
 
