@@ -287,6 +287,8 @@ dg --session ds_1712345678_abcdef --queries "tokio vs async-std,benchmark 2026" 
 ### Quality and Evidence Semantics
 
 - Extracted web content is deduplicated by normalized URL, then by full-text character 5-gram Jaccard similarity. Query redundancy uses a separate word-level or character-bigram Jaccard check.
+- Successful session queries are recorded even when they return no results; failed or skipped queries are not. A partially failed batch retains earlier successful queries. Old sessions also use queries present in result origins, but old zero-result searches cannot be recovered.
+- Imported bodies retain an existing result's earliest discovery round. Strategy growth attributes entities to their earliest valid supporting source and counts an actual round with no new entities as zero. Previously stored incorrect rounds are not rewritten.
 - `--quality` reports counted facts: how many results the session holds, how many carry an extracted body, how many distinct sources, and each pending result's id, revision, source, body length, extraction and verification state, and the round that first saw it. It does not score them.
 - Quality is a diagnostic, not a fact verifier. A search discovery can be approved only after `extract` writes a non-empty body and extraction timestamp. An explicitly imported external body must provide non-empty `content` and an `extractor`; absent `extractedAt` is recorded as its import time.
 - Claim policy requires explicit, claim- and body-snapshot-specific source independence judgments; different domains alone are not proof. Identical or similar captured bodies are hints only. Older automatic approvals are retained in review history and require re-review.

@@ -390,15 +390,37 @@ export function loadSessionRounds(sessionDir: string): number {
     return readResultsFile(sessionDir)?.data.rounds ?? 0;
 }
 
+/** Record each successful query immediately; the first success allocates a batch round. */
+export function recordSuccessfulQuery(sessionDir: string, query: string, allocatedRound?: number): number {
+    return withSessionWrite(sessionDir, db => {
+        const row = db.prepare("SELECT data FROM session_meta WHERE key = 'rounds'").get();
+        const current = row ? JSON.parse(String(row.data)) : 0;
+        if (!Number.isSafeInteger(current) || current < 0) throw new SessionStateError('SESSION_CORRUPTED', 'Invalid stored round count');
+        const round = allocatedRound ?? current + 1;
+        db.prepare('INSERT INTO search_queries (round, query, executed_at) VALUES (?, ?, ?)').run(round, query, Date.now());
+        if (round > current) db.prepare("INSERT INTO session_meta (key, data) VALUES ('rounds', ?) ON CONFLICT(key) DO UPDATE SET data=excluded.data").run(JSON.stringify(round));
+        return round;
+    });
+}
+
+export function loadSessionQueryHistory(sessionDir: string): string[] {
+    return withSessionRead(sessionDir, db => {
+        const recorded = db.prepare('SELECT query FROM search_queries ORDER BY id').all().map(row => String(row.query));
+        const legacy = db.prepare('SELECT data FROM origins ORDER BY result_id, ordinal').all().map(row => (JSON.parse(String(row.data)) as ResultOrigin).query);
+        return [...new Set([...recorded, ...legacy].filter(query => typeof query === 'string' && query.trim()))];
+    }) ?? [];
+}
+
 export function appendSessionResults(
     sessionDir: string,
-    newResults: SessionResultInput[]
+    newResults: SessionResultInput[],
+    allocatedRound?: number,
 ): { added: number; updated: number; total: number; round: number; approvedResults: SessionResult[] } {
     return withSessionLock(sessionDir, () => {
         const state = readResultsFile(sessionDir);
         const results = state?.data.results ?? [];
         const currentRounds = state?.data.rounds ?? 0;
-        const incrementRound = newResults.some(needsRound);
+        const incrementRound = allocatedRound === undefined && newResults.some(needsRound);
         const round = incrementRound ? currentRounds + 1 : currentRounds;
         const byKey = new Map(results.map(result => [resultUrlKey(result), result]));
         let added = 0;
@@ -411,7 +433,10 @@ export function appendSessionResults(
             // Every origin records a round, so no reader has to guess what an
             // absent one means. A discovery carries the round it opened; an
             // extracted body carries the round that discovered it.
-            const importRound = Math.max(1, round);
+            const previousRounds = existing?.origins?.map(origin => origin.round).filter((value): value is number => Number.isSafeInteger(value) && value! > 0) ?? [];
+            const importRound = existing && inferredContentType(input) === 'extracted' && previousRounds.length
+                ? Math.min(...previousRounds)
+                : Math.max(1, allocatedRound ?? round);
             if (!existing) {
                 const created = makeResult(input, importRound);
                 byKey.set(key, created);
@@ -501,9 +526,9 @@ export function appendSessionResults(
     });
 }
 
-export function appendAndInjectSessionResults(sessionDir: string, newResults: SessionResultInput[]): ReturnType<typeof appendSessionResults> {
+export function appendAndInjectSessionResults(sessionDir: string, newResults: SessionResultInput[], allocatedRound?: number): ReturnType<typeof appendSessionResults> {
     return withSessionWrite(sessionDir, () => {
-        const result = appendSessionResults(sessionDir, newResults);
+        const result = appendSessionResults(sessionDir, newResults, allocatedRound);
         injectApprovedResults(sessionDir, result.approvedResults);
         return result;
     });

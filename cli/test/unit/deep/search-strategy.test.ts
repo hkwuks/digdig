@@ -43,6 +43,29 @@ function buildGraphWithResultProvenance(
 
 describe('search-strategy', () => {
     describe('computeGrowthRate', () => {
+        it('counts a real latest round with no new entities as zero', () => {
+            const graph = buildGraphWithResultProvenance([{ round: 1, entityCount: 3 }, { round: 2, entityCount: 0 }]);
+            expect(computeGrowthRate(graph)).toBe(-1);
+        });
+
+        it('keeps an entity in the first discovery round when its sources reappear', () => {
+            const graph = buildGraphWithResultProvenance([{ round: 1, entityCount: 1 }, { round: 2, entityCount: 0 }]);
+            graph.setNodeAttribute('r:result_r1_0', 'origins', [
+                { tool: 'test', query: 'first', round: 1 }, { tool: 'test', query: 'again', round: 2 },
+            ]);
+            expect(computeGrowthRate(graph)).toBe(-1);
+        });
+        it('does not count unconfirmed sources as valid entity discoveries', () => {
+            const graph = buildGraphWithResultProvenance([{ round: 1, entityCount: 1 }, { round: 2, entityCount: 1 }]);
+            graph.setNodeAttribute('e:entity_r2_0', 'pendingSourceResultIds', ['r:result_r2_0']);
+            expect(computeGrowthRate(graph)).toBe(-1);
+        });
+        it('chooses the earliest valid source among multiple supporting results', () => {
+            const graph = buildGraphWithResultProvenance([{ round: 1, entityCount: 1 }, { round: 2, entityCount: 1 }]);
+            graph.setNodeAttribute('e:entity_r1_0', 'sourceResultIds', ['r:result_r1_0', 'r:result_r2_0']);
+            graph.setNodeAttribute('e:entity_r2_0', 'pendingSourceResultIds', ['r:result_r2_0']);
+            expect(computeGrowthRate(graph)).toBe(-1);
+        });
         it('returns 1.0 when only one round of data', () => {
             const graph = buildGraphWithResultProvenance([{ round: 1, entityCount: 5 }]);
             const rate = computeGrowthRate(graph);

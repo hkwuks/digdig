@@ -27,8 +27,8 @@ import { runGraphObfuscateCommand, GraphObfuscateOptions } from './commands/grap
 import { ContentExtractor } from './deep/extractor.js';
 import { resultUrlKey, sourceKey } from './deep/dedupe.js';
 import { fuseResults, mergeEnvelopeMetadata } from './deep/fuse.js';
-import { deserializeGraph, graphStats, GraphNodeAttrs, GraphEdgeAttrs } from './deep/graph.js';
-import { initSessionDir, resolveSessionPath, appendAndInjectSessionResults, loadSessionResults, loadSessionGraph, listPendingGraph, countPendingResults, getPendingResults, approveAndInjectResults, hasVerifiedContent, setSkipped } from './deep/session.js';
+import { deserializeGraph, graphStats } from './deep/graph.js';
+import { initSessionDir, resolveSessionPath, appendAndInjectSessionResults, loadSessionResults, loadSessionRounds, loadSessionQueryHistory, recordSuccessfulQuery, loadSessionGraph, listPendingGraph, countPendingResults, getPendingResults, approveAndInjectResults, hasVerifiedContent, setSkipped } from './deep/session.js';
 import { runSessionList, runSessionDelete, getDefaultSessionRoot } from './commands/session.js';
 import { graphPreprocess } from './deep/graph-preprocess.js';
 import { checkQueryRedundancy, RedundancyConfig } from './deep/query-redundancy.js';
@@ -336,18 +336,6 @@ function formatSessionReportAsMarkdown(data: any): string {
     return lines.join('\n');
 }
 
-/** Load query strings from session graph history. */
-function loadSessionQueryHistory(sessionDir: string): string[] {
-    const graph = loadSessionGraph(sessionDir);
-    const queries: string[] = [];
-    graph.forEachNode((node: string, attrs: GraphNodeAttrs) => {
-        if (attrs.type === 'query' && attrs.query) {
-            queries.push(attrs.query);
-        }
-    });
-    return queries;
-}
-
 /**
  * Search providers reachable through `--engines` magic words. Each is selected
  * by placing its name in the engine list; every other name goes to SearXNG.
@@ -538,7 +526,7 @@ async function runSearch(
                             if (stats.entities >= 3) {
                                 // Graph has matured → deep graph-based advice
                                 const sessionResults = loadSessionResults(options.session);
-                                const analysis = getSessionAnalysis(graph, sessionResults, getPendingResults(options.session));
+                                const analysis = getSessionAnalysis(graph, sessionResults, getPendingResults(options.session), { latestRound: loadSessionRounds(options.session) });
                                 const topLabels = analysis.suggestions.topEntities
                                     .slice(0, 3)
                                     .map(e => e.label);
@@ -619,6 +607,7 @@ async function runSearch(
         const engines = options.engines ?? [];
         const plan = planProviderSearch(engines);
         const responses: SearchResponse[] = [];
+        let searchRound: number | undefined;
         for (const query of queries) {
             const searchOptions: SearchOptions = {
                 query,
@@ -630,6 +619,7 @@ async function runSearch(
                 timeRange: options.timeRange as any,
             };
             const { providerResponses, sxngResponse } = await searchOneQuery(service, plan, searchOptions, limit);
+            if (options.session) searchRound = recordSuccessfulQuery(options.session, query, searchRound);
             responses.push(...providerResponses);
             if (sxngResponse) responses.push(sxngResponse);
         }
@@ -655,7 +645,7 @@ async function runSearch(
                 // order instead of one provider's and one RRF's.
                 rank: index + 1,
                 origins: fusion.originsByKey.get(resultUrlKey(result)),
-            })));
+            })), searchRound);
             const pendingCount = countPendingResults(options.session);
             if (pendingCount >= 30) {
                 console.error(`[session] ${pendingCount} pending results awaiting Agent review. Run --quality to list them.`);
@@ -1021,7 +1011,7 @@ Examples:
             const results = loadSessionResults(sessionDir);
             if (reportEmptySession(results.length)) return;
             const graph = loadSessionGraph(sessionDir);
-            const stage = determineSearchStage(graph);
+            const stage = determineSearchStage(graph, undefined, loadSessionRounds(sessionDir));
 
             const data = generateQuerySuggestions(graph, results, stage);
 
@@ -1051,7 +1041,7 @@ Examples:
             const info = getStrategyInfo(graph, {
                 broadRounds: opts.broadRounds,
                 transitionThreshold: opts.transitionThreshold,
-            });
+            }, loadSessionRounds(sessionDir));
 
             if (command.optsWithGlobals().format === 'md') {
                 console.log(formatStrategyAsMarkdown(info));
@@ -1076,7 +1066,7 @@ Examples:
             if (reportEmptySession(results.length)) return;
             const graph = loadSessionGraph(sessionDir);
 
-            const analysis = getSessionAnalysis(graph, results, getPendingResults(sessionDir));
+            const analysis = getSessionAnalysis(graph, results, getPendingResults(sessionDir), { latestRound: loadSessionRounds(sessionDir) });
 
             if (command.optsWithGlobals().format === 'md') {
                 console.log(formatSessionReportAsMarkdown(analysis));

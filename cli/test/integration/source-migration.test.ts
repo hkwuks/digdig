@@ -40,7 +40,7 @@ describe('source independence migration', () => {
   it('archives legacy automatic approvals and keeps manual reviews', () => {
     const db = openSessionDatabase(file);
     try {
-      expect(db.prepare('PRAGMA user_version').get()?.user_version).toBe(3);
+      expect(db.prepare('PRAGMA user_version').get()?.user_version).toBe(4);
       expect(db.prepare('SELECT claim_id FROM reviews ORDER BY claim_id').all()).toEqual([{ claim_id: 'manual' }]);
       expect(JSON.parse(String(db.prepare('SELECT data FROM review_history WHERE claim_id = ?').get('auto')?.data))).toMatchObject({ decision: 'approved', autoPass: true });
       expect(JSON.parse(String(db.prepare('SELECT data FROM claims WHERE id = ?').get('auto')?.data)).status).not.toBe('reviewed');

@@ -8,6 +8,7 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import { createHash } from 'crypto';
 import { bodyVersionId } from '../../src/deep/session-db.js';
+import { buildCoverage } from '../../src/deep/coverage.js';
 import {
   appendSessionResults,
   approveResults,
@@ -34,6 +35,15 @@ describe('session result contract', () => {
   });
 
   afterEach(() => rmSync(sessionDir, { recursive: true, force: true }));
+
+  it('keeps the first discovery round when importing a body after a later search', () => {
+    appendSessionResults(sessionDir, [{ url: 'https://example.com/first', title: 'first', origins: [{ tool: 'sxng', query: 'first' }] }]);
+    appendSessionResults(sessionDir, [{ url: 'https://example.com/second', title: 'second', origins: [{ tool: 'sxng', query: 'second' }] }]);
+    appendSessionResults(sessionDir, [{ url: 'https://example.com/first', title: 'first', contentType: 'extracted', content: 'body', extractor: 'test', extractedAt: 1, origins: [{ tool: 'agent', query: 'first' }] }]);
+    const result = loadSessionResults(sessionDir).find(item => item.url.endsWith('/first'))!;
+    expect(result.origins.map(origin => origin.round)).toEqual([1, 1]);
+    expect(buildCoverage(loadSessionResults(sessionDir), 2).repeated).toEqual([]);
+  });
 
   it('stores discovery separately from an extracted body and gives it a stable revision', () => {
     appendSessionResults(sessionDir, [{

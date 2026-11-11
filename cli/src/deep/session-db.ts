@@ -1,7 +1,11 @@
 import { DatabaseSync } from 'node:sqlite';
 import { createHash } from 'crypto';
 
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
+
+function createSearchQueries(db: DatabaseSync): void {
+    db.exec('CREATE TABLE search_queries (id INTEGER PRIMARY KEY, round INTEGER NOT NULL CHECK (round > 0), query TEXT NOT NULL, executed_at INTEGER NOT NULL)');
+}
 
 export function invalidateLegacyAutomaticReviews(db: DatabaseSync): void {
     const archive = db.prepare('INSERT INTO review_history (claim_id, data, invalidated_at) VALUES (?, ?, ?)');
@@ -147,14 +151,14 @@ export function openSessionDatabase(file: string): DatabaseSync {
     const db = new DatabaseSync(file, { timeout: 5000, enableForeignKeyConstraints: true });
     try {
         const version = db.prepare('PRAGMA user_version').get()?.user_version;
-        if (version !== 0 && version !== 1 && version !== 2 && version !== SCHEMA_VERSION) {
+        if (version !== 0 && version !== 1 && version !== 2 && version !== 3 && version !== SCHEMA_VERSION) {
             throw new Error(`Unsupported session database version: ${String(version)}`);
         }
         if (version !== SCHEMA_VERSION) {
             withTransaction(db, () => {
                 const lockedVersion = db.prepare('PRAGMA user_version').get()?.user_version;
                 if (lockedVersion === SCHEMA_VERSION) return;
-                if (lockedVersion !== 0 && lockedVersion !== 1 && lockedVersion !== 2) throw new Error(`Unsupported session database version: ${String(lockedVersion)}`);
+                if (lockedVersion !== 0 && lockedVersion !== 1 && lockedVersion !== 2 && lockedVersion !== 3) throw new Error(`Unsupported session database version: ${String(lockedVersion)}`);
                 if (lockedVersion === 1) {
                     db.exec('CREATE TABLE body_versions (id TEXT PRIMARY KEY, result_id TEXT NOT NULL REFERENCES results(id), content_hash TEXT NOT NULL, content TEXT NOT NULL, UNIQUE (result_id, content_hash))');
                     db.exec('CREATE TABLE review_history (id INTEGER PRIMARY KEY, claim_id TEXT NOT NULL, data TEXT NOT NULL, invalidated_at INTEGER NOT NULL)');
@@ -177,12 +181,19 @@ export function openSessionDatabase(file: string): DatabaseSync {
                     bindLegacyGraph(db);
                     createSourceRelations(db);
                     invalidateLegacyAutomaticReviews(db);
+                    createSearchQueries(db);
                     db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
                     return;
                 }
                 if (lockedVersion === 2) {
                     createSourceRelations(db);
                     invalidateLegacyAutomaticReviews(db);
+                    createSearchQueries(db);
+                    db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
+                    return;
+                }
+                if (lockedVersion === 3) {
+                    createSearchQueries(db);
                     db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
                     return;
                 }
@@ -203,6 +214,7 @@ export function openSessionDatabase(file: string): DatabaseSync {
                     CREATE TABLE graph_snapshot (id INTEGER PRIMARY KEY CHECK (id = 1), data TEXT NOT NULL);
                 `);
                 createSourceRelations(db);
+                createSearchQueries(db);
                 db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
             });
         }
