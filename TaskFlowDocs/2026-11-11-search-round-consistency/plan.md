@@ -89,17 +89,19 @@
 - Files: 测试、README、CHANGELOG、项目 skill、TaskFlow 文档。
 - Implementation checklist:
   - [x] 验证旧数据、并发和中断场景，记录性能/历史限制；更新对外说明。
-  - [ ] 运行类型检查、全量测试、构建和 Node 24.15/24.x CI，按仓库模板创建 PR。
+  - [x] 运行类型检查、全量测试、构建和 Node 24.15/24.x CI，按仓库模板创建 PR。
 - Acceptance: 三项均可通过用户可观察结果验证，CI 通过，等待审阅。
 - Verification: 定向/完整测试、真实 CLI、实际 SQLite、PR CI。
 - Rollback: 不发布或合并，保留原始会话和工作树供审阅。
-- Status: in_progress
+- Status: done
 
 ## Checkpoints
 
 批准后依次执行；若用户重新审视整体架构导致范围或契约改变，先讨论并修订任务，不擅自重构。
 
 ## Verification / Review
+
+- 2026-11-11 Step 4: PR 60 CI build and test pass on Node 24.15 and 24.x
 
 - 2026-11-11 Step 4: 完整测试及代码审查，之后提交 PR 并验证 CI
 
@@ -115,7 +117,7 @@
 - 2026-11-11：`npm ci` 沙箱网络 EACCES；经授权联网在工作树内安装成功（127 packages）。
 - 2026-11-11：D6 两项失败测试分别复现零结果查询被重复执行和批量部分失败丢失成功查询；D2 复现来源轮次错误 `[1,2]`；D9 两项失败测试复现零增长轮被忽略及来源被重分桶。修复后以上测试通过。
 - 2026-11-11：真实 SQLite 测试覆盖 v3 升级、插入故障回滚和双进程并发分配不同轮；策略信息与会话报告一致。`npm test`：69 文件、758 测试通过；`npm exec -- tsc --noEmit` 通过（随后的小幅校验变更需要再次检查）。
-- 2026-11-11：最终本地 `npm test` 69 文件、760 测试通过；`npm exec -- tsc` 通过。实际编译后的 CLI 在零结果历史中识别相同查询并 skip，退出码 0；v3→v4 升级中断后回滚并成功重试。GitHub CI 待 PR 创建后验证。
+- 2026-11-11：最终本地 `npm test` 69 文件、760 测试通过；`npm exec -- tsc` 通过。实际编译后的 CLI 在零结果历史中识别相同查询并 skip，退出码 0；v3→v4 升级中断后回滚并成功重试。PR #60 的 GitHub CI run 42990194397 中，Node 24.15 和 24.x 的 build/test 四项均通过。
 - [Review] 以 `agent-skills:code-review-and-quality` 自查迁移、查询成功和部分失败、跨进程轮次分配、待确认来源、三个策略消费者与老数据限制；未做大规模性能基准。
 
 ## Change Log
