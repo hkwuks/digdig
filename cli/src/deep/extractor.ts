@@ -174,7 +174,7 @@ async function defuddleExtract(html: string, url: string): Promise<ExtractedCont
             url,
             byline: result.author || undefined,
             siteName: result.site || undefined,
-            length: result.wordCount || content.length,
+            length: content.length,
             extractedAt: Date.now(),
             method: 'defuddle',
         };
@@ -399,9 +399,6 @@ export class ContentExtractor {
             if (obsResult && obsResult.content.length > result.content.length) return obsResult;
         }
 
-        if (result.content.length < MIN_CONTENT_LENGTH && !result.error) {
-            result.error = 'Extracted content too short';
-        }
         return result;
     }
 

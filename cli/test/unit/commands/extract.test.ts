@@ -3,11 +3,55 @@ import { mkdtempSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { runExtract } from '../../../src/commands/extract.js';
+import { ContentExtractor } from '../../../src/deep/extractor.js';
 import { appendSessionResults, getPendingExtractionResults, initSessionDir, loadSessionResults, recordExtractionOutcome } from '../../../src/deep/session.js';
 
 describe('runExtract', () => {
   const sessionDir = mkdtempSync(join(tmpdir(), 'sxng-extract-'));
   afterEach(() => { vi.restoreAllMocks(); rmSync(sessionDir, { recursive: true, force: true }); });
+
+  it('records the actual method, preserves a blank excerpt and measures the body', async () => {
+    initSessionDir(sessionDir);
+    const url = 'https://example.com/provenance';
+    appendSessionResults(sessionDir, [{ url, title: 'Article', excerpt: 'Search summary', origins: [{ tool: 'sxng', query: 'q' }] }]);
+    const extractor = { extractBatch: vi.fn().mockResolvedValue([{ url, title: 'Article', content: '正文😀', excerpt: '  ', length: 1, extractedAt: 1, method: 'defuddle' }]) } as any;
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    expect(await runExtract(extractor, { session: sessionDir, urls: [url], obscura: true })).toBe(0);
+    expect(loadSessionResults(sessionDir)[0]).toMatchObject({ extractor: 'defuddle', excerpt: 'Search summary', contentLength: '正文😀'.length });
+  });
+
+  it('runs a real short extraction through the command and SQLite', async () => {
+    initSessionDir(sessionDir);
+    const url = 'https://example.com/real-short';
+    appendSessionResults(sessionDir, [{ url, title: 'Article', excerpt: 'Old summary', origins: [{ tool: 'sxng', query: 'q' }] }]);
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('<html><body><p>短正文 😀</p></body></html>')));
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    try {
+      expect(await runExtract(new ContentExtractor(), { session: sessionDir, urls: [url] })).toBe(0);
+      expect(JSON.parse(log.mock.lastCall![0])).toMatchObject({ status: 'ok', data: { extracted: [{ method: 'defuddle', content: '短正文 😀', length: '短正文 😀'.length }] } });
+      expect(loadSessionResults(sessionDir)[0]).toMatchObject({ extractor: 'defuddle', excerpt: 'Old summary', contentLength: '短正文 😀'.length });
+    } finally { vi.unstubAllGlobals(); }
+  });
+
+  it('updates a nonblank excerpt and uses the imported body length', () => {
+    initSessionDir(sessionDir);
+    const url = 'https://example.com/import';
+    appendSessionResults(sessionDir, [{ url, title: 'Article', excerpt: 'Old', origins: [{ tool: 'sxng', query: 'q' }] }]);
+    appendSessionResults(sessionDir, [{ url, title: 'Article', contentType: 'extracted', content: '新😀', excerpt: 'New' }]);
+    expect(loadSessionResults(sessionDir)[0]).toMatchObject({ excerpt: 'New', contentLength: '新😀'.length });
+    recordExtractionOutcome(sessionDir, [{ url, content: '更新😀', excerpt: '  Newer  ', length: 1 }]);
+    expect(loadSessionResults(sessionDir)[0]).toMatchObject({ excerpt: '  Newer  ', contentLength: '更新😀'.length });
+  });
+
+  it.each(['jina', 'obscura'] as const)('persists the actual %s method', async (method) => {
+    initSessionDir(sessionDir);
+    const url = `https://example.com/${method}`;
+    appendSessionResults(sessionDir, [{ url, title: 'Article', origins: [{ tool: 'sxng', query: 'q' }] }]);
+    const extractor = { extractBatch: vi.fn().mockResolvedValue([{ url, title: 'Article', content: 'Body', excerpt: '', length: 4, extractedAt: 1, method }]) } as any;
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    expect(await runExtract(extractor, { session: sessionDir, urls: [url] })).toBe(0);
+    expect(loadSessionResults(sessionDir)[0].extractor).toBe(method);
+  });
 
   it('requires explicit URLs for rate-limited special extractors', async () => {
     const extractor = { extractBatch: vi.fn() } as any;
