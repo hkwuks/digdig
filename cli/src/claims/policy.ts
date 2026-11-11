@@ -14,7 +14,9 @@ import {
   ReviewStatus,
   ReviewChecks,
   ReviewConflict,
+  SourceRelation,
 } from './types.js';
+import { assessSources } from './source-assessment.js';
 
 // ── Input ───────────────────────────────────────────────────────────
 
@@ -23,6 +25,7 @@ export interface PolicyInput {
   riskLevel: 'low' | 'medium' | 'high';
   verdicts: Verdict[];
   evidences: EvidenceSpan[];
+  relations?: SourceRelation[];
 }
 
 // ── Rule definition ─────────────────────────────────────────────────
@@ -35,22 +38,19 @@ interface Rule {
 /**
  * Evaluate deterministic checks for a set of verdicts + evidences.
  */
-function computeChecks(verdicts: Verdict[], evidences: EvidenceSpan[]): ReviewChecks {
+function computeChecks(input: PolicyInput): ReviewChecks {
+  const { verdicts, evidences } = input;
   const stanceCounts = { support: 0, refute: 0, insufficient: 0 };
   for (const v of verdicts) {
     stanceCounts[v.stance]++;
   }
 
-  // Domain-level source independence: count publisher-domain cluster IDs.
-  const uniqueSources = new Set(
-    evidences
-      .filter(e => e.sourceClusterId)
-      .map(e => e.sourceClusterId!)
-  );
-  const sourceIndependent = uniqueSources.size >= 2;
+  const source = assessSources(input.claimId, evidences, verdicts, input.relations ?? []);
 
   return {
-    sourceIndependent,
+    sourceIndependent: source.state === 'independent',
+    sourceIndependence: source.state,
+    sourceIndependenceReason: source.reason,
     hasRefute: stanceCounts.refute > 0,
     allSupport: stanceCounts.support > 0 && stanceCounts.refute === 0 && stanceCounts.insufficient === 0,
   };
@@ -98,55 +98,52 @@ const RULES: Rule[] = [
     },
   },
 
-  // #2 highRiskInsufficient: high risk + <2 publisher domains → needsReview
+  {
+    name: 'sourceIndependenceUnknown',
+    evaluate(input) {
+      const state = assessSources(input.claimId, input.evidences, input.verdicts, input.relations ?? []).state;
+      return state === 'unknown' || state === 'conflict' ? 'needsReview' : null;
+    },
+  },
+
+  // High-risk claims require confirmed independent supporting sources.
   {
     name: 'highRiskInsufficient',
     evaluate(input) {
       if (input.riskLevel !== 'high') return null;
-      const uniqueSources = new Set(
-        input.evidences.filter(e => e.sourceClusterId).map(e => e.sourceClusterId!)
-      );
-      if (uniqueSources.size < 2) return 'needsReview';
+      if (assessSources(input.claimId, input.evidences, input.verdicts, input.relations ?? []).state !== 'independent') return 'needsReview';
       return null;
     },
   },
 
-  // #3 dualSourceSupport: >= 2 publisher domains + all support → approved
+  // Confirmed independent supporting sources can be approved.
   {
     name: 'dualSourceSupport',
     evaluate(input) {
-      const uniqueSources = new Set(
-        input.evidences.filter(e => e.sourceClusterId).map(e => e.sourceClusterId!)
-      );
-      if (uniqueSources.size < 2) return null;
+      if (assessSources(input.claimId, input.evidences, input.verdicts, input.relations ?? []).state !== 'independent') return null;
       const allSupport = input.verdicts.every(v => v.stance === 'support');
       if (allSupport) return 'approved';
       return null;
     },
   },
 
-  // #4 dualSourceMixed: >= 2 publisher domains but some insufficient → needsReview
+  // An insufficient verdict prevents automatic approval.
   {
     name: 'dualSourceMixed',
     evaluate(input) {
-      const uniqueSources = new Set(
-        input.evidences.filter(e => e.sourceClusterId).map(e => e.sourceClusterId!)
-      );
-      if (uniqueSources.size < 2) return null;
+      if (assessSources(input.claimId, input.evidences, input.verdicts, input.relations ?? []).state !== 'independent') return null;
       const hasInsufficient = input.verdicts.some(v => v.stance === 'insufficient');
       if (hasInsufficient) return 'needsReview';
       return null;
     },
   },
 
-  // #5 singleSource: only 1 publisher domain → needsReview
+  // A single supported source requires review.
   {
     name: 'singleSource',
     evaluate(input) {
-      const uniqueSources = new Set(
-        input.evidences.filter(e => e.sourceClusterId).map(e => e.sourceClusterId!)
-      );
-      if (uniqueSources.size === 1) return 'needsReview';
+      const source = assessSources(input.claimId, input.evidences, input.verdicts, input.relations ?? []);
+      if ((source.state === 'same' || source.state === 'insufficient') && input.verdicts.some(v => v.stance === 'support')) return 'needsReview';
       return null;
     },
   },
@@ -176,7 +173,7 @@ const RULES: Rule[] = [
  * Run all rules against a single claim's data and produce a Review.
  */
 export function aggregateClaim(input: PolicyInput): Review {
-  const checks = computeChecks(input.verdicts, input.evidences);
+  const checks = computeChecks(input);
 
   let decision: ReviewStatus = 'needsReview';
   let matchedRule = 'fallback';

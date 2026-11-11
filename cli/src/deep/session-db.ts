@@ -1,7 +1,37 @@
 import { DatabaseSync } from 'node:sqlite';
 import { createHash } from 'crypto';
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
+
+export function invalidateLegacyAutomaticReviews(db: DatabaseSync): void {
+    const archive = db.prepare('INSERT INTO review_history (claim_id, data, invalidated_at) VALUES (?, ?, ?)');
+    for (const row of db.prepare('SELECT claim_id, data FROM reviews').all()) {
+        const review = JSON.parse(String(row.data));
+        if (!review || typeof review !== 'object' || Array.isArray(review)) throw new Error('Invalid stored review');
+        if (review.autoPass !== true || review.decision !== 'approved') continue;
+        const claimId = String(row.claim_id);
+        archive.run(claimId, JSON.stringify({ ...review, invalidationReason: 'source_independence_recheck' }), Date.now());
+        db.prepare('DELETE FROM reviews WHERE claim_id = ?').run(claimId);
+        const claimRow = db.prepare('SELECT data FROM claims WHERE id = ?').get(claimId);
+        if (claimRow) {
+            const claim = JSON.parse(String(claimRow.data));
+            const hasValid = db.prepare('SELECT data FROM evidences WHERE claim_id = ?').all(claimId).some(item => !JSON.parse(String(item.data)).invalid);
+            claim.status = hasValid ? 'verifying' : 'pending';
+            db.prepare('UPDATE claims SET data = ? WHERE id = ?').run(JSON.stringify(claim), claimId);
+        }
+    }
+}
+
+function createSourceRelations(db: DatabaseSync): void {
+    db.exec(`CREATE TABLE source_relations (
+        id TEXT PRIMARY KEY, claim_id TEXT NOT NULL REFERENCES claims(id),
+        left_result_id TEXT NOT NULL REFERENCES results(id), right_result_id TEXT NOT NULL REFERENCES results(id),
+        left_snapshot_id TEXT NOT NULL REFERENCES body_versions(id), right_snapshot_id TEXT NOT NULL REFERENCES body_versions(id),
+        relation TEXT NOT NULL CHECK (relation IN ('same', 'independent')), reason TEXT NOT NULL,
+        created_at INTEGER NOT NULL, invalidated_at INTEGER, invalidation_reason TEXT,
+        CHECK (left_result_id <> right_result_id));
+        CREATE UNIQUE INDEX source_relations_active ON source_relations (claim_id, left_result_id, right_result_id, left_snapshot_id, right_snapshot_id) WHERE invalidated_at IS NULL;`);
+}
 
 export function bodyVersionId(resultId: string, content: string): string {
     const hash = createHash('sha256').update(content).digest('hex');
@@ -117,14 +147,14 @@ export function openSessionDatabase(file: string): DatabaseSync {
     const db = new DatabaseSync(file, { timeout: 5000, enableForeignKeyConstraints: true });
     try {
         const version = db.prepare('PRAGMA user_version').get()?.user_version;
-        if (version !== 0 && version !== 1 && version !== SCHEMA_VERSION) {
+        if (version !== 0 && version !== 1 && version !== 2 && version !== SCHEMA_VERSION) {
             throw new Error(`Unsupported session database version: ${String(version)}`);
         }
         if (version !== SCHEMA_VERSION) {
             withTransaction(db, () => {
                 const lockedVersion = db.prepare('PRAGMA user_version').get()?.user_version;
                 if (lockedVersion === SCHEMA_VERSION) return;
-                if (lockedVersion !== 0 && lockedVersion !== 1) throw new Error(`Unsupported session database version: ${String(lockedVersion)}`);
+                if (lockedVersion !== 0 && lockedVersion !== 1 && lockedVersion !== 2) throw new Error(`Unsupported session database version: ${String(lockedVersion)}`);
                 if (lockedVersion === 1) {
                     db.exec('CREATE TABLE body_versions (id TEXT PRIMARY KEY, result_id TEXT NOT NULL REFERENCES results(id), content_hash TEXT NOT NULL, content TEXT NOT NULL, UNIQUE (result_id, content_hash))');
                     db.exec('CREATE TABLE review_history (id INTEGER PRIMARY KEY, claim_id TEXT NOT NULL, data TEXT NOT NULL, invalidated_at INTEGER NOT NULL)');
@@ -145,6 +175,14 @@ export function openSessionDatabase(file: string): DatabaseSync {
                     }
                     bindLegacyEvidence(db);
                     bindLegacyGraph(db);
+                    createSourceRelations(db);
+                    invalidateLegacyAutomaticReviews(db);
+                    db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
+                    return;
+                }
+                if (lockedVersion === 2) {
+                    createSourceRelations(db);
+                    invalidateLegacyAutomaticReviews(db);
                     db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
                     return;
                 }
@@ -163,8 +201,9 @@ export function openSessionDatabase(file: string): DatabaseSync {
                     CREATE TABLE reviews (claim_id TEXT PRIMARY KEY REFERENCES claims(id), data TEXT NOT NULL);
                     CREATE TABLE review_history (id INTEGER PRIMARY KEY, claim_id TEXT NOT NULL, data TEXT NOT NULL, invalidated_at INTEGER NOT NULL);
                     CREATE TABLE graph_snapshot (id INTEGER PRIMARY KEY CHECK (id = 1), data TEXT NOT NULL);
-                    PRAGMA user_version = ${SCHEMA_VERSION};
                 `);
+                createSourceRelations(db);
+                db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
             });
         }
         db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;');

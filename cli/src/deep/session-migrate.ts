@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 import type { DatabaseSync } from 'node:sqlite';
 import { deserializeGraph } from './graph.js';
-import { bindLegacyEvidence, bindLegacyGraph, bodyVersionId, ensureBodyVersion, openSessionDatabase, withTransaction } from './session-db.js';
+import { bindLegacyEvidence, bindLegacyGraph, bodyVersionId, ensureBodyVersion, invalidateLegacyAutomaticReviews, openSessionDatabase, withTransaction } from './session-db.js';
 import { classifySqliteError, SessionStateError, withSessionLock } from './session-lock.js';
 
 type RecordValue = Record<string, unknown>;
@@ -144,6 +144,7 @@ export function migrateLegacySession(sessionDir: string, db: DatabaseSync): bool
         bindLegacyEvidence(db);
         if (graph !== undefined) db.prepare('INSERT INTO graph_snapshot (id, data) VALUES (1, ?)').run(JSON.stringify(graph));
         bindLegacyGraph(db);
+        invalidateLegacyAutomaticReviews(db);
         putMeta.run('migration_complete', 'true');
         return true;
     });

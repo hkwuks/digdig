@@ -102,12 +102,29 @@ export interface Verdict {
   createdAt: number;
 }
 
+/** Agent judgment tied to a claim and two captured body versions. */
+export interface SourceRelation {
+  id: string;
+  claimId: string;
+  leftResultId: string;
+  rightResultId: string;
+  leftSnapshotId: string;
+  rightSnapshotId: string;
+  relation: 'same' | 'independent';
+  reason: string;
+  createdAt: number;
+  invalidatedAt?: number;
+  invalidationReason?: string;
+}
+
 // ── Review ──────────────────────────────────────────────────────────
 
 export type ReviewStatus = 'approved' | 'needsReview' | 'rejected';
 
 export interface ReviewChecks {
-  sourceIndependent: boolean;   // >= 2 distinct publisher domains
+  sourceIndependent: boolean;   // explicitly confirmed independent supported sources
+  sourceIndependence?: 'independent' | 'same' | 'unknown' | 'insufficient' | 'conflict';
+  sourceIndependenceReason?: string;
   hasRefute: boolean;           // refutation evidence exists
   allSupport: boolean;          // all evidence stance is 'support'
 }

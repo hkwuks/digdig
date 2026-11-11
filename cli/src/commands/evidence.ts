@@ -20,6 +20,7 @@ import { computeSourceClusterId, searchCandidates } from '../claims/deterministi
 import { getApprovedResults, initSessionDir, mutateSessionState, resolveSessionPath } from '../deep/session.js';
 import { createErrorEnvelope, createSuccessEnvelope } from '../protocol.js';
 import { isJsonObject, readSessionJsonInput } from './json-input.js';
+import { policyInput } from '../claims/policy-input.js';
 
 interface EvidenceInput {
   resultId: string;
@@ -197,11 +198,8 @@ export async function runEvidenceVerify(
       }
       let review: ReturnType<typeof aggregateClaim> | undefined;
       if (options.complete) {
-        const validEvidences = evidences.filter(item => item.claimId === claim.id && !item.invalid);
-        for (const item of validEvidences) item.sourceClusterId = computeSourceClusterId(item);
-        const validIds = new Set(validEvidences.map(item => item.id));
-        const claimVerdicts = verdicts.filter(item => item.claimId === claim.id && item.evidenceIds.some(id => validIds.has(id)));
-        review = aggregateClaim({ claimId: claim.id, riskLevel: claim.riskLevel, verdicts: claimVerdicts, evidences: validEvidences });
+        for (const item of evidences.filter(item => item.claimId === claim.id && !item.invalid)) item.sourceClusterId = computeSourceClusterId(item);
+        review = aggregateClaim(policyInput(sessionDir, claim, evidences, verdicts));
         claim.status = 'reviewed';
         const reviewIndex = reviews.findIndex(item => item.claimId === claim.id);
         if (reviewIndex === -1) reviews.push(review);
@@ -231,13 +229,14 @@ export async function runEvidenceVerify(
     evidence: { id: mutation.evidence.id, claimId: options.claimId },
     verdict: { id: mutation.verdict.id, stance: mutation.verdict.stance },
     ...(mutation.idempotent ? { idempotent: true } : {}),
-    ...(mutation.review ? { review: { claimId: mutation.review.claimId, decision: mutation.review.decision, matchedRule: mutation.review.matchedRule, autoPass: mutation.review.autoPass } } : {}),
+    ...(mutation.review ? { review: { claimId: mutation.review.claimId, decision: mutation.review.decision, matchedRule: mutation.review.matchedRule, autoPass: mutation.review.autoPass, checks: mutation.review.checks } } : {}),
   };
   if ((options.format || 'json') === 'md') {
     console.log('## Evidence-Verify Result\n');
     console.log(`**Evidence**: ${mutation.evidence.id} -> ${options.claimId}`);
     console.log(`**Verdict**: ${mutation.verdict.id} - ${mutation.verdict.stance}`);
     if (mutation.review) console.log(`**Review**: ${mutation.review.decision} (rule: ${mutation.review.matchedRule}, autoPass: ${mutation.review.autoPass})`);
+    if (mutation.review) console.log(`**Source independence**: ${mutation.review.checks.sourceIndependence} — ${mutation.review.checks.sourceIndependenceReason}`);
   } else {
     console.log(JSON.stringify(createSuccessEnvelope(output), null, 2));
   }

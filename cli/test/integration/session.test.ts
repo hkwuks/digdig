@@ -6,6 +6,8 @@ vi.mock('fs', async importOriginal => {
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
+import { createHash } from 'crypto';
+import { bodyVersionId } from '../../src/deep/session-db.js';
 import {
   appendSessionResults,
   approveResults,
@@ -282,7 +284,7 @@ describe('session result contract', () => {
     const results = loadSessionResults(sessionDir);
     approveResults(sessionDir, results.map(result => ({ id: result.id, revision: result.revision })));
     saveClaims(sessionDir, [{ id: 'cl_001', text: 'Claim', riskLevel: 'low', status: 'reviewed', sessionDir, createdAt: 1 }]);
-    saveEvidences(sessionDir, results.map((result, index) => ({ id: `ev_00${index + 1}`, claimId: 'cl_001', resultId: result.id, quote: 'Body', charStart: 0, charEnd: 4, contentHash: 'fixture', extractedAt: 1 })));
+    saveEvidences(sessionDir, results.map((result, index) => ({ id: `ev_00${index + 1}`, claimId: 'cl_001', resultId: result.id, quote: 'Body', charStart: 0, charEnd: 4, contentHash: createHash('sha256').update('Body').digest('hex'), snapshotId: bodyVersionId(result.id, result.content!), extractedAt: 1 })));
     const first = loadSessionResults(sessionDir)[0];
     setSkipped(sessionDir, [{ id: first.id, revision: first.revision }], true);
     expect(loadClaims(sessionDir)[0].status).toBe('verifying');

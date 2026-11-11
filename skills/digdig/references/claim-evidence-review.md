@@ -33,6 +33,14 @@ For the three-claim example, this uses four CLI calls: one batch `claim-add`
 and three `evidence-verify` calls. Evidence is anchored to an approved `resultId`,
 not a URL; only verified extracted bodies are eligible.
 
+Different domains do not prove independence. Inspect `dg source-relations <session> --claim-id cl_001` and evaluate provenance. Identical or similar captured bodies are hints only, not proof of complete content or common origin. Record an Agent judgment with evidence-specific result and snapshot IDs from `dg evidence-list`:
+
+```json
+{"action":"record","left":{"resultId":"r1","snapshotId":"s1"},"right":{"resultId":"r2","snapshotId":"s2"},"relation":"independent","reason":"Independent original interviews, verified by ..."}
+```
+
+Save the UTF-8 JSON inside the session's `agent-inputs`, then run `dg source-relations <session> --claim-id cl_001 --data-file <path>` followed by `dg policy-aggregate <session> --claim-id cl_001`. Use `relation: "same"` when warranted. To correct a judgment, submit `{"action":"revoke","id":"<relation-id>","reason":"<why>"}`; history remains visible. Unknown relationships require review; only sources with valid supporting verdicts count. A changed body invalidates judgments tied to its old snapshot. Upgrading an old session moves legacy automatic approvals to history for re-review.
+
 ## Review Decision
 
 ```text

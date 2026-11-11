@@ -45,6 +45,7 @@ import { runClaimAdd, runClaimList } from './commands/claim.js';
 import { runEvidenceSearch, runEvidenceVerify, runEvidenceList } from './commands/evidence.js';
 import { runVerdictList } from './commands/verdict.js';
 import { runPolicyAggregate, runReviewList } from './commands/review.js';
+import { runSourceRelations } from './commands/source-relations.js';
 import { readSessionJsonInput } from './commands/json-input.js';
 import { DirectedGraph } from 'graphology';
 import { writeFileSync, existsSync } from 'fs';
@@ -1277,6 +1278,14 @@ Examples:
             });
             process.exitCode = code;
         });
+
+    program
+        .command('source-relations')
+        .argument('<session>', 'Session directory or name')
+        .description('List or record source independence judgments')
+        .requiredOption('--claim-id <id>', 'Claim ID')
+        .option('--data-file <path>', 'Judgment or revocation JSON in agent-inputs')
+        .action(async (session, opts) => { process.exitCode = await runSourceRelations(session, { claimId: opts.claimId, dataFile: opts.dataFile }); });
 
     program
         .command('policy-aggregate')

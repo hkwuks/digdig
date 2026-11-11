@@ -339,6 +339,7 @@ See SOP for detailed L1/L2/L3 complexity guidelines.
 | `dg evidence-list` | List evidence for a claim; `--include-invalid` shows evidence awaiting review or relocation |
 | `dg verdict-list` | List verdicts for a claim |
 | `dg policy-aggregate` | Run policy aggregation manually |
+| `dg source-relations` | Inspect or record claim-specific source judgments |
 | `dg review-list` | List reviews |
 
 ## Tips

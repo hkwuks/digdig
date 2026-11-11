@@ -51,7 +51,7 @@ describe('session SQLite storage', () => {
         legacy.close();
         const db = openSessionDatabase(file);
         try {
-            expect(db.prepare('PRAGMA user_version').get()?.user_version).toBe(2);
+            expect(db.prepare('PRAGMA user_version').get()?.user_version).toBe(3);
             expect(db.prepare('SELECT data FROM body_snapshots').get()?.data).toBe(oldBody);
             expect(db.prepare('SELECT content FROM body_versions').get()?.content).toBe('old body');
         } finally { db.close(); }

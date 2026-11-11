@@ -537,6 +537,21 @@ export function getApprovedResults(sessionDir: string): SessionResult[] {
 }
 
 function repairInvalidDependents(sessionDir: string, results: SessionResult[]): void {
+    const changedRelations = withSessionWrite(sessionDir, db => {
+        const rows = db.prepare('SELECT * FROM source_relations WHERE invalidated_at IS NULL').all();
+        const changed = new Set<string>();
+        for (const row of rows) {
+            const stale = [['left_result_id', 'left_snapshot_id'], ['right_result_id', 'right_snapshot_id']].some(([resultKey, snapshotKey]) => {
+                const result = results.find(item => item.id === row[resultKey]);
+                return !result || typeof result.content !== 'string' || bodyVersionId(result.id, result.content) !== row[snapshotKey];
+            });
+            if (stale) {
+                db.prepare("UPDATE source_relations SET invalidated_at = ?, invalidation_reason = 'snapshot_changed' WHERE id = ?").run(Date.now(), String(row.id));
+                changed.add(String(row.claim_id));
+            }
+        }
+        return changed;
+    });
     const invalidReasons = new Map(
         results
             .filter(result => result.skippedAt || result.contentNeedsApproval || (result.approvedSnapshotId !== undefined
@@ -546,8 +561,8 @@ function repairInvalidDependents(sessionDir: string, results: SessionResult[]): 
     {
         assertClaimsStoreReadable(sessionDir);
         const evidences = loadEvidences(sessionDir);
-        const affectedClaims = new Set<string>();
-        const newlyInvalidClaims = new Set<string>();
+        const affectedClaims = new Set<string>(changedRelations);
+        const newlyInvalidClaims = new Set<string>(changedRelations);
         const now = Date.now();
         let evidenceChanged = false;
         for (const evidence of evidences) {

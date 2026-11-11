@@ -879,15 +879,15 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## 来源簇只按 hostname 判断，转载被当成独立来源
 
 - ID: TF-20261107-ebc986
-- Status: inbox
+- Status: in_progress
 - Priority: normal
 - Owner: Claude
 - Source: design report review
 - Added: 2026-11-07
-- Updated: 2026-11-07
+- Updated: 2026-11-11
 - Goal: `computeSourceClusterId`（`cli/src/claims/deterministic-checks.ts:58-70`）把 publisher hostname 做 sha256 截 16 位当簇 ID。同一篇文章被 5 个站转载，5 个不同 hostname 就是 5 个「独立来源」，`policy.ts` 按来源域名数判定的规则（`dualSourceMixed`、`highRiskInsufficient`）因此会被骗过——`policy.ts:44` 的注释自己写的就是「Domain-level source independence」，即它知道这只是域名级而非内容级。`docs/agent_search_integrated_report_2026-10-27.md` 3.3 明写「证据数量不等于独立性：文章来源关系需要聚类；不能用 URL count 代替证据簇数」，2.6 节进一步要求「同一文章转载、共同通讯社稿、同一官方声明的多次改写应视作同一事实来源簇」。
-- Task: Not promoted.
-- Next action: 需要设计。真实来源簇识别需要正文相似度或 canonical URL 传播链，不是一行改动；先确认它在 Fast/Standard/Deep 哪一档启用（报告 4.1 里只有 Deep 有「来源簇与多样性约束」）。
+- Task: `TaskFlowDocs/2026-11-11-source-independence/`
+- Next action: Complete PRD / Spec / Plan and request approval.
 
 ## tokenize() 把含 CJK 的混合 token 整体当 CJK 分支处理，ASCII 部分被切成碎片且原词丢失
 

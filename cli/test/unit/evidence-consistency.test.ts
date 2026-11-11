@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { runEvidenceVerify } from '../../src/commands/evidence.js';
+import { bodyVersionId } from '../../src/deep/session-db.js';
+import { createHash } from 'crypto';
+vi.mock('../../src/claims/source-relations.js', () => ({ loadSourceRelations: () => [] }));
 
 const state = vi.hoisted(() => ({
   claims: [] as any[], evidences: [] as any[], verdicts: [] as any[], reviews: [] as any[],
@@ -26,7 +29,7 @@ vi.mock('../../src/claims/store.js', () => ({
 describe('evidence verdict consistency', () => {
   beforeEach(() => {
     state.claims = [{ id: 'c1', status: 'reviewed', riskLevel: 'medium' }];
-    state.evidences = [{ id: 'e1', claimId: 'c1', resultId: 'r1', quote: 'hello', charStart: 0, charEnd: 5, resultUrl: 'https://a.test' }];
+    state.evidences = [{ id: 'e1', claimId: 'c1', resultId: 'r1', quote: 'hello', charStart: 0, charEnd: 5, resultUrl: 'https://a.test', snapshotId: bodyVersionId('r1', 'hello'), contentHash: createHash('sha256').update('hello').digest('hex') }];
     state.verdicts = [{ id: 'v1', claimId: 'c1', evidenceIds: ['e1'], stance: 'support', reason: 'old', confidence: 0.9 }];
     state.reviews = [{ claimId: 'c1', decision: 'approved' }, { claimId: 'other', decision: 'approved' }];
     vi.spyOn(console, 'log').mockImplementation(() => {});

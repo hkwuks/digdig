@@ -38,7 +38,7 @@
 - 🔄 **Query Redundancy Check** — Word-level or character-bigram Jaccard detects repeated queries
 - 💡 **Agent-First Design** — Outputs structured analysis data (facts, suggestions, strategy) for LLM Agent decision-making
 - 📁 **Local Document Search** — Index and BM25-search local Markdown/text files; results auto-injected into the session pipeline as `source: "local"`
-- ✅ **Claim—Evidence—Review Pipeline** — L2/L3 only: submit atomic claims, auto-search evidence, verify with stance, then policy-aggregate by publisher-domain diversity for auto-approval or Agent review
+- ✅ **Claim—Evidence—Review Pipeline** — L2/L3 only: verify evidence and record source independence judgments for automatic approval or Agent review.
 
 ## 📦 Installation
 
@@ -142,6 +142,7 @@ obscura --version
 | `dg evidence-list <session> --claim-id <id>` | List evidence for a claim |
 | `dg verdict-list <session> --claim-id <id>` | List verdicts for a claim |
 | `dg policy-aggregate <session>` | Run policy aggregation manually |
+| `dg source-relations <session> --claim-id <id> [--data-file <path>]` | Inspect or record source judgments |
 | `dg review-list <session>` | List reviews |
 | `dg --health` | Check the SearXNG backend health (Ollama/DeepSeek have no health endpoint) |
 | `dg --engines-list` | List available search engines (includes `ollama` if configured) |
@@ -288,7 +289,9 @@ dg --session ds_1712345678_abcdef --queries "tokio vs async-std,benchmark 2026" 
 - Extracted web content is deduplicated by normalized URL, then by full-text character 5-gram Jaccard similarity. Query redundancy uses a separate word-level or character-bigram Jaccard check.
 - `--quality` reports counted facts: how many results the session holds, how many carry an extracted body, how many distinct sources, and each pending result's id, revision, source, body length, extraction and verification state, and the round that first saw it. It does not score them.
 - Quality is a diagnostic, not a fact verifier. A search discovery can be approved only after `extract` writes a non-empty body and extraction timestamp. An explicitly imported external body must provide non-empty `content` and an `extractor`; absent `extractedAt` is recorded as its import time.
-- Claim policy treats two normalized publisher domains as two sources. It does not infer corporate ownership, editorial relationships, or syndication across domains.
+- Claim policy requires explicit, claim- and body-snapshot-specific source independence judgments; different domains alone are not proof. Identical or similar captured bodies are hints only. Older automatic approvals are retained in review history and require re-review.
+
+Record a judgment by saving `{"action":"record","left":{"resultId":"r1","snapshotId":"s1"},"right":{"resultId":"r2","snapshotId":"s2"},"relation":"independent","reason":"Independent original interviews"}` as UTF-8 JSON under the session's `agent-inputs`, then pass its path to `source-relations --data-file`. Use the IDs from `evidence-list`; `relation` may also be `same`. List judgments without `--data-file`. To correct one, submit `{"action":"revoke","id":"<relation-id>","reason":"<reason>"}`. The prior record remains available for audit. Re-run `policy-aggregate` to review the claim after recording a judgment.
 
 ### Session Management
 
