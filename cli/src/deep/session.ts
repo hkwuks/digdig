@@ -195,6 +195,7 @@ function makeResult(input: SessionResultInput, round?: number): SessionResult {
         }
     } else {
         result.content = input.content ?? '';
+        result.contentLength = result.content.length;
         result.extractor = input.extractor || 'default';
         result.extractedAt = input.extractedAt ?? now;
     }
@@ -447,6 +448,10 @@ export function appendSessionResults(
             let changed = mergeOrigins(existing, input.origins ?? [], importRound);
             if (inferredContentType(input) === 'extracted') {
                 const nextContent = input.content ?? '';
+                if (existing.contentLength !== nextContent.length) {
+                    existing.contentLength = nextContent.length;
+                    changed = true;
+                }
                 const bodyChanged = existing.contentType !== 'extracted' || existing.content !== nextContent;
                 const nextExtractedAt = input.extractedAt ?? Date.now();
                 if (bodyChanged) {
@@ -489,7 +494,7 @@ export function appendSessionResults(
                 existing.title = input.title;
                 changed = true;
             }
-            if (input.excerpt !== undefined && input.excerpt !== existing.excerpt) {
+            if (input.excerpt !== undefined && (inferredContentType(input) !== 'extracted' || input.excerpt.trim()) && input.excerpt !== existing.excerpt) {
                 existing.excerpt = input.excerpt;
                 changed = true;
             } else if (input.excerpt === undefined
@@ -778,10 +783,10 @@ export function recordExtractionOutcome(
             result.extractor = outcome.extractor || 'default';
             result.extractedAt = outcome.extractedAt ?? Date.now();
             result.title = outcome.title || result.title;
-            if (outcome.excerpt !== undefined) result.excerpt = outcome.excerpt;
+            if (outcome.excerpt?.trim()) result.excerpt = outcome.excerpt;
             if (outcome.byline !== undefined) result.byline = outcome.byline;
             if (outcome.siteName !== undefined) result.siteName = outcome.siteName;
-            if (outcome.length !== undefined) result.contentLength = outcome.length;
+            result.contentLength = outcome.content.length;
             result.skippedAt = undefined;
             result.failureCount = undefined;
             result.lastFailedAt = undefined;

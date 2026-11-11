@@ -57,7 +57,7 @@ export async function runExtract(extractor: ContentExtractor, options: ExtractOp
         const retained = new Set(extracted.map(response => resultUrlKey(response)));
         const outcomes = responses.map(response => {
             const failure = failureFrom(response) ?? (retained.has(resultUrlKey(response)) ? undefined : { code: 'tool' as const, message: 'Duplicate extracted body' });
-            return failure ? { url: response.url, failure } : { ...response, extractor: options.jina ? 'jina' : options.obscura ? 'obscura' : 'default' };
+            return failure ? { url: response.url, failure } : { ...response, extractor: response.method ?? 'unknown' };
         });
         const responded = new Set(responses.map(response => resultUrlKey(response)));
         for (const url of urls) {
