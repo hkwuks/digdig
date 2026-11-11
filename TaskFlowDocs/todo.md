@@ -638,15 +638,15 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## C11 — SessionStateError 不产出 JSON envelope
 
 - ID: TF-20261103-11b5ef
-- Status: inbox
+- Status: done
 - Priority: normal
 - Owner: Claude
 - Source: code-review:2026-11-03-claims-commands
 - Added: 2026-11-03
-- Updated: 2026-11-03
+- Updated: 2026-11-11
 - Goal: SessionStateError 未进入 envelope：entry.ts:20-24 只在顶层 catch 打 Fatal error 到 stderr，stdout 为空无 JSON；approve 流程里 approveResults 已提交后 injectApprovedResults 若抛错，失败发生在写入之后
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: `TaskFlowDocs/achieved/2026-11-10-sqlite-session/`（PR #56）
+- Next action: None — 已复核：入口对 SessionStateError 输出 JSON envelope；审批与图更新处于同一事务，图更新失败时审批回滚。2026-11-11 定向测试通过。
 
 ## C12 — 参数校验晚于 initSessionDir 创建目录
 
@@ -808,10 +808,10 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Owner: Claude
 - Source: code-review:2026-11-03-deep
 - Added: 2026-11-03
-- Updated: 2026-11-03
+- Updated: 2026-11-11
 - Goal: 一批已确认的小缺陷：graph-explore.ts:457-471 resultCount 按 mentions 入边自增而 resultIds 是 Set（一个结果同时提两个路径实体时 2 vs 1）；graph-sampling.ts:506 mixed 策略在没有 rngSeed 时固定播 42 且 CLI 从不传 seed，--strategy mixed 永远选 community_core_path；local-doc/searcher.ts:184 与 scanner.ts:146 frontmatter 标题重复拼接成 X — X；session.ts:651 对空字符串也赋值 excerpt，Jina/Obscura 的 excerpt:'' 会清掉搜索层摘要；graph-obfuscate.ts:48-55 --fallback-rules 用裸 writeFileSync 写 graph.json，绕开会话锁且非原子；extractor.ts:390-404 与 extract.ts:15-19 把 50-99 字符的 Defuddle 结果记为失败并丢弃可用文本；session.ts:654 写入的 contentLength 无人读取且 Defuddle 记词数、Jina/Obscura 记字符数
 - Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Next action: PR #56 已处理会话图事务写入和独立图原子替换；其余六项仍需逐项复现和处理。另需验证仅含 graph.json 的旧会话直接传入该文件路径时是否被误识别为独立图，导致绕过会话迁移。
 
 ## SKILL.md 命令表漏了 doc-index / doc-search，且没有任何校验
 
@@ -855,10 +855,10 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Owner: Claude
 - Source: design report review
 - Added: 2026-11-07
-- Updated: 2026-11-07
+- Updated: 2026-11-11
 - Goal: `SessionResult.status` 是 `pending`/`approved` 二值，同时承担两个语义：Agent 对这条结果的采信决定，以及这条结果的内容是否仍是批准时的那一份。`repairInvalidDependents`（`cli/src/deep/session.ts:520-560`）用 `result.status !== 'approved'` 判定 `contentChanged`，于是**所有**通向非 approved 的路径被一视同仁：Agent 主动 skip、正文被重新抽取、被跳过的结果被重新导入。三者触发同一套级联——`evidences` 标 `invalid`、受影响的 `claim` 回 `verifying`、对应 `review` 直接删除、语义图里 `sourceResultIds` 含该 id 的节点与边物理删除、`path` 节点因实体消失而删除、孤立 `query`/`domain` 节点也删除。D1 只是这个模型的第一个受害者：当时（`TaskFlowDocs/achieved/2026-11-03-session-reimport-downgrade/`）的修法是加 guard `(bodyChanged || wasSkipped)`，**根因未动**，任何新增的降级路径都会复现同类破坏。`docs/agent_search_integrated_report_2026-10-27.md` 4.3 的数据契约把这件事拆成三个独立实体（`SubQuestion.status`、`Claim.status`、`Evidence`），可作为拆分参照。
 - Task: Not promoted.
-- Next action: 拆分字段——把「内容版本」独立出来（如 `contentRevision` 或 snapshot id），`repairInvalidDependents` 只在内容版本变化或显式 skip 时级联，而不是看 `status`。
+- Next action: 与 TF-20261107-024a82 联合设计：拆开 Agent 采信决定与内容版本有效性；按快照变化和明确的 skip 语义处理依赖，避免仅凭 status 级联。设计完成后再确定实施范围。
 
 ## SessionResult 没有 snapshot 概念，证据定位无法在重抽取后重新对齐
 
@@ -868,10 +868,10 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Owner: Claude
 - Source: design report review
 - Added: 2026-11-07
-- Updated: 2026-11-07
+- Updated: 2026-11-11
 - Goal: `SessionResult.content` 是裸字符串，没有 `normalized_text_hash`，没有 `extraction_version`。`EvidenceSpan`（`cli/src/claims/types.ts:46`）的 `charStart`/`charEnd` 是 UTF-16 偏移，正文重新抽取后偏移失效；现在只能靠 `contentHash` 校验失败来发现，**没有版本化的重定位机制**。`docs/agent_search_integrated_report_2026-10-27.md` 4.3 明确要求「重抽取或正文标准化版本变化时，应重新定位，不能沿用旧偏移」，并把 `Snapshot(id, url, final_url, mime, normalized_text_hash, extraction_version, access_level)` 列为一个独立实体。次要缺口：locator 只有文本偏移一种，报告还要求 PDF 页码/区域、表格行列、代码 commit+文件+行号、视频时间戳——「不应假装所有证据都能被表示为 UTF-8 文本中的一对 start/end」。
 - Task: Not promoted.
-- Next action: 先定 snapshot 的存储位置与版本语义（与 `TF-20261107-492224` 的三层拆分是同一件事），多 locator 类型留到之后。
+- Next action: 与 TF-20261107-23d219 联合设计快照及状态语义。用户确认保留证据引用的旧快照，未引用快照的清理由后续策略决定；正文变化后证据先待重新定位，唯一准确匹配可重新定位，其他情况交由人工或 Agent 处理。需明确旧 SQLite 数据迁移、审批与审核的后续行为；多 locator 类型留待后续。
 
 ## results.json 把三层存储混成一个文件
 
