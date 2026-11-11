@@ -89,17 +89,19 @@
 - Files: README、项目 skill、CHANGELOG、测试和 TaskFlow 文档。
 - Implementation checklist:
   - [x] 更新来源关系、未知和已有审核重审的 CLI/Agent 使用说明。
-  - [ ] 审查迁移安全、兼容和所有调用点；执行类型、构建、全量测试及 CI。
+  - [x] 审查迁移安全、兼容和所有调用点；执行类型、构建、全量测试及 CI。
 - Acceptance: 所有 PRD 场景可核验，已批准的范围完成，用户可审查 PR。
 - Verification: Node 24.15、本地完整测试、真实 CLI、Linux CI 和 PR 模板。
 - Rollback: 不发布；保留历史审计及隔离工作树。
-- Status: in_progress
+- Status: done
 
 ## Checkpoints
 
 批准 v1 后按步骤执行。若无法证明正文完整性，保守标未知；若需要改变已批准语义，先更新版本并重新取得用户选择。
 
 ## Verification / Review
+
+- 2026-11-11 Step 4: GitHub CI build and test pass on Node 24.15 and 24.x
 
 - 2026-11-11 Step 4: local checks pass, remote CI pending
 
@@ -113,7 +115,7 @@
 - 2026-11-11：`npm test`：68 文件、746 测试通过；类型检查及 `tsc` 编译通过。全量失败的旧域名假设已按新规则修订；实际锚点数据校正后重跑通过。
 - 2026-11-11：真实 CLI 验证同域名两来源：未知时 `needsReview`，记录独立及依据后 `approved`。SQLite v2 升级中断、并发及旧 JSON 导入有真实数据库测试。
 - 2026-11-11：按 `agent-skills:code-review-and-quality` 自审事务、历史、输入和性能；发现并修正关系类型校验，13 项相关测试及类型检查通过。正文相似提示最多比较 100 对和每份正文前 100,000 字符，输出 `hintsTruncated`。
-- CI 尚待 PR 建立后运行；不将本地通过当作远端 CI 通过。
+- GitHub CI run 42983885102：Node 24.15.0 和 24.x 的 build/test 全部通过。首次 24.15 测试中两个既有测试超时，重跑该作业通过；具体环境原因未确定。
 
 ## Change Log
 
