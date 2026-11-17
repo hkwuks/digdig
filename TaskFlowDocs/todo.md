@@ -827,6 +827,7 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Goal: **2026-11-07 撤销，处理对象已不存在。** 原条目要改的是 `cli/src/deep/tfidf.ts:119` 的 `tfidf: tfSum * idf` 排序，把它改成「IDF 优先并按需过滤」。该函数（`computeTfIdf`）已随 `TF-20261107-1aa3f8` 整体移除——`graph-preprocess` 不再输出 `tfidfTerms`，同一命令内的 `termFrequencies[]` 是整数 df、`resultProvenance[].title` 可直接读，SOP 已改指这两个字段。撤销前对原结论的两次实测修正，一并记录以免以后重走：①「把 `tfSum` 换成每文档平均频次就能修正排序」不成立，在 20 条结果 / 4 方面各 5 条 / 主题词覆盖 10 条的语料上，两组词项的比值从 1.33 变为 0.55（确实跨过了 1，相对次序反转），但整体上大量 `df=1` 词项根本不受这个归一化影响——真实会话 `ds_1784791971087_gb9ood` 的 501 个词项里 450 个是 `df=1`（89.8%），归一化对它们无效。②「按 IDF 排序」按字面实现会让结果更差：`df=1` 的 IDF 最高，真实会话上输出就是「把所有只出现一次的词打乱后输出」。原先归给 `docs/agent_search_integrated_report_2026-10-27.md` 3.4.3 的实测与 3.4.5 的「不要在命令行内实现方面聚类」，在该文件被新版 `docs/agent_search_integrated_report.md` 取代后已无法核对（新版无 3.4 节、无 R31–R40）；同一条判据实际来源是 `TaskFlowDocs/achieved/2026-10-28-result-identity-pipeline/spec.md:214`，只适用于 `coverage.ts` 的 `distinctiveTerms`，那里未受影响。
 - Task: None — superseded by `TF-20261107-1aa3f8`（已完成，`achieved/2026-11-07-tokenizer-tfidf/`）。
 - Next action: None — `computeTfIdf` 已随 `achieved/2026-11-07-tokenizer-tfidf/` 移除。
+
 ## status 字段混了「Agent 是否认可」与「内容是否还是批准时的那份」
 
 - ID: TF-20261107-23d219
@@ -906,3 +907,88 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Goal: 研究 L2 搜索中实体图和 Claim—Evidence—Review 的独立收益与组合成本。对同一批具有代表性的 L2 问题，设计可比较的基线、单独启用建图或审核、以及两者同时启用的对照；区分相同证据输入下的质量差异和端到端搜索效果。评估结论正确性、引用支持率、覆盖与遗漏、搜索和工具调用次数、耗时及 token 成本，明确评价依据与统计不确定性，再讨论 L2 哪些步骤应按需启用，不预设取消或保留。L1 现已无需建图和审核；L3 不在本条变更范围。
 - Task: Not promoted.
 - Next action: 设计可复现的对照研究并讨论评价标准；当前仅登记，不实施。与 TF-20261110-a7e5c1 的抽取能力和插件研究相关，但不重复该项范围。
+
+## provider 直连路径不做空结果过滤与内容去重：SearXNG 路径在 se
+
+- ID: TF-20261116-2f147f
+- Status: promoted
+- Priority: normal
+- Owner: Claude
+- Source: code-review:2026-10-28-comprehensive
+- Kind: defect
+- Added: 2026-11-16
+- Updated: 2026-11-17
+- Goal: provider 直连路径不做空结果过滤与内容去重：SearXNG 路径在 service.ts:230-237 走 filterEmptyResults + dedupe，而 ollama-service.ts 与 deepseek-service.ts 原样返回，空标题项与近重复正文会直接进入融合与会话；归档任务 2026-10-28-result-identity-pipeline 把这一条记为 Follow-up 但从未进 todo
+- Task: `TaskFlowDocs/2026-11-17-provider-path-normalization/`
+- Next action: Complete PRD / Spec / Plan and request approval.
+
+## --limit 在三个 provider 路径上静默截断：ollama-service.ts:32 Math.min
+
+- ID: TF-20261116-f8776d
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-review:2026-10-28-comprehensive
+- Kind: defect
+- Added: 2026-11-16
+- Updated: 2026-11-16
+- Goal: --limit 在三个 provider 路径上静默截断：ollama-service.ts:32 Math.min(limit, 10)、deepseek-service.ts:43 Math.min(limit, 50)、service.ts:237 deduped.slice(0, limit) 三层各自砍一刀，dg -l 20 -e ollama 实际只得 10 条且输出无任何说明；2026-10-28 review 已记录，从未进 todo
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## SimHash 是死代码且 deep/index.ts 桶文件零消费者：cli/src/deep/simha
+
+- ID: TF-20261116-48f7e2
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-review:2026-10-28-comprehensive
+- Kind: internal
+- Added: 2026-11-16
+- Updated: 2026-11-16
+- Goal: SimHash 是死代码且 deep/index.ts 桶文件零消费者：cli/src/deep/simhash.ts 只被 cli/src/deep/index.ts:6 导出，而 grep -rn 'deep/index' src test 无匹配，所以整个模块只能通过它自己的测试到达；桶文件里的 mergeExtractedContent 等导出同样无真实调用方。CLAUDE.md 已注明 SimHash is dead code，但从未进 todo
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## 阈值散落在各模块内且无可覆盖入口：dedupe.ts:99 Math.max(thresho
+
+- ID: TF-20261116-e1c513
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-review:2026-10-28-comprehensive
+- Kind: capability
+- Added: 2026-11-16
+- Updated: 2026-11-16
+- Goal: 阈值散落在各模块内且无可覆盖入口：dedupe.ts:99 Math.max(threshold,0.97)/:103,127 默认 0.92、claims/deterministic-checks.ts:139-140 的 0.3 与 0.2、co-occurrence.ts:29 DEFAULT_THRESHOLD=2、extractor.ts:21 OBSCURA_THRESHOLD=50、search-strategy.ts:34 transitionThreshold=0.2 都是硬编码；只有 config.ts 的 redundancyThreshold 0.7 / redundancyBigramThreshold 0.5 可经环境变量覆盖。原任务 TF-20261028-12ced8 只存在于已删除的 worktree 分支，main 的 todo 从来没有这条记录
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## withSessionLock 的陈旧锁清理存在 stat→rm 竞态且失败不重试：se
+
+- ID: TF-20261116-273731
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: design report review
+- Kind: defect
+- Added: 2026-11-16
+- Updated: 2026-11-16
+- Goal: withSessionLock 的陈旧锁清理存在 stat→rm 竞态且失败不重试：session.ts:129-155 在 mkdir 失败后 statSync 取 mtime，判定过期就 rmSync 整个锁目录再重建，两步之间另一个进程若刚抢到锁会被连根删掉（与已记录的 withIndexLock 无条件删除是同一类缺陷，但这里的路径是竞态而非 finally）；同时 SESSION_LOCK_STALE_MS=30s 期间任何并发命令直接抛 SESSION_BUSY 且 entry.ts 只把 SessionStateError 打到 stderr、stdout 无 JSON
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+
+## CLAUDE.md 的命令表与 runCli.ts 实际注册的命令长期漂移且无校
+
+- ID: TF-20261116-fa0414
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: code-review:2026-10-28-comprehensive
+- Kind: internal
+- Added: 2026-11-16
+- Updated: 2026-11-16
+- Goal: CLAUDE.md 的命令表与 runCli.ts 实际注册的命令长期漂移且无校验：CLAUDE.md 列 14 个命令，createProgram() 注册 27 个，缺 claim-add / claim-list / evidence-list / evidence-search / evidence-verify / doc-index / doc-search / extract / init / policy-aggregate / results-add / review-list / verdict-list 共 13 个。2026-11-07 的 skill-command-table.test.ts 只校验 skills/digdig/SKILL.md，明确把 CLAUDE.md 排除在外
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
+

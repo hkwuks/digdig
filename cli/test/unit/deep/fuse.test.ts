@@ -150,6 +150,65 @@ describe('fuseResults', () => {
         expect(origins.map(o => o.tool)).toEqual(['digdig', 'deepseek']);
     });
 
+    describe('provider result hygiene', () => {
+        it('drops results with no title or no body', () => {
+            const output = fuseResults({
+                responses: [response('q', [
+                    result('https://empty-title.com', { title: '' }),
+                    result('https://empty-body.com', { content: '' }),
+                    result('https://kept.com'),
+                ])],
+                onlyCurrent: false,
+                limit: 0,
+            });
+
+            expect(output.display.map(r => r.url)).toEqual(['https://kept.com']);
+            expect(output.fused.map(item => item.id)).toHaveLength(1);
+        });
+
+        it('collapses results whose bodies are near-identical, keeping the first', () => {
+            const body = 'the exact same body text repeated here for comparison purposes';
+            const output = fuseResults({
+                responses: [response('q', [
+                    result('https://first.com', { content: body }),
+                    result('https://copy.com', { content: body }),
+                ])],
+                onlyCurrent: false,
+                limit: 0,
+            });
+
+            expect(output.display.map(r => r.url)).toEqual(['https://first.com']);
+        });
+
+        it('discards body-less results instead of collapsing them into one', () => {
+            // `jaccardSimilarity('', '')` is 1, so deduping before filtering would
+            // leave one survivor rather than none — the order is the assertion.
+            const output = fuseResults({
+                responses: [response('q', [
+                    result('https://a.com', { content: '' }),
+                    result('https://b.com', { content: '' }),
+                    result('https://c.com', { content: '' }),
+                ])],
+                onlyCurrent: false,
+                limit: 0,
+            });
+
+            expect(output.display).toEqual([]);
+            expect(output.fused).toEqual([]);
+            expect(output.currentKeys.size).toBe(0);
+        });
+
+        it('records no origin for a result that hygiene dropped', () => {
+            const output = fuseResults({
+                responses: [response('only query', [result('https://empty.com', { title: '' })])],
+                onlyCurrent: false,
+                limit: 0,
+            });
+
+            expect(output.originsByKey.size).toBe(0);
+        });
+    });
+
     it('returns an empty result for no responses', () => {
         const output = fuseResults({ responses: [], onlyCurrent: true, limit: 10 });
         expect(output.display).toEqual([]);

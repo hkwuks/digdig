@@ -128,3 +128,18 @@ export function dedupe<T extends DedupItem>(items: T[], threshold: number = 0.92
     const urlDeduped = dedupeByUrl(items);
     return dedupeByJaccard(urlDeduped, threshold);
 }
+
+/**
+ * Drop results with no title or no body.
+ *
+ * Every provider is expected to return both, and SearXNG already applied this
+ * rule to its own results before this function lived here. Promoting it to the
+ * shared module is what lets a second path apply the same rule instead of
+ * re-deciding it.
+ *
+ * Must run before `dedupe`: `jaccardSimilarity('', '')` is 1, so a batch of
+ * body-less results would otherwise collapse into one rather than being dropped.
+ */
+export function filterEmptyResults<T extends { title: string; content: string }>(items: T[]): T[] {
+    return items.filter(item => item.title.trim().length > 0 && item.content.trim().length > 0);
+}

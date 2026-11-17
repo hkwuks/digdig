@@ -531,7 +531,7 @@ describe('session query history', () => {
 
     it('uses one round for a successful batch including an empty query', async () => {
         const dir = mkdtempSync(join(tmpdir(), 'dg-query-round-'));
-        const search = vi.fn(async ({ query }: { query: string }) => ({ query, numberOfResults: query === 'first' ? 1 : 0, results: query === 'first' ? [{ url: 'https://example.com/first', title: 'First', engine: 'test', category: 'general' }] : [], suggestions: [], answers: [], corrections: [], infoboxes: [], unresponsiveEngines: [] }));
+        const search = vi.fn(async ({ query }: { query: string }) => ({ query, numberOfResults: query === 'first' ? 1 : 0, results: query === 'first' ? [{ url: 'https://example.com/first', title: 'First', content: 'first body', engine: 'test', category: 'general' }] : [], suggestions: [], answers: [], corrections: [], infoboxes: [], unresponsiveEngines: [] }));
         vi.spyOn(console, 'log').mockImplementation(() => {});
         try {
             await runCli(['--queries', 'first,second', '--session', dir, '--format', 'json'], { search } as any);
