@@ -1,6 +1,6 @@
 # Plan — provider 结果的空项过滤与内容去重收拢到融合入口
 > Task version: v1
-> Status: in_progress
+> Status: completed
 
 No spec required — 单文件改动 + 一处实现迁移，无新接口、无新抽象。
 

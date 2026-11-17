@@ -1,6 +1,6 @@
 # PRD — 搜索结果的空项过滤与内容去重收拢到统一入口
 > Task version: v1
-> Status: planning
+> Status: completed
 
 ## Goal
 
