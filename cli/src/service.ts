@@ -5,7 +5,7 @@
 import axios, { AxiosInstance } from 'axios';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import { config } from './config.js';
-import { dedupe } from './deep/dedupe.js';
+import { dedupe, filterEmptyResults } from './deep/dedupe.js';
 import { SearchError, searchErrorFromStatus } from './errors.js';
 
 export interface SearchOptions {
@@ -81,10 +81,6 @@ export interface SearchResponse {
         engine: string;
     }>;
     unresponsiveEngines: UnresponsiveEngine[];
-}
-
-function filterEmptyResults(results: SearchResult[]): SearchResult[] {
-    return results.filter(r => r.title.trim().length > 0 && r.content.trim().length > 0);
 }
 
 /**

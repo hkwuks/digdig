@@ -9,7 +9,7 @@
  * `queries.length === 1` is just the case where one response came back.
  */
 
-import { resultUrlKey } from './dedupe.js';
+import { dedupe, filterEmptyResults, resultUrlKey } from './dedupe.js';
 import { rrf, RrfInputItem } from './rrf.js';
 import type { SearchResponse, SearchResult } from '../service.js';
 import type { ResultOrigin } from './session.js';
@@ -50,6 +50,22 @@ export function originTool(engine: string, externalProviders: readonly string[])
     return externalProviders.includes(engine) ? engine : 'digdig';
 }
 
+/**
+ * Apply the same hygiene SearXNG already applies to its own results: drop the
+ * entries a provider returned without a title or body, then collapse near
+ * duplicates by content.
+ *
+ * The order matters and is the whole point. `jaccardSimilarity('', '')` is 1,
+ * so deduping first would merge a batch of body-less results into one instead
+ * of discarding them.
+ *
+ * Only provider responses are cleaned. A `--merge` file is the user's own
+ * export and a session snapshot carries no bodies to compare — both rank as-is.
+ */
+function sanitize(results: SearchResult[]): SearchResult[] {
+    return dedupe(filterEmptyResults(results));
+}
+
 function toRanking(results: ReadonlyArray<{ url: string; source?: string }>): RrfInputItem[] {
     // Within one ranking an id must be unique, or RRF counts it twice: it scores
     // by array position, and the same id at two positions earns two terms.
@@ -75,7 +91,10 @@ function toRanking(results: ReadonlyArray<{ url: string; source?: string }>): Rr
  *    happens once, at the end.
  */
 export function fuseResults(input: FusionInput): FusionOutput {
-    const rankings = input.responses.map(response => toRanking(response.results));
+    // Cleaned once, before anything reads these results — the ranking and the
+    // origin bookkeeping must agree on which results survived.
+    const cleaned = input.responses.map(response => sanitize(response.results));
+    const rankings = cleaned.map(toRanking);
     if (input.mergeResults?.length) rankings.push(toRanking(input.mergeResults));
     if (input.sessionSnapshot?.length) rankings.push(toRanking(input.sessionSnapshot));
 
@@ -85,8 +104,8 @@ export function fuseResults(input: FusionInput): FusionOutput {
     const currentKeys = new Set<string>();
     const current = new Map<string, SearchResult>();
 
-    for (const response of input.responses) {
-        for (const result of response.results) {
+    input.responses.forEach((response, index) => {
+        for (const result of cleaned[index]) {
             const key = resultUrlKey(result);
             currentKeys.add(key);
             // First provider to return a URL supplies its body and its source score;
@@ -100,7 +119,7 @@ export function fuseResults(input: FusionInput): FusionOutput {
             });
             originsByKey.set(key, origins);
         }
-    }
+    });
     // Imported results belong to this invocation, not the session history.
     for (const result of input.mergeResults ?? []) {
         const key = resultUrlKey(result);

@@ -911,16 +911,16 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## provider 直连路径不做空结果过滤与内容去重：SearXNG 路径在 se
 
 - ID: TF-20261116-2f147f
-- Status: inbox
+- Status: promoted
 - Priority: normal
 - Owner: Claude
 - Source: code-review:2026-10-28-comprehensive
 - Kind: defect
 - Added: 2026-11-16
-- Updated: 2026-11-16
+- Updated: 2026-11-17
 - Goal: provider 直连路径不做空结果过滤与内容去重：SearXNG 路径在 service.ts:230-237 走 filterEmptyResults + dedupe，而 ollama-service.ts 与 deepseek-service.ts 原样返回，空标题项与近重复正文会直接进入融合与会话；归档任务 2026-10-28-result-identity-pipeline 把这一条记为 Follow-up 但从未进 todo
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: `TaskFlowDocs/2026-11-17-provider-path-normalization/`
+- Next action: Complete PRD / Spec / Plan and request approval.
 
 ## --limit 在三个 provider 路径上静默截断：ollama-service.ts:32 Math.min
 
