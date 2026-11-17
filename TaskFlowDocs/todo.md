@@ -911,7 +911,7 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## provider 直连路径不做空结果过滤与内容去重：SearXNG 路径在 se
 
 - ID: TF-20261116-2f147f
-- Status: promoted
+- Status: done
 - Priority: normal
 - Owner: Claude
 - Source: code-review:2026-10-28-comprehensive
@@ -919,9 +919,9 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Added: 2026-11-16
 - Updated: 2026-11-17
 - Goal: provider 直连路径不做空结果过滤与内容去重：SearXNG 路径在 service.ts:230-237 走 filterEmptyResults + dedupe，而 ollama-service.ts 与 deepseek-service.ts 原样返回，空标题项与近重复正文会直接进入融合与会话；归档任务 2026-10-28-result-identity-pipeline 把这一条记为 Follow-up 但从未进 todo
-- Task: `TaskFlowDocs/2026-11-17-provider-path-normalization/`
-- Next action: 等 CI 绿后合并 PR #64
-- Notes: 分支 fix/2026-11-17-provider-path-normalization，提交 8ca9f6e，PR https://github.com/hkwuks/digdig/pull/64
+- Task: `TaskFlowDocs/achieved/2026-11-17-provider-path-normalization/`
+- Next action: None — completed and archived.
+- Notes: 分支 fix/2026-11-17-provider-path-normalization，提交 8ca9f6e，PR #64 已合并（a17effd），CI 4/4 通过
 
 ## --limit 在三个 provider 路径上静默截断：ollama-service.ts:32 Math.min
 
