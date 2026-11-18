@@ -6,8 +6,8 @@ import { runCli } from '../../src/runCli.js';
 
 vi.mock('axios');
 const providerSearch = vi.fn();
-vi.mock('../../src/deepseek-service.js', () => ({ DeepSeekService: class { search = providerSearch; } }));
-vi.mock('../../src/ollama-service.js', () => ({ OllamaService: class { search = providerSearch; } }));
+vi.mock('../../src/deepseek-service.js', () => ({ MAX_RESULTS: 50, DeepSeekService: class { search = providerSearch; } }));
+vi.mock('../../src/ollama-service.js', () => ({ MAX_RESULTS: 10, OllamaService: class { search = providerSearch; } }));
 
 describe('SearXNG configuration validation', () => {
   const saved = { baseUrl: config.baseUrl, deepseekApiKey: config.deepseekApiKey, ollamaApiKey: config.ollamaApiKey, allowedEngines: config.allowedEngines, exitCode: process.exitCode };

@@ -15,8 +15,8 @@ import { SessionStateError } from './deep/session-lock.js';
 import { createSuccessEnvelope, createErrorEnvelope } from './protocol.js';
 import { SearchError } from './errors.js';
 import { config } from './config.js';
-import { OllamaService } from './ollama-service.js';
-import { DeepSeekService } from './deepseek-service.js';
+import { OllamaService, MAX_RESULTS as OLLAMA_MAX_RESULTS } from './ollama-service.js';
+import { DeepSeekService, MAX_RESULTS as DEEPSEEK_MAX_RESULTS } from './deepseek-service.js';
 import { initConfig } from './init.js';
 import { runExtract, ExtractOptions } from './commands/extract.js';
 import { runQueryGraph, QueryGraphOptions } from './commands/query-graph.js';
@@ -150,6 +150,16 @@ function formatAsMarkdown(data: any): string {
     const note = filterScopeNote(data);
     if (note) {
         lines.push(note);
+        lines.push('');
+    }
+
+    // Same place and form as the unresponsive-engine line: both describe the
+    // request that was made, not the results that came back.
+    if (data.limitNotes && data.limitNotes.length > 0) {
+        const capped = data.limitNotes
+            .map((entry: any) => `${entry.provider} (asked for ${entry.requested}, provider caps at ${entry.applied})`)
+            .join(', ');
+        lines.push(`*Limit capped: ${capped}*`);
         lines.push('');
     }
 
@@ -346,17 +356,36 @@ type ExternalProvider = typeof EXTERNAL_PROVIDERS[number];
 
 const PROVIDER_IMPLS: Record<ExternalProvider, {
     configured: () => boolean;
+    /** Hard ceiling the provider's API enforces on result count. */
+    maxResults: number;
     search: (query: string, limit: number) => Promise<SearchResponse>;
 }> = {
     ollama: {
         configured: () => Boolean(config.ollamaApiKey),
+        maxResults: OLLAMA_MAX_RESULTS,
         search: (query, limit) => new OllamaService({ apiKey: config.ollamaApiKey }).search({ query, limit }),
     },
     deepseek: {
         configured: () => Boolean(config.deepseekApiKey),
+        maxResults: DEEPSEEK_MAX_RESULTS,
         search: (query, limit) => new DeepSeekService({ apiKey: config.deepseekApiKey }).search({ query, limit }),
     },
 };
+
+/**
+ * A request the provider answered with fewer results than asked for, because
+ * its own API caps the count.
+ *
+ * This is a fact about the request, not a judgement about the results: the
+ * ceiling belongs to the upstream and nothing here can raise it. Saying it is
+ * the only difference between "your `-l 20` was honoured" and "you got 10 and
+ * were never told", which used to be indistinguishable in the output.
+ */
+interface LimitNote {
+    provider: ExternalProvider;
+    requested: number;
+    applied: number;
+}
 
 interface ProviderSearchPlan {
     /** Selected providers whose API key is present, in a stable order. */
@@ -387,15 +416,22 @@ async function searchOneQuery(
     plan: ProviderSearchPlan,
     searchOptions: SearchOptions,
     limit: number
-): Promise<{ providerResponses: SearchResponse[]; sxngResponse: SearchResponse | null }> {
+): Promise<{ providerResponses: SearchResponse[]; sxngResponse: SearchResponse | null; limitNotes: LimitNote[] }> {
     if (plan.usable.length === 0 || plan.sxngEngines.length > 0) assertSearXNGConfig();
     const providerResponses: SearchResponse[] = [];
+    const limitNotes: LimitNote[] = [];
     for (const provider of plan.usable) {
         const started = Date.now();
         feedbackLog('provider', 'start', { provider });
         try {
             const response = await PROVIDER_IMPLS[provider].search(searchOptions.query, limit);
             feedbackLog('provider', 'ok', { provider, durationMs: Date.now() - started, count: response.results.length });
+            // The provider caps the count itself, so compare against its ceiling
+            // rather than against what came back: a provider may also return
+            // fewer results than the ceiling for reasons of its own, and that is
+            // not a downgrade this invocation caused.
+            const applied = PROVIDER_IMPLS[provider].maxResults;
+            if (limit > applied) limitNotes.push({ provider, requested: limit, applied });
             providerResponses.push(response);
         } catch (error) {
             feedbackLog('provider', 'error', { provider, durationMs: Date.now() - started, error: feedbackError(error) });
@@ -419,7 +455,7 @@ async function searchOneQuery(
         }
     }
 
-    return { providerResponses, sxngResponse };
+    return { providerResponses, sxngResponse, limitNotes };
 }
 
 /** Attribute a result to the tool that produced it, for session origin records. */
@@ -642,6 +678,9 @@ async function runSearchInner(
         // how many responses land in the array.
         const plan = planProviderSearch(engines);
         const responses: SearchResponse[] = [];
+        // One note per provider across every query in this invocation: repeating
+        // "ollama capped at 10" once per query would bury the fact in noise.
+        const limitNotes: LimitNote[] = [];
         let searchRound: number | undefined;
         for (const query of queries) {
             const searchOptions: SearchOptions = {
@@ -653,8 +692,11 @@ async function runSearchInner(
                 language: options.language,
                 timeRange: options.timeRange as any,
             };
-            const { providerResponses, sxngResponse } = await searchOneQuery(service, plan, searchOptions, limit);
+            const { providerResponses, sxngResponse, limitNotes: notes } = await searchOneQuery(service, plan, searchOptions, limit);
             if (options.session) searchRound = recordSuccessfulQuery(options.session, query, searchRound);
+            for (const note of notes) {
+                if (!limitNotes.some(existing => existing.provider === note.provider)) limitNotes.push(note);
+            }
             responses.push(...providerResponses);
             if (sxngResponse) responses.push(sxngResponse);
         }
@@ -716,6 +758,9 @@ async function runSearchInner(
             // request, not any individual result.
             ...(options.timeRange ? { timeRange: options.timeRange } : {}),
             ...(options.language ? { language: options.language } : {}),
+            // Absent when nothing was capped, so a request the providers could
+            // honour in full keeps the exact shape it had before this field.
+            ...(limitNotes.length ? { limitNotes } : {}),
             ...(sessionInfo ? { session: { dir: options.session, added: sessionInfo.added, total: sessionInfo.total } } : {}),
         };
 

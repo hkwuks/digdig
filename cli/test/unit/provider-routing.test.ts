@@ -6,7 +6,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 const deepseekSearch = vi.fn();
 const ollamaSearch = vi.fn();
 
+// The ceiling constants travel with the class: the router reads both from the
+// provider module, so a mock that omits one hides the code path under test.
 vi.mock('../../src/deepseek-service.js', () => ({
+    MAX_RESULTS: 50,
     DeepSeekService: class {
         constructor(readonly opts: { apiKey: string }) {}
         search = deepseekSearch;
@@ -14,6 +17,7 @@ vi.mock('../../src/deepseek-service.js', () => ({
 }));
 
 vi.mock('../../src/ollama-service.js', () => ({
+    MAX_RESULTS: 10,
     OllamaService: class {
         constructor(readonly opts: { apiKey: string }) {}
         search = ollamaSearch;
@@ -270,6 +274,50 @@ describe('provider routing', () => {
             .flatMap(result => result.origins.map(origin => origin.tool))
             .sort();
         expect(tools).toEqual(['deepseek', 'digdig']);
+    });
+
+    it('says so when a requested limit exceeds the provider ceiling', async () => {
+        config.ollamaApiKey = 'k';
+        const service = stubSxng();
+
+        const envelope = await run(['q', '-e', 'ollama', '-l', '20', '--format', 'json'], service);
+
+        expect(envelope.data.limitNotes).toEqual([{ provider: 'ollama', requested: 20, applied: 10 }]);
+    });
+
+    it('omits the note entirely when every provider can honour the limit', async () => {
+        config.ollamaApiKey = 'k';
+        const service = stubSxng();
+
+        const envelope = await run(['q', '-e', 'ollama', '-l', '5', '--format', 'json'], service);
+
+        // Not an empty array: a request that was honoured in full keeps the
+        // exact data shape it had before limitNotes existed.
+        expect(envelope.data).not.toHaveProperty('limitNotes');
+    });
+
+    it('lists every provider that capped the same request', async () => {
+        config.ollamaApiKey = 'k';
+        config.deepseekApiKey = 'k';
+        const service = stubSxng();
+
+        const envelope = await run(['q', '-e', 'ollama,deepseek', '-l', '80', '--format', 'json'], service);
+
+        expect(envelope.data.limitNotes).toEqual([
+            { provider: 'ollama', requested: 80, applied: 10 },
+            { provider: 'deepseek', requested: 80, applied: 50 },
+        ]);
+    });
+
+    it('renders the cap in markdown output too', async () => {
+        config.ollamaApiKey = 'k';
+        const output = vi.spyOn(console, 'log').mockImplementation(() => {});
+        vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+        await runCli(['q', '-e', 'ollama', '-l', '20', '--format', 'md'], stubSxng() as never);
+        const text = output.mock.calls.at(-1)![0] as string;
+        output.mockRestore();
+
+        expect(text).toContain('Limit capped: ollama (asked for 20, provider caps at 10)');
     });
 
     it('reports unconfigured providers before any search is attempted', async () => {

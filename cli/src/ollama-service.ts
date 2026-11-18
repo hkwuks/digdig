@@ -9,6 +9,13 @@ import axios, { AxiosInstance } from 'axios';
 import { SearchResult, SearchResponse } from './service.js';
 import { SearchError, searchErrorFromStatus } from './errors.js';
 
+/**
+ * Ollama's hard ceiling: `max_results` is documented as "default 5, max 10".
+ * Exported so the router can tell the user when a larger `--limit` is capped
+ * instead of silently returning fewer results than asked for.
+ */
+export const MAX_RESULTS = 10;
+
 export interface OllamaServiceOptions {
   apiKey: string;
   baseUrl?: string;
@@ -29,7 +36,7 @@ export class OllamaService {
   }
 
   async search(options: { query: string; limit?: number }): Promise<SearchResponse> {
-    const maxResults = Math.min(options.limit ?? 5, 10);
+    const maxResults = Math.min(options.limit ?? 5, MAX_RESULTS);
 
     // This method used to have no try/catch at all, so axios's raw AxiosError
     // escaped to the caller, which reported it as `Request failed with status

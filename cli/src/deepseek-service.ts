@@ -9,6 +9,13 @@ import axios, { AxiosInstance } from 'axios';
 import { SearchResult, SearchResponse } from './service.js';
 import { SearchError, searchErrorFromStatus } from './errors.js';
 
+/**
+ * DeepSeek's hard ceiling: `count` is documented as "between 1 and 50", and a
+ * larger value is rejected outright. Exported so the router can report the cap
+ * rather than let the request fail or silently return fewer results.
+ */
+export const MAX_RESULTS = 50;
+
 export interface DeepSeekServiceOptions {
   apiKey: string;
   baseUrl?: string;
@@ -40,7 +47,7 @@ export class DeepSeekService {
     // count accepts 1-50 (default 10). The query is passed through untruncated:
     // the 128-character limit is the server's to enforce, and silently cutting
     // a query here would change what the user asked for.
-    const count = Math.min(options.limit ?? 10, 50);
+    const count = Math.min(options.limit ?? 10, MAX_RESULTS);
 
     let payload: { results?: DeepSeekSearchItem[] };
     try {
