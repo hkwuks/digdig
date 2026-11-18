@@ -932,10 +932,10 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Source: code-review:2026-10-28-comprehensive
 - Kind: defect
 - Added: 2026-11-16
-- Updated: 2026-11-16
-- Goal: --limit 在三个 provider 路径上静默截断：ollama-service.ts:32 Math.min(limit, 10)、deepseek-service.ts:43 Math.min(limit, 50)、service.ts:237 deduped.slice(0, limit) 三层各自砍一刀，dg -l 20 -e ollama 实际只得 10 条且输出无任何说明；2026-10-28 review 已记录，从未进 todo
+- Updated: 2026-11-18
+- Goal: `--limit` 与 provider 真实能力不符时，用户拿不到也看不出差别。**2026-11-18 查证后订正，原描述称「三层各自静默截断」不准确——三处性质不同。** ①`cli/src/ollama-service.ts:32` `Math.min(options.limit ?? 5, 10)`：上限真实，[Ollama 官方文档](https://docs.ollama.com/capabilities/web-search)原文是 `max_results (integer, optional): maximum results to return (default 5, max 10)`，代码正确，缺陷只是静默——`-l 20 -e ollama` 实际得 10 条、输出无任何说明。②`cli/src/deepseek-service.ts:43` `Math.min(options.limit ?? 10, 50)`：同样正确，[DeepSeek 文档](https://api-docs.deepseek.com/guides/search)写 `count ... between 1 and 50`，超限会返回 `count must be between 1 and 50`，缺陷同样只是静默。③`cli/src/service.ts:245-246` `deduped.slice(0, options.limit)`：与上两者不同，这是**不翻页**而非遵守上限。SearXNG 的 `/search` 没有客户端可指定的页大小参数（`cli/src/service.ts:192-218` 只传 `q`/`engines`/`categories`/`language`/`time_range`/`pageno`），每页条数由服务端 `search.max_page` 决定（默认 0 = 不限页数）；因此要 20 条而首页只返回 12 条时，冗余的 8 条可以用 `pageno=2` 再取一页，代码只发一次请求。0.0.13 新增的 `cli/src/feedback-log.ts` 在 provider 返回处记了 `count`，但不记请求的 limit，所以上限降级对用户仍然不可见。
 - Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Next action: 分两个方向处理，性质不同不要合并成一个改动：①告知降级——provider 返回条数少于请求 limit 时在输出里说明（JSON 增字段 / md 增一行），不改变任何行为，风险最低；②SearXNG 翻页补齐——首页不足 limit 时用 `pageno=2` 继续取，需要考虑请求次数与延时代价，也可能选择明确告诉用户「这一页只有 N 条，可加 --page 2」。先确认 ② 是否值得做：SearXNG 单页通常已够 10-20 条，若实测很少触发则只做 ①。
 
 ## SimHash 是死代码且 deep/index.ts 桶文件零消费者：cli/src/deep/simha
 
