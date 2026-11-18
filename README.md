@@ -1329,3 +1329,7 @@ digdig's deep search workflow (session accumulation, counted coverage facts, kno
 ## ⭐ Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=hkwuks/digdig&type=date&legend=top-left&&sealed_token=b12gMAVqxjYCS22ZjqOjv8UiSZz1qfBf31GHJV9AuGBWjMmnLChWTr1sNBSqYuTvWybJV7P6peTQmNbw21XT6364T_JRlk0RJZDKzQV63hVGAqvEfWRNpjJIVRM5Z8mR4gKndmlitt43xJ8clNTutXwl7shH3gHBCHLH8ReaXNtJmgC9nV_HMPVFaBWj)](https://www.star-history.com/?repos=hkwuks%2Fdigdig&type=date&legend=top-left)
+
+## Local feedback logging
+
+Feedback logging is off by default. Set `DIGDIG_LOG=1` for a command to record search and extraction stages locally in `~/digdig/logs/feedback.jsonl`. Each file is limited to 10 MiB, with four rotated files retained. Logs are never uploaded automatically; review them before sharing. Records contain fixed stages, timestamps, durations, counts, provider or extraction method, and error categories, but not queries, URLs, content, paths, credentials, or raw errors. Writes are best effort and events can be lost on failure or contention. If a crash leaves `.feedback.lock`, remove it only after confirming no digdig process is writing logs.

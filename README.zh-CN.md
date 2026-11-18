@@ -1312,3 +1312,7 @@ digdig 的深度搜索工作流（会话积累、可数覆盖事实、知识图�
 ## ⭐ Star 历史
 
 [![Star History Chart](https://api.star-history.com/svg?repos=hkwuks/digdig&type=date&legend=top-left&sealed_token=ugUt7g0kbmlxX_n5CevCTurOYzaaFJAXvBaDFvk81lpD4N7zYb5wbyXxkyisyxMZm2E2uFHH9cvA7Q8i84MG0izcZNqaQfgUeIxVEwuvCp_kVtv0BiKaLKkM6s2vhnnZTOaBp8wEnwWGZ2HWqLgvKlLjDWAiBh2GrCl3N7bAMTNrU3MMojGskEP7UK26)](https://www.star-history.com/?repos=hkwuks%2Fdigdig&type=date&legend=top-left)
+
+## 本地反馈日志
+
+日志默认关闭；临时设置 `DIGDIG_LOG=1` 可记录搜索及正文抽取的关键阶段。文件位于用户主目录 `digdig/logs/feedback.jsonl`，每个文件最多 10 MiB，保留当前文件及 4 个轮转文件。日志只保存在本地，请检查后手动提供，不会自动上传。日志包含固定的阶段、时间、耗时、数量、提供商或抽取方法和错误类别，不包含查询、网址、正文、路径、凭据或原始异常。异步写入在异常退出或并发争用时可能丢失事件。进程崩溃留下 `.feedback.lock` 时，确认无其他日志写入进程后可手动删除。更多用法见 CLI README。

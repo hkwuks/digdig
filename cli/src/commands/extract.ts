@@ -1,3 +1,4 @@
+import { feedbackLog, feedbackError } from '../feedback-log.js';
 /** Extract bodies. Session convenience mode never revisits extracted/skipped records. */
 
 import { ContentExtractor, ExtractedContent } from '../deep/extractor.js';
@@ -19,7 +20,7 @@ function failureFrom(content: ExtractedContent): { code: 'network' | 'parse' | '
     return undefined;
 }
 
-export async function runExtract(extractor: ContentExtractor, options: ExtractOptions): Promise<number> {
+async function runExtractInner(extractor: ContentExtractor, options: ExtractOptions): Promise<number> {
     if ((options.jina || options.obscura) && !options.urls?.length) {
         console.log(JSON.stringify(createErrorEnvelope(
             'SPECIAL_EXTRACTOR_REQUIRES_URLS',
@@ -51,7 +52,14 @@ export async function runExtract(extractor: ContentExtractor, options: ExtractOp
     }
 
     try {
+        const started = Date.now();
+        feedbackLog('extract_batch', 'start', { count: urls.length });
         const responses = await extractor.extractBatch(urls);
+        feedbackLog('extract_batch', 'ok', { durationMs: Date.now() - started, count: responses.length });
+        for (const response of responses) {
+            const provider = response.method ?? 'unknown';
+            feedbackLog('extract_method', failureFrom(response) ? 'error' : 'ok', { provider });
+        }
         const valid = responses.filter(response => !failureFrom(response));
         const extracted = dedupe(valid);
         const retained = new Set(extracted.map(response => resultUrlKey(response)));
@@ -107,5 +115,18 @@ export async function runExtract(extractor: ContentExtractor, options: ExtractOp
         }
         console.log(JSON.stringify(createErrorEnvelope('EXTRACT_FAILED', error instanceof Error ? error.message : 'Content extraction failed', { retryable: true }), null, 2));
         return 1;
+    }
+}
+
+export async function runExtract(extractor: ContentExtractor, options: ExtractOptions): Promise<number> {
+    const started = Date.now();
+    feedbackLog('extract', 'start');
+    try {
+        const result = await runExtractInner(extractor, options);
+        feedbackLog('extract', result === 0 ? 'ok' : 'error', { durationMs: Date.now() - started });
+        return result;
+    } catch (error) {
+        feedbackLog('extract', 'error', { durationMs: Date.now() - started, error: feedbackError(error) });
+        throw error;
     }
 }

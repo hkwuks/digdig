@@ -1,3 +1,4 @@
+import { feedbackLog } from '../feedback-log.js';
 /**
  * Content extraction: Defuddle (linkedom) → optional Obscura fallback, or explicit Jina Reader
  */
@@ -356,7 +357,10 @@ export class ContentExtractor {
 
     async extract(url: string): Promise<ExtractedContent> {
         if (this.useJina) {
+            const started = Date.now();
+            feedbackLog('extract_method', 'start', { provider: 'jina' });
             const jinaResult = await jinaExtract(url, { timeoutMs: this.timeoutMs });
+            feedbackLog('extract_method', jinaResult && !jinaResult.error ? 'ok' : 'error', { provider: 'jina', durationMs: Date.now() - started });
             if (jinaResult) return jinaResult;
             return {
                 title: '',
@@ -372,10 +376,14 @@ export class ContentExtractor {
 
         let result: ExtractedContent | null = null;
 
+        const started = Date.now();
+        feedbackLog('extract_method', 'start', { provider: 'defuddle' });
         try {
             const html = await this.fetchHtml(url);
             result = await defuddleExtract(html, url);
+            feedbackLog('extract_method', result.error ? 'error' : 'ok', { provider: 'defuddle', durationMs: Date.now() - started });
         } catch (error) {
+            feedbackLog('extract_method', 'error', { provider: 'defuddle', durationMs: Date.now() - started });
             result = {
                 title: '',
                 content: '',
@@ -391,11 +399,14 @@ export class ContentExtractor {
 
         // Defuddle insufficient → Obscura fallback
         if (this.useObscura && result.content.length < OBSCURA_THRESHOLD) {
+            const fallbackStarted = Date.now();
+            feedbackLog('extract_method', 'start', { provider: 'obscura' });
             const obsResult = await obscuraExtract(url, {
                 timeoutMs: this.timeoutMs,
                 obscuraPath: this.obscuraPath,
                 dumpFormat: this.obscuraDumpFormat,
             });
+            feedbackLog('extract_method', obsResult && !obsResult.error ? 'ok' : 'error', { provider: 'obscura', durationMs: Date.now() - fallbackStarted });
             if (obsResult && obsResult.content.length > result.content.length) return obsResult;
         }
 
