@@ -1026,13 +1026,7 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## 设计并实现反馈用日志模块：默认关闭，日志仅供本地收集
 
 - ID: TF-20261118-9bd13b
-- Status: inbox
-- Priority: normal
-- Owner: Unknown
-- Source: direct user request
-- Kind: capability
-- Added: 2026-11-18
-- Updated: 2026-11-18
+- Status: done
 - Goal: 设计并实现反馈用日志模块：默认关闭，日志仅供本地收集，不向任何远端上传
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: `TaskFlowDocs/achieved/2026-11-18-feedback-logging/`
+- Next action: None — completed and archived.

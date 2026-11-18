@@ -1,3 +1,4 @@
+import { feedbackLog } from './feedback-log.js';
 /**
  * SearXNG CLI - Search Service
  */
@@ -240,6 +241,7 @@ export class SearXNGService {
             // URL dedup catches what SearXNG missed (e.g. trailing slash variants)
             const deduped = dedupe(filtered).map((result, index) => ({ ...result, rank: index + 1 }));
 
+            feedbackLog('provider', 'ok', { provider: 'searxng', total: results.length, count: deduped.length, failed: results.length - filtered.length });
             const limitedResults = options.limit && options.limit > 0
                 ? deduped.slice(0, options.limit)
                 : deduped;

@@ -1,3 +1,4 @@
+import { feedbackLog, feedbackError } from './feedback-log.js';
 /**
  * SearXNG CLI - CLI Runner (Commander-based)
  */
@@ -390,15 +391,32 @@ async function searchOneQuery(
     if (plan.usable.length === 0 || plan.sxngEngines.length > 0) assertSearXNGConfig();
     const providerResponses: SearchResponse[] = [];
     for (const provider of plan.usable) {
-        providerResponses.push(await PROVIDER_IMPLS[provider].search(searchOptions.query, limit));
+        const started = Date.now();
+        feedbackLog('provider', 'start', { provider });
+        try {
+            const response = await PROVIDER_IMPLS[provider].search(searchOptions.query, limit);
+            feedbackLog('provider', 'ok', { provider, durationMs: Date.now() - started, count: response.results.length });
+            providerResponses.push(response);
+        } catch (error) {
+            feedbackLog('provider', 'error', { provider, durationMs: Date.now() - started, error: feedbackError(error) });
+            throw error;
+        }
     }
 
     let sxngResponse: SearchResponse | null = null;
     if (plan.usable.length === 0 || plan.sxngEngines.length > 0) {
-        sxngResponse = await service.search({
-            ...searchOptions,
-            engines: plan.sxngEngines.length > 0 ? plan.sxngEngines : searchOptions.engines,
-        });
+        const started = Date.now();
+        feedbackLog('provider', 'start', { provider: 'searxng' });
+        try {
+            sxngResponse = await service.search({
+                ...searchOptions,
+                engines: plan.sxngEngines.length > 0 ? plan.sxngEngines : searchOptions.engines,
+            });
+            feedbackLog('provider', 'ok', { provider: 'searxng', durationMs: Date.now() - started, count: sxngResponse.results.length });
+        } catch (error) {
+            feedbackLog('provider', 'error', { provider: 'searxng', durationMs: Date.now() - started, error: feedbackError(error) });
+            throw error;
+        }
     }
 
     return { providerResponses, sxngResponse };
@@ -409,7 +427,7 @@ function originTool(engine: string): string {
     return EXTERNAL_PROVIDERS.includes(engine as ExternalProvider) ? engine : 'digdig';
 }
 
-async function runSearch(
+async function runSearchInner(
     service: SearXNGService,
     options: {
         query?: string;
@@ -428,13 +446,16 @@ async function runSearch(
         redundancy?: 'warn' | 'adjust' | 'skip';
     }
 ): Promise<number> {
+    feedbackLog('validation', 'start');
     if (options.limit !== undefined && (!Number.isSafeInteger(options.limit) || options.limit <= 0)) {
+        feedbackLog('validation', 'error', { error: 'validation' });
         console.log(JSON.stringify(createErrorEnvelope('INVALID_LIMIT', 'Limit must be a positive safe integer'), null, 2));
         return 1;
     }
     const queries = options.queries || (options.query ? [options.query] : []);
 
     if (queries.length === 0) {
+        feedbackLog('validation', 'error', { error: 'validation' });
         const envelope = createErrorEnvelope(
             'MISSING_QUERY',
             'No search query provided',
@@ -445,6 +466,7 @@ async function runSearch(
     }
 
     if (options.engines && options.engines.length === 0) {
+        feedbackLog('validation', 'error', { error: 'validation' });
         console.log(JSON.stringify(createErrorEnvelope('INVALID_ENGINES', 'At least one engine must be specified'), null, 2));
         return 1;
     }
@@ -452,6 +474,7 @@ async function runSearch(
     if (config.allowedEngines.length > 0) {
         const invalid = engines.filter(e => !config.allowedEngines.includes(e));
         if (invalid.length > 0) {
+            feedbackLog('validation', 'error', { error: 'validation' });
             const envelope = createErrorEnvelope(
                 'INVALID_ENGINES',
                 `Engines not allowed: ${invalid.join(', ')}`,
@@ -467,6 +490,7 @@ async function runSearch(
     if (engines.length > 0) {
         const unconfigured = planProviderSearch(engines).unconfigured;
         if (unconfigured.length > 0) {
+            feedbackLog('validation', 'error', { error: 'CONFIG_MISSING' });
             const envelope = createErrorEnvelope(
                 'PROVIDER_NOT_CONFIGURED',
                 `Provider selected but no API key configured: ${unconfigured.join(', ')}`,
@@ -479,6 +503,7 @@ async function runSearch(
         }
     }
 
+    feedbackLog('validation', 'ok', { count: queries.length });
     const limit = options.limit ?? config.defaultLimit;
 
     if (options.session) {
@@ -489,6 +514,7 @@ async function runSearch(
 
     // Pre-search redundancy check
     if (options.redundancy && options.session) {
+        feedbackLog('redundancy', 'start', { count: queries.length });
         const history = loadSessionQueryHistory(options.session);
         const redundancyConfig: RedundancyConfig = {
             jaccardThreshold: config.redundancyThreshold,
@@ -575,6 +601,7 @@ async function runSearch(
         }
 
         if (skippedQueries.length > 0 && skippedQueries.length === queries.length) {
+            feedbackLog('redundancy', 'skip', { count: skippedQueries.length });
             // All queries skipped
             const envelope = createSuccessEnvelope({
                 message: 'All queries skipped due to redundancy',
@@ -584,6 +611,7 @@ async function runSearch(
             return 0;
         }
 
+        feedbackLog('redundancy', 'ok', { count: adjustedQueries.length, failed: skippedQueries.length });
         // Replace queries with adjusted ones (skipped ones removed)
         queries.length = 0;
         queries.push(...adjustedQueries);
@@ -635,6 +663,8 @@ async function runSearch(
         // results, or every current result votes for itself a second time.
         const sessionSnapshot = options.session ? loadSessionResults(options.session) : undefined;
 
+        const fusionStarted = Date.now();
+        feedbackLog('fusion', 'start', { count: responses.length });
         const fusion = fuseResults({
             responses,
             mergeResults,
@@ -644,8 +674,10 @@ async function runSearch(
             toolFor: engine => originTool(engine),
         });
 
+        feedbackLog('fusion', 'ok', { durationMs: Date.now() - fusionStarted, count: fusion.fused.length, total: fusion.display.length });
         let sessionInfo: ReturnType<typeof appendAndInjectSessionResults> | null = null;
         if (options.session) {
+            feedbackLog('session', 'start');
             sessionInfo = appendAndInjectSessionResults(options.session, fusion.display.map((result, index) => ({
                 ...result,
                 // The fused position, so `rank` and `fusionScore` describe the same
@@ -653,6 +685,7 @@ async function runSearch(
                 rank: index + 1,
                 origins: fusion.originsByKey.get(resultUrlKey(result)),
             })), searchRound);
+            feedbackLog('session', 'ok', { count: sessionInfo.added, total: sessionInfo.total });
             const pendingCount = countPendingResults(options.session);
             if (pendingCount >= 30) {
                 console.error(`[session] ${pendingCount} pending results awaiting Agent review. Run --quality to list them.`);
@@ -702,6 +735,7 @@ async function runSearch(
 
         return 0;
     } catch (error) {
+        feedbackLog('search', 'error', { error: feedbackError(error) });
         if (error instanceof SessionStateError) {
             console.log(JSON.stringify(createErrorEnvelope(error.code, error.message, { retryable: error.code === 'SESSION_BUSY' }), null, 2));
             return 1;
@@ -727,6 +761,19 @@ async function runSearch(
         );
         console.log(JSON.stringify(envelope, null, 2));
         return 1;
+    }
+}
+
+async function runSearch(service: SearXNGService, options: Parameters<typeof runSearchInner>[1]): Promise<number> {
+    const started = Date.now();
+    feedbackLog('search', 'start');
+    try {
+        const result = await runSearchInner(service, options);
+        feedbackLog('search', result === 0 ? 'ok' : 'error', { durationMs: Date.now() - started });
+        return result;
+    } catch (error) {
+        feedbackLog('search', 'error', { durationMs: Date.now() - started, error: feedbackError(error) });
+        throw error;
     }
 }
 

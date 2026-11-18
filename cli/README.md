@@ -447,3 +447,9 @@ digdig's deep search workflow (session accumulation, counted coverage facts, kno
 ## 📄 License
 
 MIT
+
+## 本地反馈日志
+
+日志默认关闭。需要排查搜索或正文抽取时，可为单次命令设置 `DIGDIG_LOG=1`（PowerShell：`$env:DIGDIG_LOG='1'; dg "查询"`；结束后执行 `Remove-Item Env:DIGDIG_LOG`）。日志写入用户主目录下的 `digdig/logs/feedback.jsonl`，每个文件最多 10 MiB，最多保留当前文件和 4 个轮转文件。日志只在本地保存，不自动上传；请检查后手动提供。
+
+记录包含运行标识、时间、固定阶段、状态、耗时、数量、提供商或抽取方法、受控错误类别；不写入查询、网址、正文、标题、路径、凭据或原始错误。异步写入是尽力而为，进程异常退出、写入失败或并发争用时可能丢失事件。若进程崩溃后遗留 `digdig/logs/.feedback.lock`，确认没有其他 digdig 日志写入进程后可手动删除该锁文件。
