@@ -2,8 +2,8 @@
  * doc-search subcommand — Search local documents and inject results into session.
  *
  * Searches an Orama BM25 index (auto-indexing if needed), formats results
- * as SessionResult[] with source: 'local', and adds them to the session
- * pipeline without incrementing the round counter.
+ * as SessionResult[] with origin tool 'local-index', and adds them to the
+ * current round or initializes the first round on a hit.
  */
 
 import { docSearch, parseBoost } from '../deep/local-doc/searcher.js';

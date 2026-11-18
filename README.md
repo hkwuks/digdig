@@ -1188,7 +1188,7 @@ dg doc-search <session-name> "search query" --path ./docs
 1. **Auto-indexing** — `doc-search` automatically indexes the directory on first use if no index exists. Uses Orama BM25 with field-weighted boosting: title ×3, headings ×2, content ×1.
 2. **Session injection** — Each matched chunk is an `extracted` `SessionResult` with `extractor: "local-index"`, injected into the session as pending.
 3. **Same pipeline** — Results follow the exact same flow as web results: `--quality` → `--approve-file` → `graph-add`. Use `graph-preprocess` before adding new entities so their approved IDs become `sourceResultIds`.
-4. **Round-neutral** — Local document searches do **not** increment the session round counter (merged with the current web round via `skipRoundIncrement`).
+4. **Session rounds** — Local results join the current round without opening another. If a session has no rounds, the first local hit starts round 1; a later web search starts round 2. A local search with no hits does not start a round.
 
 **Index options:**
 

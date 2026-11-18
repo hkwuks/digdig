@@ -6,6 +6,9 @@ import { tmpdir } from 'os';
 import { scan, scanBatches, scanFiles } from '../../src/deep/local-doc/scanner.js';
 import { buildIndex, buildIndexFromBatches, buildIndexFromScannedFiles, calculateIndexMemoryBudget, getIndexMeta, getIndexPath, hasIndex, loadIndex, refreshIndex, refreshIndexIfStale } from '../../src/deep/local-doc/indexer.js';
 import { docSearch } from '../../src/deep/local-doc/searcher.js';
+import { runCli } from '../../src/runCli.js';
+import { config } from '../../src/config.js';
+import { buildPendingReport } from '../../src/deep/pending-facts.js';
 import { appendSessionResults, loadSessionResults, loadSessionRounds, resolveSessionPath } from '../../src/deep/session.js';
 
 // Helper: create temp directory with test files
@@ -468,6 +471,55 @@ describe('local-doc searcher', () => {
         });
 
         expect(result.results.length).toBeLessThanOrEqual(1);
+    });
+
+    it('starts round one with local results and assigns the next web search to round two', async () => {
+        sessionDir = resolveSessionPath('new');
+        const previousBaseUrl = config.baseUrl;
+        const previousExit = process.exitCode;
+        const output = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+        config.baseUrl = 'https://searxng.example';
+        try {
+            await runCli(['doc-search', sessionDir, 'async', '--path', testDir, '--top', '5'], {} as never);
+            expect(process.exitCode).toBe(0);
+            expect(JSON.parse(String(output.mock.lastCall![0])).data.results.length).toBeGreaterThan(0);
+            expect(loadSessionRounds(sessionDir)).toBe(1);
+            const localResults = loadSessionResults(sessionDir);
+            expect(localResults.every(result => result.origins[0].round === 1)).toBe(true);
+            expect(buildPendingReport(localResults, localResults).pending[0].source).toBe('local-index');
+
+            const search = vi.fn().mockResolvedValue({
+                query: 'web query', numberOfResults: 1,
+                results: [{ url: 'https://example.com/web', title: 'Web', content: 'web content', engine: 'test', category: 'general' }],
+                suggestions: [], answers: [], corrections: [], infoboxes: [], unresponsiveEngines: [],
+            });
+            await runCli(['web query', '--session', sessionDir, '--format', 'json'], { search } as never);
+            expect(process.exitCode).toBe(0);
+            expect(search).toHaveBeenCalledOnce();
+            expect(loadSessionRounds(sessionDir)).toBe(2);
+            const results = loadSessionResults(sessionDir);
+            expect(results.find(result => result.url === 'https://example.com/web')?.origins[0].round).toBe(2);
+            expect(results.filter(result => result.url.startsWith('file:')).every(result => result.origins[0].round === 1)).toBe(true);
+        } finally {
+            config.baseUrl = previousBaseUrl;
+            process.exitCode = previousExit;
+            output.mockRestore();
+        }
+    });
+
+    it('does not allocate a round when local search has no hits', async () => {
+        sessionDir = resolveSessionPath('new');
+        const previousExit = process.exitCode;
+        const output = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+        try {
+            await runCli(['doc-search', sessionDir, 'zzzzzzzzzzzz', '--path', testDir, '--top', '5'], {} as never);
+            expect(process.exitCode).toBe(0);
+            expect(JSON.parse(String(output.mock.lastCall![0])).data.results).toEqual([]);
+            expect(loadSessionRounds(sessionDir)).toBe(0);
+        } finally {
+            process.exitCode = previousExit;
+            output.mockRestore();
+        }
     });
 
     it('does not increment session round', async () => {

@@ -410,8 +410,8 @@ Use `strategy-info` command to determine current stage.
 1. `doc-search <session> <query> --path <path>`:
    - If path not indexed: auto-indexes before searching (no separate index step needed)
    - Searches index with BM25 field-weighted search (title:3, headings:2, content:1)
-   - Results injected into session as `source: "local"` (pending state)
-   - Does NOT increment session round counter (merged with current web round)
+   - Results injected into the session in pending state with origin tool `local-index`
+   - Joins the current round; the first local hit in a session with no rounds starts round 1. A later web search starts round 2. No hits means no new round.
 
 2. Results follow the same pipeline: pending -> quality -> approve -> graph
 
@@ -426,7 +426,7 @@ Use `strategy-info` command to determine current stage.
 
 ### Quality Assessment Note
 
-Local-only results (`source: "local"`) count under their file path, so two chunks of one document are one source and a second file is a second source. A pure local session therefore reports a real source count instead of zero. Whether local-only coverage answers the question is your judgement, not a threshold.
+Local-only results (origin tool `local-index`) count under their file path, so two chunks of one document are one source and a second file is a second source. A pure local session therefore reports a real source count instead of zero. Whether local-only coverage answers the question is your judgement, not a threshold.
 
 ---
 

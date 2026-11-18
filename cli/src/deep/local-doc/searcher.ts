@@ -2,7 +2,7 @@
  * Searcher — BM25 search + SessionResult formatting.
  *
  * Searches an Orama index, formats results as SessionResult[]
- * with source: 'local', and injects them into the session pipeline
+ * with origin tool 'local-index', and injects them into the session pipeline
  * without opening a new round when one already exists.
  */
 

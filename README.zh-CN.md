@@ -1172,7 +1172,7 @@ dg doc-search <session-name> "关键词" --path ./docs
 1. **自动索引** — `doc-search` 在首次使用时自动索引目标目录（如索引不存在）。使用 Orama BM25 引擎，字段加权：标题 ×3、标题头 ×2、正文 ×1。
 2. **会话注入** — 每个命中文档块都作为 `contentType: "extracted"`、`extractor: "local-index"` 的 `SessionResult`，以待审状态注入会话。
 3. **同一管道** — 结果与网页结果走完全相同的流程：`--quality` → `--approve-file` → `graph-add`。新增实体前先运行 `graph-preprocess`，将其中已审批的 ID 写入 `sourceResultIds`。
-4. **不消耗轮次** — 本地文档搜索**不增加**会话轮次计数器（通过 `skipRoundIncrement` 与当前网络搜索轮次合并）。
+4. **会话轮次** — 本地结果并入当前轮次，不额外开启新轮；如果会话尚无轮次，首次本地命中会建立第 1 轮，之后的网络搜索进入第 2 轮。本地搜索无命中时不会建立轮次。
 
 **索引选项：**
 
