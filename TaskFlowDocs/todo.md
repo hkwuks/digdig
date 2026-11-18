@@ -423,15 +423,15 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## P3 — --graph <file> 是空选项
 
 - ID: TF-20261103-1350fc
-- Status: inbox
+- Status: done
 - Priority: normal
 - Owner: Claude
 - Source: code-research:2026-11-03-cli-audit
 - Added: 2026-11-03
 - Updated: 2026-11-03
 - Goal: --graph <file> 是空选项：--help 声称保存搜索结果到图文件，参数一路传进 runSearch 的类型（runCli.ts:464/1569）却从不被读取，实测不产生任何文件。要么实现要么删除
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: TaskFlowDocs/achieved/2026-11-18-simple-bugs/
+- Next action: 已按用户确认的方案修复并验证。
 
 ## P4 — --session + --merge 时 merge 结果被静默丢弃
 
@@ -791,7 +791,7 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Updated: 2026-11-11
 - Goal: 一批已确认的小缺陷：graph-explore.ts:457-471 resultCount 按 mentions 入边自增而 resultIds 是 Set（一个结果同时提两个路径实体时 2 vs 1）；graph-sampling.ts:506 mixed 策略在没有 rngSeed 时固定播 42 且 CLI 从不传 seed，--strategy mixed 永远选 community_core_path；local-doc/searcher.ts:184 与 scanner.ts:146 frontmatter 标题重复拼接成 X — X；session.ts:651 对空字符串也赋值 excerpt，Jina/Obscura 的 excerpt:'' 会清掉搜索层摘要；graph-obfuscate.ts:48-55 --fallback-rules 用裸 writeFileSync 写 graph.json，绕开会话锁且非原子；extractor.ts:390-404 与 extract.ts:15-19 把 50-99 字符的 Defuddle 结果记为失败并丢弃可用文本；session.ts:654 写入的 contentLength 无人读取且 Defuddle 记词数、Jina/Obscura 记字符数
 - Task: Not promoted.
-- Next action: frontmatter 标题重复已在批量修复任务处理；PR #56 已处理会话图事务写入和独立图原子替换；PR #61 已处理摘要覆盖、短正文和长度口径；PR #63 已处理图来源计数。废弃命令 mixed 采样按用户决定暂缓；本地文档标题仍需处理；另需验证仅含 graph.json 的旧会话直接传入该文件路径时是否被误识别为独立图，导致绕过会话迁移。
+- Next action: frontmatter 标题重复已在批量修复任务处理；PR #56 已处理会话图事务写入和独立图原子替换；PR #61 已处理摘要覆盖、短正文和长度口径；PR #63 已处理图来源计数。废弃命令 mixed 采样按用户决定暂缓；自定义路径只有 graph.json 时保持独立图语义，旧会话可通过目录进入迁移，独立图文件支持的后续处置需另行决定。
 
 ## SKILL.md 命令表漏了 doc-index / doc-search，且没有任何校验
 
@@ -876,15 +876,15 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## performance.bench.ts 用绝对毫秒阈值断言，在共享 CI runner 上会假失败
 
 - ID: TF-20261107-97e119
-- Status: inbox
+- Status: done
 - Priority: normal
 - Owner: Claude
 - Source: CI observation
 - Added: 2026-11-07
 - Updated: 2026-11-07
 - Goal: `cli/test/benchmark/performance.bench.ts` 有四处 `expect(elapsed).toBeLessThan(N)`：`getEntityDegree (1000 nodes)` 卡 5ms（`:89`）、`Jaccard (50 history queries)` 卡 5ms（`:130`）、`graph sampling (900 nodes)` 卡 100ms（`:113`）、`graph explore (900 nodes)` 卡 100ms（`:151`）。这些是单次 `performance.now()` 采样，在共享 runner 上随负载波动。实测：PR #36 的内容在 `test (node 22.x)` 上 `Jaccard` 测出 **5.720312000000007ms**，超 5ms 阈值 14% 判失败，而同一提交在 `test (node 20.x)` 与 PR 检查上都是 pass。该假失败让 main 上的合并提交（`42384672676`）显示为 failure，直到下一次推送覆盖。文件本身含 `// A single wall-clock sample is susceptible to Windows scheduler jitter.`（`:87-88`）——作者知道这个问题，但断言没有相应调整。`vitest.config.ts` 的 `include` 同时匹配 `test/**/*.test.ts` 与 `test/**/*.bench.ts`，所以这些基准在每次 CI 都跑，不是可选的性能门禁。
-- Task: Not promoted.
-- Next action: 需要设计。可选方向：①把绝对阈值改为包络（多次采样取中位数/最小值，或与同机基线比较）；②把 `.bench.ts` 从 `vitest.config.ts` 的 `include` 移出去，基准改为手动运行；③保留断言但放大阈值到有意义的量级（例如 5ms → 50ms）。先确认这些基准是否需要在 CI 里充当门禁——如果只是「性能没明显退化」的信号，方向②最省。
+- Task: TaskFlowDocs/achieved/2026-11-18-simple-bugs/
+- Next action: 已按用户确认的方案修复并验证。
 
 ## 修复 Windows 测试读取真实配置和 README 换行导致的四项失败
 
@@ -974,10 +974,10 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Source: design report review
 - Kind: defect
 - Added: 2026-11-16
-- Updated: 2026-11-16
-- Goal: withSessionLock 的陈旧锁清理存在 stat→rm 竞态且失败不重试：session.ts:129-155 在 mkdir 失败后 statSync 取 mtime，判定过期就 rmSync 整个锁目录再重建，两步之间另一个进程若刚抢到锁会被连根删掉（与已记录的 withIndexLock 无条件删除是同一类缺陷，但这里的路径是竞态而非 finally）；同时 SESSION_LOCK_STALE_MS=30s 期间任何并发命令直接抛 SESSION_BUSY 且 entry.ts 只把 SessionStateError 打到 stderr、stdout 无 JSON
+- Updated: 2026-11-18
+- Goal: 评估数据库打开路径是否仍需每次获取旧目录锁，并处理首次迁移时旧锁的过期清理竞态。当前会话写入已使用 SQLite BEGIN IMMEDIATE 事务；openSessionStore 每次打开仍先获取 .lock，旧锁 stat 后删除目录存在竞态，实际影响需用多进程测试验证。首次迁移必须保留与仍使用旧 JSON 的进程互斥及迁移原子性。SESSION_BUSY 已输出结构化 JSON，旧条目对此的描述已过时。
 - Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Next action: 设计并验证迁移与已迁移会话的锁边界，复现过期清理竞争，避免仅删除旧锁导致旧 JSON 进程与迁移并发。
 
 ## CLAUDE.md 的命令表与 runCli.ts 实际注册的命令长期漂移且无校
 
@@ -1014,3 +1014,25 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Goal: 核实今日修复与 SQLite 新设计的衔接，补充本地文档首轮说明及端到端测试
 - Task: `TaskFlowDocs/achieved/2026-11-18-small-bug-fixes/`（v2）
 - Next action: 已验收并归档。
+
+## 核查并一次修复现有待办中仍存在的简单缺陷
+
+- ID: TF-20261118-795918
+- Status: done
+- Goal: 核查并一次修复现有待办中仍存在的简单缺陷
+- Task: `TaskFlowDocs/achieved/2026-11-18-simple-bugs/`
+- Next action: None — completed and archived.
+
+## 设计并实现反馈用日志模块：默认关闭，日志仅供本地收集
+
+- ID: TF-20261118-9bd13b
+- Status: inbox
+- Priority: normal
+- Owner: Unknown
+- Source: direct user request
+- Kind: capability
+- Added: 2026-11-18
+- Updated: 2026-11-18
+- Goal: 设计并实现反馈用日志模块：默认关闭，日志仅供本地收集，不向任何远端上传
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
