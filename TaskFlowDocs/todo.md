@@ -996,7 +996,22 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## 挑选并修复若干已记录的小缺陷，补充必要验证
 
 - ID: TF-20261118-b32922
-- Status: done
+- Status: promoted
 - Goal: 挑选并修复若干已记录的小缺陷，补充必要验证
-- Task: `TaskFlowDocs/achieved/2026-11-18-small-bug-fixes/`
-- Next action: None — completed and archived.
+- Task: `TaskFlowDocs/2026-11-18-small-bug-fixes/`
+- Next action: Re-approve the new Task version before core changes.
+- Updated: 2026-11-18
+
+## 核实今日修复与 SQLite 新设计的衔接，补充本地文档首轮说明
+
+- ID: TF-20261118-0d9dc4
+- Status: inbox
+- Priority: normal
+- Owner: Unknown
+- Source: direct user request
+- Kind: capability
+- Added: 2026-11-18
+- Updated: 2026-11-18
+- Goal: 核实今日修复与 SQLite 新设计的衔接，补充本地文档首轮说明及端到端测试
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.

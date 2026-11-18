@@ -72,6 +72,7 @@
 - Orama 兜底遍历全部索引记录，成本随索引规模增长；用户已有兜底方案原设计即全量遍历。
 
 ## Change Log
+- 2026-11-18 reopen — retrieved achieved task `2026-11-18-small-bug-fixes` for new work; re-approval required before core changes
 - v1：记录用户确认的范围及设计。
 ## Follow-ups
 - D11 的 mixed 采样及旧会话 graph.json 路径验证仍待处理。
