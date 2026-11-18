@@ -954,16 +954,16 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## 阈值散落在各模块内且无可覆盖入口：dedupe.ts:99 Math.max(thresho
 
 - ID: TF-20261116-e1c513
-- Status: inbox
+- Status: cancelled
 - Priority: normal
 - Owner: Claude
 - Source: code-review:2026-10-28-comprehensive
 - Kind: capability
 - Added: 2026-11-16
-- Updated: 2026-11-16
-- Goal: 阈值散落在各模块内且无可覆盖入口：dedupe.ts:99 Math.max(threshold,0.97)/:103,127 默认 0.92、claims/deterministic-checks.ts:139-140 的 0.3 与 0.2、co-occurrence.ts:29 DEFAULT_THRESHOLD=2、extractor.ts:21 OBSCURA_THRESHOLD=50、search-strategy.ts:34 transitionThreshold=0.2 都是硬编码；只有 config.ts 的 redundancyThreshold 0.7 / redundancyBigramThreshold 0.5 可经环境变量覆盖。原任务 TF-20261028-12ced8 只存在于已删除的 worktree 分支，main 的 todo 从来没有这条记录
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Updated: 2026-11-18
+- Goal: **2026-11-18 复核结论：不做。** 原描述称「散落各处且无可覆盖入口」，实测 5 处里 2 处早有 CLI 入口——`co-occurrence.ts:29` 的 `DEFAULT_THRESHOLD = 2` 走 `--co-occurrence-threshold`（`runCli.ts:1017`），`search-strategy.ts:39` 的 `transitionThreshold = 0.2` 走 `--transition-threshold`（`runCli.ts:1088`）。另外路径也写错了：是 `cli/src/claims/deterministic-checks.ts`，不是 `cli/src/deep/claims/`。真正硬编码的只剩 3 处：`dedupe.ts` 默认 0.92（`service.ts:242`、`commands/extract.ts:64`、`deep/fuse.ts:66` 三个调用点都不传阈值）、`claims/deterministic-checks.ts:139-140` 的 0.3/0.2、`extractor.ts:22` 的 50。方向本身也与设计相反：`e113695` 删除 quality-assess 的理由正是「阈值 150 被 5 of 7 真实 session 否掉」，同一提交移除 `--threshold-override` 并在 `cli.test.ts:77` 钉住它必须不存在。这 3 处没有调用方会去调的常量留在原地即可，不该再长出配置项。
+- Task: Not promoted — 复核后判定不实施。
+- Next action: None. 若将来某处阈值真的需要按环境调整，届时以具体场景单独提，而不是为所有常量建统一入口。
 
 ## withSessionLock 的陈旧锁清理存在 stat→rm 竞态且失败不重试：se
 
@@ -1034,13 +1034,7 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## 清理 SimHash 死代码与 deep 桶文件、让 provider 上限降级在输出
 
 - ID: TF-20261118-90bf69
-- Status: promoted
-- Priority: normal
-- Owner: Claude
-- Source: direct user request
-- Kind: capability
-- Added: 2026-11-18
-- Updated: 2026-11-18
+- Status: done
 - Goal: 清理 SimHash 死代码与 deep 桶文件、让 provider 上限降级在输出中可见、为 README 命令表加漂移校验
-- Task: `TaskFlowDocs/2026-11-18-dead-code-and-limit-notice/`
-- Next action: Complete PRD / Spec / Plan and request approval.
+- Task: `TaskFlowDocs/achieved/2026-11-18-dead-code-and-limit-notice/`
+- Next action: None — completed and archived.

@@ -1,6 +1,6 @@
 # PRD — 删除 SimHash 死代码与 deep 桶文件、让 provider 上限降级可见、为 README 命令表加校验
 > Task version: v1
-> Status: planning
+> Status: completed
 
 ## Goal
 
