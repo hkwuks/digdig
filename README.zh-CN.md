@@ -899,6 +899,8 @@ obscura --version
 | `dg verdict-list <session> --claim-id <id>` | 列出某条陈述的判断结果 |
 | `dg policy-aggregate <session>` | 手动执行策略聚合 |
 | `dg review-list <session>` | 列出审核结论 |
+| `dg graph-pending <session>` | 列出待重新确认来源的图事实 |
+| `dg source-relations <session> --claim-id <id> [--data-file <path>]` | 查看或记录来源判断 |
 | `dg --health` | 检查 SearXNG 后端健康状态（Ollama/DeepSeek 没有健康检查接口） |
 | `dg --engines-list` | 列出可用搜索引擎 |
 | `dg --categories-list` | 列出可用分类 |

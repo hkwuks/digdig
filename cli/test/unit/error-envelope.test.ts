@@ -15,6 +15,7 @@ const deepseekSearch = vi.fn();
 const ollamaSearch = vi.fn();
 
 vi.mock('../../src/deepseek-service.js', () => ({
+    MAX_RESULTS: 50,
     DeepSeekService: class {
         constructor(readonly opts: { apiKey: string }) {}
         search = deepseekSearch;
@@ -22,6 +23,7 @@ vi.mock('../../src/deepseek-service.js', () => ({
 }));
 
 vi.mock('../../src/ollama-service.js', () => ({
+    MAX_RESULTS: 10,
     OllamaService: class {
         constructor(readonly opts: { apiKey: string }) {}
         search = ollamaSearch;

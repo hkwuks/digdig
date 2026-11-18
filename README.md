@@ -919,6 +919,7 @@ No extra npm dependencies needed — Obscura is called via CLI. Auto-detected fr
 | `dg policy-aggregate <session>` | Run policy aggregation manually |
 | `dg source-relations <session> --claim-id <id> [--data-file <path>]` | Inspect or record source judgments |
 | `dg review-list <session>` | List reviews |
+| `dg graph-pending <session>` | List graph facts awaiting source reconfirmation |
 | `dg --health` | Check the SearXNG backend health (Ollama/DeepSeek have no health endpoint) |
 | `dg --engines-list` | List available search engines |
 | `dg --categories-list` | List available categories |

@@ -1030,3 +1030,17 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Goal: 设计并实现反馈用日志模块：默认关闭，日志仅供本地收集，不向任何远端上传
 - Task: `TaskFlowDocs/achieved/2026-11-18-feedback-logging/`
 - Next action: None — completed and archived.
+
+## 清理 SimHash 死代码与 deep 桶文件、让 provider 上限降级在输出
+
+- ID: TF-20261118-90bf69
+- Status: promoted
+- Priority: normal
+- Owner: Claude
+- Source: direct user request
+- Kind: capability
+- Added: 2026-11-18
+- Updated: 2026-11-18
+- Goal: 清理 SimHash 死代码与 deep 桶文件、让 provider 上限降级在输出中可见、为 README 命令表加漂移校验
+- Task: `TaskFlowDocs/2026-11-18-dead-code-and-limit-notice/`
+- Next action: Complete PRD / Spec / Plan and request approval.

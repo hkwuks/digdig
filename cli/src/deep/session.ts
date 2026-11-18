@@ -802,14 +802,6 @@ export function recordExtractionOutcome(
     });
 }
 
-/** Compatibility name for callers that already provide extraction output. */
-export function mergeExtractedContent(sessionDir: string, extracted: Array<{ url: string; content: string; title?: string; excerpt?: string; byline?: string; siteName?: string; length?: number; extractedAt?: number; extractor?: string; error?: string }>): { updated: number; total: number } {
-    const result = recordExtractionOutcome(sessionDir, extracted.map(item => item.error
-        ? { url: item.url, failure: { code: 'tool' as const, message: item.error } }
-        : item));
-    return { updated: result.updated, total: result.total };
-}
-
 function readSessionGraph(sessionDir: string): { graph: DirectedGraph<GraphNodeAttrs, GraphEdgeAttrs>; missing: boolean } {
     try {
         const row = withSessionRead(sessionDir, db => db.prepare('SELECT data FROM graph_snapshot WHERE id = 1').get());

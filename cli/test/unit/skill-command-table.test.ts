@@ -27,13 +27,29 @@ const EXEMPT: Array<{ name: string; reason: string }> = [
     },
 ];
 
-/** Command names the skill table documents: `| \`dg <name> ...\`` rows. */
-function documentedCommands(): Set<string> {
-    // cli/test/unit -> cli/test -> cli -> repo root, then into skills/.
-    const path = fileURLToPath(new URL('../../../skills/digdig/SKILL.md', import.meta.url));
+/**
+ * Documents whose command tables must agree with `createProgram()`.
+ *
+ * `SKILL.md` is what an Agent reads to discover a capability, and the READMEs
+ * are what a person reads to find one. Both are hand-maintained; `graph-pending`
+ * was already described in the prose of both READMEs while missing from both
+ * tables, which is the same shape of gap that `doc-index` left in `SKILL.md`.
+ */
+const DOCUMENTS = [
+    '../../../skills/digdig/SKILL.md',
+    '../../../README.md',
+    '../../../README.zh-CN.md',
+] as const;
+
+/** Command names one document's tables list: `| \`dg <name> ...\`` rows. */
+function documentedCommands(relativePath: string): Set<string> {
+    // cli/test/unit -> cli/test -> cli -> repo root, then into the document.
+    const path = fileURLToPath(new URL(relativePath, import.meta.url));
     const source = readFileSync(path, 'utf8');
     const names = new Set<string>();
-    for (const match of source.matchAll(/^\|\s*`dg\s+([a-z][a-z-]*)`/gm)) {
+    // Rows open with `dg <name>`; SKILL.md closes the backtick right after the
+    // name, the READMEs continue with arguments inside the same span.
+    for (const match of source.matchAll(/^\|\s*`dg\s+([a-z][a-z-]*)/gm)) {
         names.add(match[1]);
     }
     return names;
@@ -44,22 +60,22 @@ function registeredCommands(): Set<string> {
     return new Set(createProgram().commands.map(command => command.name()));
 }
 
-describe('skill command table', () => {
+describe.each(DOCUMENTS)('%s command table', relativePath => {
     it('documents every registered command the Agent is meant to use', () => {
-        const documented = documentedCommands();
+        const documented = documentedCommands(relativePath);
         const missing = [...registeredCommands()]
             .filter(name => !documented.has(name))
             .filter(name => !EXEMPT.some(entry => entry.name === name))
             .sort();
 
-        expect(missing, `SKILL.md is missing: ${missing.join(', ')}`).toEqual([]);
+        expect(missing, `${relativePath} is missing: ${missing.join(', ')}`).toEqual([]);
     });
 
     it('documents no command the CLI does not register', () => {
         const registered = registeredCommands();
-        const phantom = [...documentedCommands()].filter(name => !registered.has(name)).sort();
+        const phantom = [...documentedCommands(relativePath)].filter(name => !registered.has(name)).sort();
 
-        expect(phantom, `SKILL.md lists commands that do not exist: ${phantom.join(', ')}`).toEqual([]);
+        expect(phantom, `${relativePath} lists commands that do not exist: ${phantom.join(', ')}`).toEqual([]);
     });
 
     it('keeps every exemption pointing at a command that still exists', () => {
@@ -71,6 +87,6 @@ describe('skill command table', () => {
 
     it('parses a table with commands in it, so a regex break cannot pass silently', () => {
         // A parser that matched nothing would make the first assertion vacuous.
-        expect(documentedCommands().size).toBeGreaterThan(20);
+        expect(documentedCommands(relativePath).size).toBeGreaterThan(20);
     });
 });
