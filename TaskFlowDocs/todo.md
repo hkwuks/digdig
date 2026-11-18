@@ -473,28 +473,28 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## P8 — 轮次计数不一致（roundsCovered 恒 0 / 计数器与 origin 不符）
 
 - ID: TF-20261103-844d30
-- Status: inbox
+- Status: done
 - Priority: normal
 - Owner: Claude
 - Source: code-research:2026-11-03-cli-audit
 - Added: 2026-11-03
 - Updated: 2026-11-03
 - Goal: 轮次计数不一致：graph-preprocess 硬编码 roundsCovered:0（graph-preprocess.ts:61），md 输出永远是 Rounds: 0；纯导入会话 appendSessionResults 用 Math.max(1,round) 写 origin round=1 但计数器 data.rounds 保持 0，coverage 显示 0 rounds 却又有 round 1 的表
-- Task: 部分完成：前半（`roundsCovered` 恒 0）已由 `TaskFlowDocs/achieved/2026-11-04-subcommand-format-flag/` 修复，现读 `loadSessionRounds`。后半（纯导入会话 origin round=1 与 data.rounds=0 不一致）仍未修
-- Next action: 后半需单独 promote。
+- Task: TaskFlowDocs/achieved/2026-11-18-small-bug-fixes/
+- Next action: 已在批量修复任务中验证。
 
 ## P12 — graph-explore / graph-drill 的 --seed 只认 label，不认节点 id
 
 - ID: TF-20261105-b1e4c7
-- Status: inbox
+- Status: done
 - Priority: normal
 - Owner: Claude
 - Source: code-research:2026-11-05-format-fix-followup
 - Added: 2026-11-05
 - Updated: 2026-11-05
 - Goal: `--seed` 只按 label 逐字匹配，传节点 id 会报 ENTITY_NOT_FOUND：graph-explore.ts:544-558 的 findEntityByLabel 只比较 `attrs.label.toLowerCase() === lowerLabel`，`dg graph-explore <s> --seed e:entity0` 找不到图中确实存在的 e:entity0，反而提示「Entity Number 0 (distance: 11)」；而 help 文本写的是「Seed entity label」，AGENTS 消费方拿到 id 时无从得知要用 label。实测（2026-11-05）：传 e:entity0 → ENTITY_NOT_FOUND，传 "Entity Number 0" → 正常输出
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: TaskFlowDocs/achieved/2026-11-18-small-bug-fixes/
+- Next action: 已在批量修复任务中验证。
 
 ## P13 — query-graph 的 md 不崩溃（撤销 2026-11-03 的误判）
 
@@ -512,15 +512,15 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## P9 — --quality 的 source 字段永远是 digdig
 
 - ID: TF-20261103-097d13
-- Status: inbox
+- Status: done
 - Priority: normal
 - Owner: Claude
 - Source: code-research:2026-11-03-cli-audit
 - Added: 2026-11-03
 - Updated: 2026-11-03
 - Goal: --quality 的 source 字段永远是 digdig：pending-facts 读 result.source，但没有任何代码写这个字段；results-add --tool exa 把工具名记在 origins[].tool，实测 exa 导入后仍报 source: digdig
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: TaskFlowDocs/achieved/2026-11-18-small-bug-fixes/
+- Next action: 已在批量修复任务中验证。
 
 ## P10 — extract 全部失败仍 exit 0
 
@@ -641,15 +641,15 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## C12 — 参数校验晚于 initSessionDir 创建目录
 
 - ID: TF-20261103-2a70e1
-- Status: inbox
+- Status: done
 - Priority: normal
 - Owner: Claude
 - Source: code-review:2026-11-03-claims-commands
 - Added: 2026-11-03
 - Updated: 2026-11-03
 - Goal: 参数校验晚于 initSessionDir：claim.ts:39 / evidence.ts:86 / graph-add.ts:41 / results-add.ts:25 在 JSON 与字段校验前就 mkdir agent-inputs 和 meta.json，校验失败的 claim-add 也会留下会话目录
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: TaskFlowDocs/achieved/2026-11-18-small-bug-fixes/
+- Next action: 已在批量修复任务中验证。
 
 ## C13 — 若干 CLI 参数未校验就原样存储
 
@@ -749,15 +749,15 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## D8 — 本地文档模糊标题兜底是死代码
 
 - ID: TF-20261103-b636fb
-- Status: inbox
+- Status: done
 - Priority: normal
 - Owner: Claude
 - Source: code-review:2026-11-03-deep
 - Added: 2026-11-03
 - Updated: 2026-11-03
 - Goal: 本地文档模糊标题兜底是死代码：searcher.ts:243 读 db.data?.documents，而 Orama 3.1.18 把文档存在 db.data.docs.docs。实测 db.data.documents === undefined、db.data.docs.docs 有数据；查询 tokioo 对标题 Tokio Runtime Guide 返回 0 命中
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: TaskFlowDocs/achieved/2026-11-18-small-bug-fixes/
+- Next action: 已在批量修复任务中验证。
 
 ## D9 — search-strategy 按最新支撑轮分桶
 
@@ -791,7 +791,7 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Updated: 2026-11-11
 - Goal: 一批已确认的小缺陷：graph-explore.ts:457-471 resultCount 按 mentions 入边自增而 resultIds 是 Set（一个结果同时提两个路径实体时 2 vs 1）；graph-sampling.ts:506 mixed 策略在没有 rngSeed 时固定播 42 且 CLI 从不传 seed，--strategy mixed 永远选 community_core_path；local-doc/searcher.ts:184 与 scanner.ts:146 frontmatter 标题重复拼接成 X — X；session.ts:651 对空字符串也赋值 excerpt，Jina/Obscura 的 excerpt:'' 会清掉搜索层摘要；graph-obfuscate.ts:48-55 --fallback-rules 用裸 writeFileSync 写 graph.json，绕开会话锁且非原子；extractor.ts:390-404 与 extract.ts:15-19 把 50-99 字符的 Defuddle 结果记为失败并丢弃可用文本；session.ts:654 写入的 contentLength 无人读取且 Defuddle 记词数、Jina/Obscura 记字符数
 - Task: Not promoted.
-- Next action: PR #56 已处理会话图事务写入和独立图原子替换；PR #61 已处理摘要覆盖、短正文和长度口径；PR #63 已处理图来源计数。废弃命令 mixed 采样按用户决定暂缓；本地文档标题仍需处理；另需验证仅含 graph.json 的旧会话直接传入该文件路径时是否被误识别为独立图，导致绕过会话迁移。
+- Next action: frontmatter 标题重复已在批量修复任务处理；PR #56 已处理会话图事务写入和独立图原子替换；PR #61 已处理摘要覆盖、短正文和长度口径；PR #63 已处理图来源计数。废弃命令 mixed 采样按用户决定暂缓；本地文档标题仍需处理；另需验证仅含 graph.json 的旧会话直接传入该文件路径时是否被误识别为独立图，导致绕过会话迁移。
 
 ## SKILL.md 命令表漏了 doc-index / doc-search，且没有任何校验
 
@@ -993,3 +993,10 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Task: Not promoted.
 - Next action: Clarify and promote when ready.
 
+## 挑选并修复若干已记录的小缺陷，补充必要验证
+
+- ID: TF-20261118-b32922
+- Status: done
+- Goal: 挑选并修复若干已记录的小缺陷，补充必要验证
+- Task: `TaskFlowDocs/achieved/2026-11-18-small-bug-fixes/`
+- Next action: None — completed and archived.
