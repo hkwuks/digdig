@@ -1034,7 +1034,7 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## 清理 SimHash 死代码与 deep 桶文件、让 provider 上限降级在输出
 
 - ID: TF-20261118-90bf69
-- Status: inbox
+- Status: promoted
 - Priority: normal
 - Owner: Claude
 - Source: direct user request
@@ -1042,5 +1042,5 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Added: 2026-11-18
 - Updated: 2026-11-18
 - Goal: 清理 SimHash 死代码与 deep 桶文件、让 provider 上限降级在输出中可见、为 README 命令表加漂移校验
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: `TaskFlowDocs/2026-11-18-dead-code-and-limit-notice/`
+- Next action: Complete PRD / Spec / Plan and request approval.
