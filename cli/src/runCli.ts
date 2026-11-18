@@ -424,7 +424,6 @@ async function runSearch(
         session?: string;
         owner?: string;
         desc?: string;
-        graph?: string;
         merge?: string;
         redundancy?: 'warn' | 'adjust' | 'skip';
     }
@@ -764,7 +763,6 @@ export function createProgram(argv: string[] = []): Command {
         .option('--session <dir|new>', 'Session dir, or "new" to auto-create')
         .option('--owner <name>', 'Session owner')
         .option('--desc <text>', 'Session description')
-        .option('--graph <file>', 'Save search result metadata to knowledge graph file')
         .option('--redundancy <action>', 'Query redundancy check: warn | adjust | skip')
         .option('--quality', 'List pending results with what the session has gathered, as counted facts')
         .option('--approve-file <path>', 'UTF-8 approval JSON array under this session agent-inputs directory')
@@ -1596,7 +1594,6 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
             session: opts.session,
             owner: opts.owner,
             desc: opts.desc,
-            graph: opts.graph,
             merge: opts.merge,
             redundancy: opts.redundancy as 'warn' | 'adjust' | 'skip' | undefined,
         });

@@ -34,6 +34,13 @@ describe('CLI program (commander)', () => {
         expect(program.version()).toBe(pkgVersion);
     });
 
+    it('rejects the obsolete search graph option', async () => {
+        const candidate = createProgram().exitOverride();
+        candidate.configureOutput({ writeErr: () => undefined });
+        candidate.action(() => undefined);
+        await expect(candidate.parseAsync(['node', 'dg', 'query', '--graph', 'output.json'])).rejects.toMatchObject({ code: 'commander.unknownOption' });
+    });
+
     it('registers all subcommands', () => {
         const commandNames = program.commands.map(c => c.name());
         expect(commandNames).toContain('init');
