@@ -3,11 +3,11 @@
  *
  * Searches an Orama index, formats results as SessionResult[]
  * with source: 'local', and injects them into the session pipeline
- * without incrementing the round counter.
+ * without opening a new round when one already exists.
  */
 
 import { resolve } from 'path';
-import { search as oramaSearch } from '@orama/orama';
+import { count, search as oramaSearch } from '@orama/orama';
 import { distance as levenshtein } from 'fastest-levenshtein';
 import { scanFiles } from './scanner.js';
 import {
@@ -147,7 +147,7 @@ export async function docSearch(opts: DocSearchOptions): Promise<DocSearchResult
 
   // BM25 zero-results fallback: fuzzy title match via Levenshtein
   if (!searchResult.hits || searchResult.hits.length === 0) {
-    const fallback = fuzzyTitleFallback(db, query, topK);
+    const fallback = await fuzzyTitleFallback(db, query, topK);
     if (fallback.length > 0) {
       searchResult = { hits: fallback };
     }
@@ -176,7 +176,7 @@ export async function docSearch(opts: DocSearchOptions): Promise<DocSearchResult
     // Build title: "DocumentName — Section / Subsection"
     const sectionParts: string[] = [];
     if (doc.headings && doc.headings.length > 0) {
-      sectionParts.push(...doc.headings);
+      sectionParts.push(...(doc.headings[0] === doc.title ? doc.headings.slice(1) : doc.headings));
     }
     let title: string;
     if (sectionParts.length > 0) {
@@ -204,8 +204,7 @@ export async function docSearch(opts: DocSearchOptions): Promise<DocSearchResult
     });
   }
 
-  // Local documents are extracted results, so they join the round already in
-  // progress instead of opening one — `needsRound` handles that on its own.
+  // Extracted local documents join the current round, or initialize the first.
   const sessionDir = resolveSessionPath(opts.session);
   initSessionDir(sessionDir);
   const { added } = appendAndInjectSessionResults(sessionDir, results);
@@ -229,21 +228,19 @@ export async function docSearch(opts: DocSearchOptions): Promise<DocSearchResult
  * Fallback when BM25 returns zero: match query words against document titles
  * using Levenshtein distance ≤ 2. Returns at most topK results.
  */
-function fuzzyTitleFallback(
+async function fuzzyTitleFallback(
   db: any,
   query: string,
   topK: number,
-): Array<{ id: string; score: number; document: any }> {
+): Promise<Array<{ id: string; score: number; document: any }>> {
   const qWords = query.toLowerCase().split(/\s+/).filter(Boolean);
   if (qWords.length === 0) return [];
 
-  // ponytail: Orama internal doc store, cache-based fallback if access pattern changes
-  const docs = db.data?.documents;
-  if (!docs || typeof docs.values !== 'function') return [];
+  const docs = (await oramaSearch(db, { limit: count(db) })).hits.map(hit => hit.document);
 
   const candidates: Array<{ doc: any; avgDist: number }> = [];
 
-  for (const doc of docs.values()) {
+  for (const doc of docs) {
     const title = (doc.title || '').toLowerCase();
     const tWords = title.split(/\s+/).filter(Boolean);
     if (tWords.length === 0) continue;

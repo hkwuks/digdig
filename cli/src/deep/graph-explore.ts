@@ -541,11 +541,12 @@ export function searchEntities(
 
 // ── Helpers ───────────────────────────────────────────────────────
 
-/** Find entity node by label (case-insensitive). */
+/** Find an entity by ID or case-insensitive label. */
 function findEntityByLabel(
     graph: DirectedGraph<GraphNodeAttrs, GraphEdgeAttrs>,
     label: string,
 ): string | null {
+    if (graph.hasNode(label) && graph.getNodeAttribute(label, 'type') === 'entity') return label;
     const lowerLabel = label.toLowerCase();
     let found: string | null = null;
 

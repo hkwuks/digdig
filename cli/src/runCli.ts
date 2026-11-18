@@ -1092,7 +1092,7 @@ Examples:
         .command('graph-explore')
         .argument('<session>', 'Session directory or name')
         .description('List all relations around a seed entity (Agent graph navigation)')
-        .requiredOption('--seed <entity>', 'Seed entity label to explore')
+        .requiredOption('--seed <entity>', 'Seed entity ID or label to explore')
         .option('-f, --format <fmt>', 'Output format: md (default), json')
         .addHelpText('after', `
 Examples:
@@ -1113,7 +1113,7 @@ See also: graph-drill, graph-search`)
         .command('graph-drill')
         .argument('<session>', 'Session directory or name')
         .description('Follow specific relations from an entity (Agent graph navigation)')
-        .requiredOption('--seed <entity>', 'Seed entity label')
+        .requiredOption('--seed <entity>', 'Seed entity ID or label')
         .requiredOption('--relations <list>', 'Comma-separated relation types to follow')
         .option('-f, --format <fmt>', 'Output format: md (default), json')
         .addHelpText('after', `
