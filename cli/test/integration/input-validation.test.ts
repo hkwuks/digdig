@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
+import { runClaimAdd } from '../../src/commands/claim.js';
 import { runCli } from '../../src/runCli.js';
 import { appendSessionResults, approveResults, initSessionDir, loadSessionResults } from '../../src/deep/session.js';
 import { loadVerdicts, saveClaims } from '../../src/claims/store.js';
@@ -34,6 +35,12 @@ describe('input validation before session writes', () => {
         vi.restoreAllMocks();
         process.exitCode = oldExit;
         rmSync(session, { recursive: true, force: true });
+    });
+
+    it('does not create a session for invalid claim input', async () => {
+        const missingSession = join(session, 'missing-session');
+        expect(await runClaimAdd(missingSession, {})).toBe(1);
+        expect(existsSync(missingSession)).toBe(false);
     });
 
     it.each([

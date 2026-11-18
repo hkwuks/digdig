@@ -63,7 +63,7 @@ export function describeResult(result: SessionResult): PendingFact {
         id: result.id,
         revision: result.revision,
         url: result.url,
-        source: typeof result.source === 'string' && result.source ? result.source : 'digdig',
+        source: result.origins?.[0]?.tool || (typeof result.source === 'string' && result.source ? result.source : 'digdig'),
         contentLength: result.content?.length ?? 0,
         extracted: typeof result.content === 'string' && result.content.trim().length > 0,
         verified: hasVerifiedContent(result),

@@ -36,7 +36,6 @@ export async function runClaimAdd(
   }
 ): Promise<number> {
   const sessionDir = resolveSessionPath(session);
-  initSessionDir(sessionDir);
 
   // Parse input
   let inputs: ClaimInput[] = [];
@@ -72,6 +71,8 @@ export async function runClaimAdd(
       inputs[i].riskLevel = risk.toLowerCase() as Claim['riskLevel'];
     }
   }
+
+  initSessionDir(sessionDir);
 
   let result: Record<string, any>;
   try {

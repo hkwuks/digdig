@@ -401,6 +401,14 @@ describe('local-doc searcher', () => {
         if (sessionDir) rmSync(sessionDir, { recursive: true, force: true });
     });
 
+    it('finds a misspelled title and does not repeat the frontmatter title', async () => {
+        sessionDir = resolveSessionPath('new');
+        const result = await docSearch({ session: sessionDir, query: 'programmimg', path: testDir, topK: 5 });
+        expect(result.results.length).toBeGreaterThan(0);
+        expect(result.results[0].title).toMatch(/^Programming Guide(?: — Async)?$/);
+        expect(result.results[0].title).not.toContain('Programming Guide — Programming Guide');
+    });
+
     it('auto-indexes and searches, returns SessionResult[]', async () => {
         sessionDir = resolveSessionPath('new');
 

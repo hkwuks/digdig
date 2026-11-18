@@ -422,7 +422,7 @@ export function appendSessionResults(
         const results = state?.data.results ?? [];
         const currentRounds = state?.data.rounds ?? 0;
         const incrementRound = allocatedRound === undefined && newResults.some(needsRound);
-        const round = incrementRound ? currentRounds + 1 : currentRounds;
+        const round = incrementRound ? currentRounds + 1 : Math.max(currentRounds, allocatedRound ?? 0, newResults.length ? 1 : 0);
         const byKey = new Map(results.map(result => [resultUrlKey(result), result]));
         let added = 0;
         let updated = 0;

@@ -102,6 +102,13 @@ function buildGraphWithDeadEnd(): DirectedGraph<GraphNodeAttrs, GraphEdgeAttrs> 
 }
 
 describe('graph-explore', () => {
+    it('resolves entity IDs before labels in explore and drill', () => {
+        const graph = buildTestGraph();
+        graph.mergeNode('e:other', { type: 'entity', label: 'e:tokio', entityType: 'other' });
+        expect((exploreSeedEntity(graph, 'e:tokio') as ExploreResult).entity.label).toBe('tokio');
+        expect((drillByRelations(graph, 'e:tokio', ['alternative_to']) as DrillResult).seed).toBe('e:tokio');
+        expect(exploreSeedEntity(graph, 'r:url1')).toHaveProperty('error');
+    });
     describe('exploreSeedEntity', () => {
         it('returns outgoing and incoming relations for a seed entity', () => {
             const graph = buildTestGraph();

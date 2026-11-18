@@ -54,6 +54,15 @@ describe('results-add command', () => {
   });
 
   describe('round accounting', () => {
+    it('assigns the first imported body to the first stored round without opening more rounds', async () => {
+      const dataFile = join(sessionDir, 'agent-inputs', 'body-round.json');
+      writeFileSync(dataFile, JSON.stringify([{ url: 'https://example.com/a', title: 'A', content: 'body', extractor: 'test' }]));
+      expect(await runResultsAdd({ session: sessionDir, kind: 'extracted', dataFile, tool: 'exa', query: 'q' })).toBe(0);
+      expect(loadSessionRounds(sessionDir)).toBe(1);
+      expect(loadSessionResults(sessionDir)[0].origins[0].round).toBe(1);
+      expect(await runResultsAdd({ session: sessionDir, kind: 'extracted', dataFile, tool: 'exa', query: 'q' })).toBe(0);
+      expect(loadSessionRounds(sessionDir)).toBe(1);
+    });
     it('opens a round for a search import', async () => {
       const dataFile = join(sessionDir, 'agent-inputs', 'search-round.json');
       writeFileSync(dataFile, JSON.stringify([{ url: 'https://example.com/a', title: 'A', excerpt: 'blurb' }]), 'utf8');

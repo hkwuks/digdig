@@ -16,6 +16,11 @@ function result(url: string, overrides: Partial<SessionResult> = {}): SessionRes
 }
 
 describe('describeResult', () => {
+    it('uses the first origin tool for multi-source results', () => {
+        expect(describeResult(result('https://a.com', { origins: [
+            { tool: 'exa', query: 'a' }, { tool: 'tavily', query: 'b' },
+        ] })).source).toBe('exa');
+    });
     it('reports a search result as unextracted rather than counting its snippet as a body', () => {
         // A search result keeps its snippet in `excerpt`; `content` stays empty
         // until an extractor writes it. Reading `content || excerpt` here made
