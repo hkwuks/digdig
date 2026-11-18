@@ -37,7 +37,7 @@
 - 🕸️ **Knowledge Graph** — Structural (query→result→domain) + semantic (entity relations with approved result-ID provenance) graph layers
 - 🔄 **Query Redundancy Check** — Word-level or character-bigram Jaccard detects repeated queries
 - 💡 **Agent-First Design** — Outputs structured analysis data (facts, suggestions, strategy) for LLM Agent decision-making
-- 📁 **Local Document Search** — Index and BM25-search local Markdown/text files; results auto-injected into the session pipeline as `source: "local"`
+- 📁 **Local Document Search** — Index and BM25-search local Markdown/text files; results auto-injected into the session pipeline with origin tool `local-index`
 - ✅ **Claim—Evidence—Review Pipeline** — L2/L3 only: verify evidence and record source independence judgments for automatic approval or Agent review.
 
 ## 📦 Installation
@@ -417,9 +417,9 @@ dg doc-index ./docs
 dg doc-search <session-name> "query" --path ./docs
 ```
 
-**How it works:** auto-indexing on first use (Orama BM25, title×3 / headings×2 / content×1), each matched chunk is injected as an `extracted` result with `extractor: "local-index"`, then follows `--quality` → `--approve-file` → `graph-add`. Use `graph-preprocess` before adding new entities so approved IDs become `sourceResultIds`. Local searches do **not** increment the round counter.
+**How it works:** auto-indexing on first use (Orama BM25, title×3 / headings×2 / content×1), each matched chunk is injected as an `extracted` result with `extractor: "local-index"`, then follows `--quality` → `--approve-file` → `graph-add`. Use `graph-preprocess` before adding new entities so approved IDs become `sourceResultIds`. Local results join the current round without opening another. In a session without rounds, the first local hit starts round 1 and a later web search starts round 2; a search with no hits starts no round.
 
-**Quality note:** Pure local search yields `sourceDiversity: 1`. Combine with web results for adequate diversity.
+**Source facts:** The quality report counts distinct local files as sources, so chunks from one file share a source. Assess whether the available sources are sufficient for the question.
 
 ### Known Limitations
 

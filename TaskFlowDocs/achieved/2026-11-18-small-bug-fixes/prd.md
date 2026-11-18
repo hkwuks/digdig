@@ -1,9 +1,9 @@
 # 修复六项已记录缺陷
-> Task version: v1
+> Task version: v2
 > Status: completed
 
 ## Goal
-修复用户确认的六项缺陷并验证。
+保留 v1 六项修复，并补齐本地文档首轮与来源行为的文档和端到端验证。
 
 ## Task Kind
 - Kind: defect
@@ -21,20 +21,21 @@
 4. 质量输出采用首次 origin 的工具。
 5. claim-add 无效输入不创建会话，其他相关命令校验后创建。
 6. 针对性及全量测试、类型检查通过；已解决待办更新，复合待办保留剩余项。
+7. 空会话先执行本地文档搜索，首次命中初始化第 1 轮，之后网络搜索为第 2 轮；已有轮次的本地搜索不额外增加，无命中不创建轮次。
+8. 项目 README、项目 skill 的 SOP 和代码注释准确描述轮次、本地来源与当前质量报告字段。
 
 ## External Facts
-- Depends on external facts: yes
-- Source: https://docs.orama.com/docs/orama-js/search
-- What it settled: Orama 可通过无 term 的 search 查询全部文档，默认分页限制须显式设置。
+- Depends on external facts: no
+- Why not: v2 说明和行为由 `cli/src/deep/session.ts`、`cli/src/deep/local-doc/searcher.ts`、`cli/src/deep/pending-facts.ts` 和项目测试确定；v1 的 Orama 官方资料保留在旧版记录。
 
 ## In Scope
-六项及必要测试、文档、待办。
+保留六项修复，补充本地文档轮次和来源说明、必要测试。
 
 ## Out of Scope
 其他待办、发布、远端合并。
 
 ## Risks / Deferred Items
-纯导入轮次会影响覆盖统计；旧索引和多来源输出需回归验证。
+纯导入轮次会影响覆盖统计；旧索引和多来源输出需回归验证。v2 用真实 CLI 会话路径验证本地搜索与网络搜索顺序，不修改已批准的轮次策略。
 
 ## Open Questions
 无。

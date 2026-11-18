@@ -1001,6 +1001,20 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Task: `TaskFlowDocs/achieved/2026-11-18-small-bug-fixes/`
 - Next action: None — completed and archived.
 
+## 核实今日修复与 SQLite 新设计的衔接，补充本地文档首轮说明
+
+- ID: TF-20261118-0d9dc4
+- Status: done
+- Priority: normal
+- Owner: Unknown
+- Source: direct user request
+- Kind: capability
+- Added: 2026-11-18
+- Updated: 2026-11-18
+- Goal: 核实今日修复与 SQLite 新设计的衔接，补充本地文档首轮说明及端到端测试
+- Task: `TaskFlowDocs/achieved/2026-11-18-small-bug-fixes/`（v2）
+- Next action: 已验收并归档。
+
 ## 核查并一次修复现有待办中仍存在的简单缺陷
 
 - ID: TF-20261118-795918

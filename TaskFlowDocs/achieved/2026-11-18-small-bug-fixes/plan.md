@@ -1,5 +1,5 @@
 # Plan — 修复六项缺陷
-> Task version: v1
+> Task version: v2
 > Status: completed
 
 ## Reference Pointers
@@ -8,7 +8,7 @@
 - https://docs.orama.com/docs/orama-js/search：公开搜索接口。
 
 ## Related Tasks
-覆盖 TF-20261105-b1e4c7、TF-20261103-b636fb、TF-20261103-761aa5、TF-20261103-844d30、TF-20261103-097d13、TF-20261103-2a70e1 的用户确认范围。
+v2 承接用户确认的 TF-20261118-0d9dc4，保留 v1 交付；覆盖 TF-20261105-b1e4c7、TF-20261103-b636fb、TF-20261103-761aa5、TF-20261103-844d30、TF-20261103-097d13、TF-20261103-2a70e1 的用户确认范围。
 
 ## Skills / Tools Used
 - [PRD] Unaided — considered: root cause; 追踪六项根因并参考 debugging-and-error-recovery。
@@ -21,19 +21,19 @@
 - [Test] Unaided — considered: testing strategy; 添加端到端回归并运行全量测试。
 
 ## Preconditions
-用户于 2026-11-18 同意六项及来源、待办收尾方式；工作树 fix/2026-11-18-small-bug-fixes。
+用户于 2026-11-18 同意补充文档、端到端测试并仔细核查关联更新；工作树 fix/2026-11-18-round-followup。
 
 ## Plan Review
 - Verdict: sound
-- Coverage: Step 1 覆盖验收 1–5；Step 2 覆盖 6。
-- Verifiability: 针对性回归测试覆盖每个行为及边界，再进行全量测试。
+- Coverage: 保留已完成的 Step 1、2；Step 3 覆盖新增验收 7、8，并复核验收 6。
+- Verifiability: 真实 CLI 搜索配合本地索引测试先本地、后网络及空结果；已有测试覆盖已有轮次；核对各文档字段。
 - Layer ownership: 分别修改图查询、索引检索、会话存储、事实报告和命令校验的责任层；测试仅验证外部行为。
 
 ## Approval
 - Status: approved
 - Approved by: user
-- Approved at: 2026-11-18 10:30 +0800
-- Approved version: v1
+- Approved at: 2026-11-18 11:58 +0800
+- Approved version: v2
 - Approved scope: PRD / Spec / Plan
 
 ## Steps
@@ -61,8 +61,28 @@
 - Rollback: 回退本任务提交。
 - Status: done
 
+### Step 3 — 补齐轮次与来源说明及验证
+- Goal: 覆盖本地文档与网络搜索的轮次衔接，修正文档来源字段。
+- Dependencies: 用户同意 v2 补充范围。
+- Files: README.md、README.zh-CN.md、cli/README.md、skills/digdig/references/SOP.md、cli/src/commands/doc-search.ts、cli/src/deep/local-doc/searcher.ts、cli/test/unit/deep/local-doc.test.ts。
+- Implementation checklist:
+  - [x] 核查今天六项修复相关的文档、调用和测试，记录额外发现。
+  - [x] 添加真实 CLI 网络搜索与本地索引的会话轮次、来源回归测试。
+  - [x] 更新项目文档和注释并运行验证。
+- Acceptance: 空会话本地命中轮次 1、后续网络轮次 2、无命中仍为 0；来源与文档一致；原有顺序不回归。
+- Verification: 针对性 Vitest、类型检查、全量测试和文档搜索。
+- Rollback: 回退 v2 提交。
+- Status: done
+
 ## Checkpoints
 ## Verification / Review
+- v2 全面核查六项原修复的调用者、测试和项目文档；发现本地搜索首轮、local-index 来源和 sourceDiversity 旧字段的多处描述过时，按现有实现修正。
+- 本地空会话命中后、CLI 网络搜索前后及本地无命中，两个新增测试通过；网络服务使用 mock，CLI 解析和 SQLite 均为实际实现。
+- `node node_modules/typescript/bin/tsc --noEmit`：通过。
+- `node node_modules/vitest/vitest.mjs run --maxWorkers=2`：70 文件、808 测试通过。
+- 使用 rg 核查项目 README、项目 skill/SOP 和相关注释，无原旧描述残留；历史 TaskFlow 归档及旧 source 测试夹具保留。
+- 其他 v1 修复未发现因 SQLite 迁移必须更改；旧目录锁竞态与图文件支持仍是独立待办，未修改生产逻辑。
+
 - 回归测试先于修复运行，五组失败复现六项问题；修复后 5 文件 106 测试通过。
 - `node node_modules/typescript/bin/tsc --noEmit`：通过（锁文件依赖）。
 - `node node_modules/vitest/vitest.mjs run --maxWorkers=2`：70 文件、806 测试通过。
@@ -72,8 +92,12 @@
 - Orama 兜底遍历全部索引记录，成本随索引规模增长；用户已有兜底方案原设计即全量遍历。
 
 ## Change Log
+- v2：补充本地搜索及网络搜索顺序的 CLI 测试，修正项目文档和注释中的轮次与来源描述；完成验证。
+- v2：保留 v1 结果，补充本地文档轮次、来源字段的说明和端到端验证。
+- 2026-11-18 reopen — retrieved achieved task `2026-11-18-small-bug-fixes` for new work; re-approval required before core changes
 - v1：记录用户确认的范围及设计。
 ## Follow-ups
 - D11 的 mixed 采样及旧会话 graph.json 路径验证仍待处理。
 ## Version History
-- v1 — planning.
+- v1 — completed.
+- v2 — ready.
