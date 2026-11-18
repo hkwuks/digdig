@@ -12,7 +12,7 @@
  *   getEntityDegree <5ms   / node
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { DirectedGraph } from 'graphology';
 import { tokenize } from '../../src/deep/tfidf.js';
 import { getEntityDegree } from '../../src/deep/degree-utils.js';
@@ -72,20 +72,45 @@ function buildResults(count: number): SessionResult[] {
     return results;
 }
 
+function median(values: number[]): number {
+    return [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
+}
+
+function measure<T>(run: () => T): { result: T; elapsed: number } {
+    let result = run();
+    const samples: number[] = [];
+    for (let i = 0; i < 5; i++) {
+        const start = performance.now();
+        result = run();
+        samples.push(performance.now() - start);
+    }
+    return { result, elapsed: median(samples) };
+}
+
 // ── Benchmarks ──────────────────────────────────────────────────────
 
 describe('Performance Benchmarks', () => {
+    it('ignores a single scheduling spike but rejects sustained slowdown', () => {
+        const clock = vi.spyOn(performance, 'now');
+        const run = vi.fn(() => 'result');
+        try {
+            for (const time of [0, 1, 1, 2, 2, 42, 42, 43, 43, 44]) clock.mockReturnValueOnce(time);
+            expect(measure(run)).toEqual({ result: 'result', elapsed: 1 });
+            expect(run).toHaveBeenCalledTimes(6);
+            for (const time of [0, 6, 6, 12, 12, 18, 18, 24, 24, 30]) clock.mockReturnValueOnce(time);
+            expect(measure(run).elapsed).toBeGreaterThanOrEqual(5);
+        } finally {
+            clock.mockRestore();
+        }
+    });
     describe('getEntityDegree', () => {
         it('computes degree for a node in <5ms', () => {
             const graph = buildLargeGraph(1000, 2);
             const entityNode = 'n:0'; // First node is entity
 
-            const start = performance.now();
-            const degree = getEntityDegree(graph, entityNode);
-            const elapsed = performance.now() - start;
+            const { result: degree, elapsed } = measure(() => getEntityDegree(graph, entityNode));
 
             expect(degree).toBeGreaterThanOrEqual(0);
-            // A single wall-clock sample is susceptible to Windows scheduler jitter.
             expect(elapsed).toBeLessThan(5);
             console.log(`  getEntityDegree (1000 nodes): ${elapsed.toFixed(3)}ms`);
         });
@@ -101,13 +126,11 @@ describe('Performance Benchmarks', () => {
                 }
             });
 
-            const start = performance.now();
-            const result = sampleGraph(graph, {
+            const { result, elapsed } = measure(() => sampleGraph(graph, {
                 strategy: 'augmented_chain',
                 seedEntities: seedEntities.length > 0 ? seedEntities : ['n:0'],
                 maxHops: 5,
-            });
-            const elapsed = performance.now() - start;
+            }));
 
             expect(result.entities.length).toBeGreaterThanOrEqual(0);
             expect(elapsed).toBeLessThan(100);
@@ -119,12 +142,10 @@ describe('Performance Benchmarks', () => {
         it('computes Jaccard for a query pair in <5ms', () => {
             const history = Array.from({ length: 50 }, (_, i) => `query ${i} about rust async programming`);
 
-            const start = performance.now();
-            const result = checkQueryRedundancy('rust async tutorial', history, {
+            const { result, elapsed } = measure(() => checkQueryRedundancy('rust async tutorial', history, {
                 jaccardThreshold: 0.7,
                 action: 'warn',
-            });
-            const elapsed = performance.now() - start;
+            }));
 
             expect(result).toBeDefined();
             expect(elapsed).toBeLessThan(5);
@@ -143,9 +164,7 @@ describe('Performance Benchmarks', () => {
                 }
             });
 
-            const start = performance.now();
-            const result = exploreSeedEntity(graph, seedLabel);
-            const elapsed = performance.now() - start;
+            const { result, elapsed } = measure(() => exploreSeedEntity(graph, seedLabel));
 
             expect(result).toBeDefined();
             expect(elapsed).toBeLessThan(100);
