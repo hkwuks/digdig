@@ -76,7 +76,7 @@ npm link
 
 ### Obscura (Optional — for JS-heavy pages)
 
-Content extraction uses **Defuddle + linkedom** by default. If it produces no body, configured compatible services (Exa, Tavily, Firecrawl, Ollama, DeepSeek, Jina) or an available Tavily CLI may be used, including its rate-limited keyless mode; these services can charge for requests. PDF is sent only to providers with documented PDF support. Before external fallback, DNS answers must all be public addresses; unresolvable, private or credential-bearing URLs are not forwarded. DNS can change after this check, so this is not an SSRF security boundary. For JS-rendered pages (SPAs), enable [Obscura](https://github.com/h4ckf0r0day/obscura). When `--obscura` is used and the binary is absent, digdig automatically downloads the matching release asset from the official GitHub HTTPS download endpoint.
+Content extraction uses **Defuddle + linkedom** by default. If it produces no body, configured compatible services (Exa, Tavily, Firecrawl, Ollama, DeepSeek, Jina) or authenticated Tavily and official Firecrawl CLIs may be used, including rate-limited keyless Tavily mode when no key is available; these services can charge for requests. PDF is sent only to providers with documented PDF support. Before external fallback, DNS answers must all be public addresses; unresolvable, private or credential-bearing URLs are not forwarded. DNS can change after this check, so this is not an SSRF security boundary. For JS-rendered pages (SPAs), enable [Obscura](https://github.com/h4ckf0r0day/obscura). When `--obscura` is used and the binary is absent, digdig automatically downloads the matching release asset from the official GitHub HTTPS download endpoint.
 
 ```bash
 # Linux x86_64
@@ -220,6 +220,9 @@ Configuration priority (highest to lowest):
 | `DEEPSEEK_API_KEY` | [DeepSeek Search](https://api-docs.deepseek.com/api/search) API key (optional backend; billed per successful request) | *(none)* |
 | `EXA_API_KEY`, `TAVILY_API_KEY`, `FIRECRAWL_API_KEY`, `JINA_API_KEY` | Service keys for compatible extraction and explicit search via `-e exa`, `-e tavily`, `-e firecrawl`, or `-e jina` | *(none)* |
 
+
+`dg --engines-list` reports configuration as `not_configured` or `unverified`, not successful authentication; external providers are not probed with paid searches. Search output includes per-query `providerResults` with status, provider-returned and actually returned counts. In a successful session call, returned results are already stored; an Agent should consume them before using its own tool. Zero results or missing evidence can justify a follow-up. A session error may carry `partialResults` with `sessionWrite: unconfirmed`; inspect and import rather than automatically re-run the search. Jina search content has unverified completeness and `--quality` identifies possible historical cases without modifying them.
+
 Engine selection uses explicit `--engines`, then `DIGDIG_DEFAULT_ENGINE`, then `DIGDIG_ALLOWED_ENGINES`; when all are empty, the backend chooses its defaults. A nonempty allowlist also restricts the default engine. Configured external providers must have API keys and may incur charges.
 
 > `SEARXNG_*` variable names are still read until `0.5.0` and emit one `[deprecation]` line on stderr; `DIGDIG_*` wins when both are set.
@@ -338,6 +341,8 @@ Graph navigation commands: `graph-search` (discover entities), `graph-explore` (
 `graph-preprocess` returns `resultProvenance` (`id`, `revision`, `url`, `title`, `approval`) for every extracted body. For each semantic entity or edge, copy one or more currently approved `id` values into `sourceResultIds`. This keeps semantic facts traceable to the exact approved bodies rather than a search round.
 
 ### External Search Results
+
+Authenticated Tavily and official Firecrawl CLIs are preferred without copying credentials; dg uses the corresponding environment variable when the CLI is unavailable. Host-private MCP tools remain available through Agent calls and import.
 
 Results from other search tools (Tavily, Exa, etc.) can be injected into any active session via `results-add`, following the same pipeline as native dg results:
 

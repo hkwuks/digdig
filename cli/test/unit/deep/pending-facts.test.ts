@@ -90,6 +90,19 @@ describe('describeResult', () => {
 });
 
 describe('buildPendingReport', () => {
+    it('warns about possibly incomplete historical Jina search bodies without changing them', () => {
+        const item = result('https://a.com/jina', { status: 'approved', contentType: 'extracted', content: 'saved', extractor: 'jina', extractedAt: 1, origins: [{ tool: 'jina', engine: 'jina', query: 'q' }] });
+        const before = JSON.stringify(item);
+        const report = buildPendingReport([item], []);
+        expect(report.jinaSearchWarnings).toEqual([{ id: item.id, revision: item.revision, url: item.url, status: 'approved' }]);
+        expect(JSON.stringify(item)).toBe(before);
+    });
+
+    it('does not label an unrelated Jina extraction as a search body', () => {
+        const item = result('https://a.com/jina', { contentType: 'extracted', content: 'saved', extractor: 'jina', extractedAt: 1, origins: [{ tool: 'exa', engine: 'exa', query: 'q' }] });
+        expect(buildPendingReport([item], [item])).not.toHaveProperty('jinaSearchWarnings');
+    });
+
     it('counts every stored result, not only the pending ones', () => {
         const all = [
             result('https://a.com/1', { contentType: 'extracted', content: 'body', extractor: 'x', extractedAt: 1 }),

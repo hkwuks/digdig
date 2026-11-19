@@ -127,6 +127,17 @@ dg extract --urls "https://spa-site.com" --session <session-name> --jina
 | `--obscura` | JS-rendering fallback for SPA pages |
 | `--jina` | Extract explicitly supplied URLs with Jina Reader; combine with `--session` to merge the selected results |
 
+## Coordinate dg and Agent tools
+
+- Use `dg --engines-list` to inspect configuration. `providers[].access: unverified` means a credential or CLI is configured, not that an API key is valid; `not_configured` means no available configuration. This check does not perform a paid external search. SearXNG engine discovery can still request its `/config` endpoint.
+- When dg can handle the query, call the selected `dg -e <provider>` once and inspect `providerResults`: `status`, `received` (provider response count), and `returned` (results actually included after filtering and limits). If a session was supplied and the call succeeded, returned results are already in that session: use them, do not call the same provider again and re-import the same results. `session.added` and `session.updated` are session-wide counts.
+- A successful zero-result search, failure, unsupported capability, or a documented evidence gap can justify an Agent tool call; deliberate refresh or independent confirmation remains valid. Do not infer an API works from configuration alone.
+- If a session error reports `sessionWrite: unconfirmed` and `partialResults`, inspect the session and import any missing results once available instead of repeating the paid search. Search errors report provider error categories without credentials.
+- Agent tools can still search or extract independently; use `results-add --kind search` for snippets and `--kind extracted` only for content whose provenance and completeness the Agent has assessed. Jina search content is marked `contentCompleteness: unverified`; `--quality` warns about possibly incomplete existing Jina search bodies. An extracted/verified metadata flag alone does not prove completeness.
+- In a compatible Codex host, follow [Codex MCP bridge](references/codex-mcp-bridge.md) for an Exa page-to-session transfer that avoids returning the page text to the model. It imports the text as an excerpt, not a verified full body.
+- Prefer authenticated local Tavily or official Firecrawl CLIs: dg can call them without copying their credentials. If a host exposes safe programmatic orchestration of its existing MCP tools and filesystem/process operations, the host can transform the tool response directly into a UTF-8 `agent-inputs` file and invoke `results-add`, returning only status and selected metadata to the model. Confirm that the host supports this before relying on it; dg cannot automatically access another client's MCP connection or private authentication. Otherwise call the host tool normally and import its results. This can reduce model-context tokens but does not guarantee savings or reduce provider charges.
+- This coordinates the current Agent workflow, not independent concurrent Agents: separate tool calls are not intercepted or globally deduplicated.
+
 ## Deep Search
 
 Deep search enables multi-round iterative research with session accumulation, counted coverage facts, and knowledge graph navigation.

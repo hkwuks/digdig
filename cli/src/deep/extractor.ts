@@ -1,4 +1,5 @@
-import { installedTavilyReady, installedTavilyExtract } from './installed-tavily.js';
+import { installedTavilyReady, installedTavilyStatus, installedTavilyExtract } from './installed-tavily.js';
+import { installedFirecrawlStatus, installedFirecrawlExtract } from './installed-firecrawl.js';
 import { externalExtract, supportsType, type ExternalKeys, type ExternalProvider } from './external-extract.js';
 import { feedbackLog } from '../feedback-log.js';
 /**
@@ -86,6 +87,7 @@ export interface ExtractorOptions {
     jina?: boolean;
     jinaApiKey?: string;
     useInstalledTavily?: boolean;
+    useInstalledFirecrawl?: boolean;
     externalKeys?: ExternalKeys;
 }
 
@@ -399,6 +401,7 @@ export class ContentExtractor {
     private useJina: boolean;
     private jinaApiKey?: string;
     private useInstalledTavily: boolean;
+    private useInstalledFirecrawl: boolean;
     private tavilyReady?: Promise<boolean>;
     private externalKeys: ExternalKeys;
 
@@ -412,6 +415,7 @@ export class ContentExtractor {
         this.useJina = options?.jina ?? false;
         this.jinaApiKey = options?.jinaApiKey;
         this.useInstalledTavily = options?.useInstalledTavily ?? false;
+        this.useInstalledFirecrawl = options?.useInstalledFirecrawl ?? false;
         this.externalKeys = options?.externalKeys ?? {};
     }
 
@@ -481,21 +485,29 @@ export class ContentExtractor {
 
         const providerFailures: string[] = [];
         for (const provider of ['exa', 'tavily', 'firecrawl', 'ollama', 'deepseek'] as const) {
+            if (!supportsType(provider, contentType)) continue;
+            if (this.useInstalledTavily && provider === 'tavily') {
+                this.tavilyReady ??= this.externalKeys.tavily ? installedTavilyStatus().then(status => status === 'authenticated') : installedTavilyReady();
+                if (await this.tavilyReady) {
+                    const installed = await installedTavilyExtract(url, this.timeoutMs);
+                    if (installed && installed.content.length > result.content.length) return installed;
+                    providerFailures.push('tavily CLI: extraction failed');
+                    continue;
+                }
+            }
+            if (this.useInstalledFirecrawl && provider === 'firecrawl' && await installedFirecrawlStatus() === 'authenticated') {
+                const installed = await installedFirecrawlExtract(url, this.timeoutMs);
+                if (installed && installed.content.length > result.content.length) return installed;
+                providerFailures.push('firecrawl CLI: extraction failed');
+                continue;
+            }
             const key = this.externalKeys[provider];
-            if (!key || !supportsType(provider, contentType)) continue;
+            if (!key) continue;
             const external = await externalExtract(provider, key, url, this.timeoutMs);
             if (typeof external === 'string') providerFailures.push(`${provider}: ${external}`);
             else if (external.content.length > result.content.length) return external;
         }
 
-        if (this.useInstalledTavily && !this.externalKeys.tavily && supportsType('tavily', contentType)) {
-            this.tavilyReady ??= installedTavilyReady();
-            if (await this.tavilyReady) {
-                const installed = await installedTavilyExtract(url, this.timeoutMs);
-                if (installed && installed.content.length > result.content.length) return installed;
-                providerFailures.push('tavily CLI: extraction failed');
-            }
-        }
         if (this.jinaApiKey && (!contentType || contentType === 'application/pdf' || contentType === 'application/msword' || contentType.startsWith('application/vnd.ms-') || contentType.startsWith('application/vnd.openxmlformats-officedocument.'))) {
             const jina = await jinaExtract(url, { timeoutMs: this.timeoutMs, apiKey: this.jinaApiKey });
             if (jina && !jina.error && jina.content.length > result.content.length) return jina;

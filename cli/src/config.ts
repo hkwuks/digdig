@@ -158,10 +158,10 @@ function mergeConfig(): SearXNGConfig {
         config.redundancyBigramThreshold = readFloatEnv('REDUNDANCY_BIGRAM_THRESHOLD', config.redundancyBigramThreshold);
     }
 
-    const envOllamaApiKey = readOptionalEnv('OLLAMA_API_KEY');
+    const envOllamaApiKey = readOptionalEnv('OLLAMA_API_KEY') || process.env.OLLAMA_API_KEY?.trim();
     if (envOllamaApiKey) config.ollamaApiKey = envOllamaApiKey;
 
-    const envDeepseekApiKey = readOptionalEnv('DEEPSEEK_API_KEY');
+    const envDeepseekApiKey = readOptionalEnv('DEEPSEEK_API_KEY') || process.env.DEEPSEEK_API_KEY?.trim();
     if (envDeepseekApiKey) config.deepseekApiKey = envDeepseekApiKey;
 
     return config;

@@ -48,6 +48,7 @@ export interface PendingReport {
     sources: number;
     sourceList: string[];
     pending: PendingFact[];
+    jinaSearchWarnings?: Array<{ id: string; revision: number; url: string; status: SessionResult['status'] }>;
 }
 
 /**
@@ -99,7 +100,11 @@ export function buildPendingReport(results: SessionResult[], pending: SessionRes
         if (typeof result.content === 'string' && result.content.trim().length > 0) extracted++;
     }
 
+    const jinaSearchWarnings = results.filter(result => result.extractor === 'jina' && result.origins?.some(origin => origin.tool === 'jina' && origin.engine === 'jina'))
+        .map(result => ({ id: result.id, revision: result.revision, url: result.url, status: result.status }));
+
     return {
+        ...(jinaSearchWarnings.length ? { jinaSearchWarnings } : {}),
         total: results.length,
         extracted,
         unextracted: results.length - extracted,

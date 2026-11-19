@@ -50,6 +50,24 @@ describe('CLI program (commander)', () => {
         } finally { process.exitCode = previous; }
     });
 
+    it('shows Jina completeness cautions in both quality formats without altering stored records', async () => {
+        const root = mkdtempSync(join(tmpdir(), 'digdig-jina-caution-'));
+        const session = join(root, 'session');
+        const url = 'https://example.com/jina-caution';
+        appendSessionResults(session, [{ url, title: 'Jina page', contentType: 'extracted', content: 'saved body', extractor: 'jina', origins: [{ tool: 'jina', engine: 'jina', query: 'q' }] }]);
+        const before = loadSessionResults(session);
+        const output = vi.spyOn(console, 'log').mockImplementation(() => {});
+        const previous = process.exitCode;
+        try {
+            await runCli(['--session', session, '--quality', '--format', 'json'], {} as never);
+            const json = JSON.parse(output.mock.lastCall![0]);
+            expect(json.data.jinaSearchWarnings).toEqual(expect.arrayContaining([expect.objectContaining({ url })]));
+            await runCli(['--session', session, '--quality', '--format', 'md'], {} as never);
+            expect(output.mock.calls.some(call => String(call[0]).includes('Jina search content needs completeness review'))).toBe(true);
+            expect(loadSessionResults(session)).toEqual(before);
+        } finally { process.exitCode = previous; rmSync(root, { recursive: true, force: true }); }
+    });
+
     it('registers all subcommands', () => {
         const commandNames = program.commands.map(c => c.name());
         expect(commandNames).toContain('init');

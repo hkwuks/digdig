@@ -26,6 +26,7 @@ export interface SearchResult {
     /** The longest body text this provider can give; what the analysis layer reads. */
     content: string;
     contentType?: 'extracted';
+    contentCompleteness?: 'unverified';
     extractor?: string;
     extractedAt?: number;
     /**
