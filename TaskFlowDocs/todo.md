@@ -955,10 +955,11 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## withSessionLock 的陈旧锁清理存在 stat→rm 竞态且失败不重试：se
 
 - ID: TF-20261116-273731
-- Status: done
+- Status: promoted
 - Goal: 评估数据库打开路径是否仍需每次获取旧目录锁，并处理首次迁移时旧锁的过期清理竞态。当前会话写入已使用 SQLite BEGIN IMMEDIATE 事务；openSessionStore 每次打开仍先获取 .lock，旧锁 stat 后删除目录存在竞态，实际影响需用多进程测试验证。首次迁移必须保留与仍使用旧 JSON 的进程互斥及迁移原子性。SESSION_BUSY 已输出结构化 JSON，旧条目对此的描述已过时。
-- Task: `TaskFlowDocs/achieved/2026-11-19-session-lock/`
-- Next action: None — completed and archived.
+- Task: `TaskFlowDocs/2026-11-19-session-lock/`
+- Next action: Re-approve the new Task version before core changes.
+- Updated: 2026-11-19
 
 ## CLAUDE.md 的命令表与 runCli.ts 实际注册的命令长期漂移且无校
 

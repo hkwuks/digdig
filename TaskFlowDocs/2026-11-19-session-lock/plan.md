@@ -52,6 +52,7 @@ No spec required — 聚焦现有锁与数据库打开路径。
 - 遗留锁不再自动删除；只有确认没有旧进程持锁后才能人工删除。旧版本自身仍可超时清锁，不能保证与长时间运行的旧进程互斥。
 
 ## Change Log
+- 2026-11-19 reopen — retrieved achieved task `2026-11-19-session-lock` for new work; re-approval required before core changes
 - v2 使用 SQLite 进程锁串行化可识别锁恢复，并保留未知锁。
 - 2026-11-19 reopen — retrieved achieved task `2026-11-19-session-lock` for new work; re-approval required before core changes
 - 已迁移数据库绕开目录锁；未迁移会话对已有锁 fail closed。
