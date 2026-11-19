@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { spawn } from 'child_process';
@@ -178,6 +178,24 @@ describe('legacy session migration', () => {
         mkdirSync(join(dir, '.lock'));
         expect(() => openSessionStore(dir, false)).toThrow('Session is busy');
         expect(existsSync(join(dir, 'session.sqlite'))).toBe(false);
+    });
+
+    it('does not delete an old legacy lock during migration', () => {
+        const lock = join(dir, '.lock');
+        mkdirSync(lock);
+        const old = new Date(Date.now() - 60_000);
+        utimesSync(lock, old, old);
+        expect(() => openSessionStore(dir, false)).toThrow(expect.objectContaining({ code: 'SESSION_BUSY' }));
+        expect(existsSync(lock)).toBe(true);
+        expect(existsSync(join(dir, 'session.sqlite'))).toBe(false);
+    });
+
+    it('opens an already migrated session without the legacy lock', () => {
+        openSessionStore(dir, false)!.close();
+        mkdirSync(join(dir, '.lock'));
+        const db = openSessionStore(dir, false)!;
+        try { expect(db.prepare('SELECT count(*) AS n FROM results').get()?.n).toBe(1); }
+        finally { db.close(); }
     });
 
     it('migrates a complete old session through a read-only CLI without changing any source file', async () => {

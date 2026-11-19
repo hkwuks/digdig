@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync, statSync } from 'fs';
+import { mkdirSync, rmSync } from 'fs';
 import { join } from 'path';
 
 export class SessionStateError extends Error {
@@ -14,31 +14,21 @@ export function classifySqliteError(error: unknown): unknown {
         error instanceof Error ? error.message : 'SQLite operation failed');
 }
 
-const SESSION_LOCK_STALE_MS = 30_000;
-
 export function withSessionLock<T>(sessionDir: string, action: () => T): T {
     mkdirSync(sessionDir, { recursive: true });
     const lockDir = join(sessionDir, '.lock');
-    let acquired = false;
     try {
-        try {
-            mkdirSync(lockDir);
-            acquired = true;
-        } catch (error) {
-            try {
-                const age = Date.now() - statSync(lockDir).mtimeMs;
-                if (age > SESSION_LOCK_STALE_MS) rmSync(lockDir, { recursive: true, force: true });
-                else throw error;
-                mkdirSync(lockDir);
-                acquired = true;
-            } catch {
-                throw new SessionStateError('SESSION_BUSY', `Session is busy: ${sessionDir}`);
-            }
+        mkdirSync(lockDir);
+    } catch (error) {
+        // A lock's age cannot prove its holder is dead or that the directory is unchanged.
+        if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+            throw new SessionStateError('SESSION_BUSY', `Session is busy: ${sessionDir}`);
         }
+        throw error;
+    }
+    try {
         return action();
     } finally {
-        if (acquired) {
-            try { rmSync(lockDir, { recursive: true, force: true }); } catch { /* lock cleanup is best effort */ }
-        }
+        try { rmSync(lockDir, { recursive: true, force: true }); } catch { /* lock cleanup is best effort */ }
     }
 }

@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync } from 'fs';
 import { join } from 'path';
-import type { DatabaseSync } from 'node:sqlite';
+import { DatabaseSync } from 'node:sqlite';
 import { deserializeGraph } from './graph.js';
 import { bindLegacyEvidence, bindLegacyGraph, bodyVersionId, ensureBodyVersion, invalidateLegacyAutomaticReviews, openSessionDatabase, withTransaction } from './session-db.js';
 import { classifySqliteError, SessionStateError, withSessionLock } from './session-lock.js';
@@ -36,6 +36,21 @@ export function openSessionStore(sessionDir: string, create: boolean): DatabaseS
     const hasLegacyState = ['meta.json', 'results.json', 'graph.json', 'claims'].some(name => existsSync(join(sessionDir, name)));
     if (!create && !existsSync(databaseFile) && !hasLegacyState) return undefined;
     if (create) mkdirSync(sessionDir, { recursive: true });
+    if (existsSync(databaseFile)) {
+        try {
+            const probe = new DatabaseSync(databaseFile, { readOnly: true, timeout: 5000 });
+            let migrated: boolean;
+            try {
+                const hasMeta = probe.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'session_meta'").get();
+                migrated = !!hasMeta && !!probe.prepare("SELECT 1 FROM session_meta WHERE key = 'migration_complete'").get();
+            } finally { probe.close(); }
+            if (migrated) return openSessionDatabase(databaseFile);
+        } catch (error) {
+            const classified = classifySqliteError(error);
+            if (classified instanceof SessionStateError) throw classified;
+            throw new SessionStateError('SESSION_STORAGE_ERROR', `Cannot open session database: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
     return withSessionLock(sessionDir, () => {
         let db: DatabaseSync;
         try {
