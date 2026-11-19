@@ -53,14 +53,14 @@ No spec required — small, self-contained task; the PRD records the confirmed f
 - Dependencies: 无。
 - Files: `cli/src/errors.ts`、`cli/src/deep/session-lock.ts`、`cli/src/feedback-log.ts`。
 - Implementation checklist:
-  - [ ] `errors.ts`：把 `SearchErrorCode` 改成 `SEARCH_ERROR_CODES as const` + `export type SearchErrorCode = typeof SEARCH_ERROR_CODES[number]`；`SearchProvider` 同理。三个 `Record<SearchProvider, …>` 保持不变（它们是穷尽性检查的抓手）。
-  - [ ] `session-lock.ts`：导出 `SESSION_ERROR_CODES as const`，`SessionStateError.code` 从它派生。
-  - [ ] `feedback-log.ts`：`providers` 改为由 `SearchProvider` 运行时清单派生；`errors` 改为把 SEARCH_ERROR_CODES 白名单项、SESSION 四码、四个 validation 信封码、既有的 `'unknown'` 合并。删掉手写清单。
-  - [ ] 确认 `'validation'` 这个值只在白名单里被移除，不影响 `validation` 事件名。
+  - [x] `errors.ts`：把 `SearchErrorCode` 改成 `SEARCH_ERROR_CODES as const` + `export type SearchErrorCode = typeof SEARCH_ERROR_CODES[number]`；`SearchProvider` 同理。三个 `Record<SearchProvider, …>` 保持不变（它们是穷尽性检查的抓手）。
+  - [x] `session-lock.ts`：导出 `SESSION_ERROR_CODES as const`，`SessionStateError.code` 从它派生。
+  - [x] `feedback-log.ts`：`providers` 改为由 `SearchProvider` 运行时清单派生；`errors` 改为把 SEARCH_ERROR_CODES 白名单项、SESSION 四码、四个 validation 信封码、既有的 `'unknown'` 合并。删掉手写清单。
+  - [x] 确认 `'validation'` 这个值只在白名单里被移除，不影响 `validation` 事件名。
 - Acceptance: A1、A4。
 - Verification: `npx tsc --noEmit` = 0；反向验证——临时删 `errors.ts` 的 `LABEL` 里一个 provider 条目，`tsc` 必须报错；恢复后为 0。
 - Rollback: `git revert` 本步骤提交。
-- Status: completed
+- Status: done
 
 ### Step 2 — validation 失败记录真实信封码
 
@@ -68,13 +68,13 @@ No spec required — small, self-contained task; the PRD records the confirmed f
 - Dependencies: Step 1（白名单必须能容纳这些码）。
 - Files: `cli/src/runCli.ts`、`cli/src/feedback-log.ts`。
 - Implementation checklist:
-  - [ ] 543 → `INVALID_LIMIT`；550 → `MISSING_QUERY`；561 与 569 → `INVALID_ENGINES`。
-  - [ ] 589 保持 `CONFIG_MISSING`（已是真实码）。
-  - [ ] 确认这四个码都在 Step 1 的白名单里。
+  - [x] 543 → `INVALID_LIMIT`；550 → `MISSING_QUERY`；561 与 569 → `INVALID_ENGINES`。
+  - [x] 589 原记 `CONFIG_MISSING`，但该处实际返回的信封码是 `PROVIDER_NOT_CONFIGURED`，一并订正。
+  - [x] 确认这四个码都在 Step 1 的白名单里。
 - Acceptance: A2。
 - Verification: 新增测试断言 `-l -1` 与空查询各自写出可区分的 `error` 字段。
 - Rollback: `git revert` 本步骤提交。
-- Status: completed
+- Status: done
 
 ### Step 3 — 外部抽取回退链逐次记录 `extract_method`
 
@@ -82,14 +82,14 @@ No spec required — small, self-contained task; the PRD records the confirmed f
 - Dependencies: Step 1。
 - Files: `cli/src/deep/extractor.ts`。
 - Implementation checklist:
-  - [ ] 在 `for (const provider of ['exa', …])` 循环内、每个真实调用点前后加 `feedbackLog('extract_method', 'start' | 'ok' | 'error', { provider, durationMs })`。
-  - [ ] 覆盖四个真实分支：已安装 tavily CLI、已安装 firecrawl CLI、`externalExtract` 成功、`externalExtract` 返回失败字符串。
-  - [ ] `supportsType` 跳过与无 key 跳过不记（未发生尝试）。
-  - [ ] 循环末尾的 jina 分支已经记了 start，补上终态或确认它在循环外已覆盖。
+  - [x] 在 `for (const provider of ['exa', …])` 循环内、每个真实调用点前后加 `feedbackLog('extract_method', 'start' | 'ok' | 'error', { provider, durationMs })`。
+  - [x] 覆盖四个真实分支：已安装 tavily CLI、已安装 firecrawl CLI、`externalExtract` 成功、`externalExtract` 返回失败字符串。
+  - [x] `supportsType` 跳过与无 key 跳过不记（未发生尝试）。
+  - [x] 循环末尾的 jina 分支已经记了 start，补上终态或确认它在循环外已覆盖。
 - Acceptance: A3。
 - Verification: 新增测试 mock 一个失败的 provider，断言日志出现该 provider 的 `error` 记录且带 `durationMs`。
 - Rollback: `git revert` 本步骤提交。
-- Status: completed
+- Status: done
 
 ### Step 4 — 测试、文档与验证记录
 
@@ -97,16 +97,16 @@ No spec required — small, self-contained task; the PRD records the confirmed f
 - Dependencies: Step 1–3。
 - Files: `cli/test/feedback-log.test.ts`（或新增同目录测试）、`TaskFlowDocs/2026-11-19-feedback-log-vocab/plan.md`。
 - Implementation checklist:
-  - [ ] 新增 `feedbackError()` 对四个 session 码的分类测试（A1）。
-  - [ ] 新增 validation 码可区分测试（A2）。
-  - [ ] 新增回退链记录测试（A3）。
-  - [ ] 反向验证 A4 并记录输出。
-  - [ ] 跑全量：`npx tsc --noEmit`、`npx vitest run`。
-  - [ ] 在本文件 Verification / Review 填写实测数字。
+  - [x] 新增 `feedbackError()` 对四个 session 码的分类测试（A1）。
+  - [x] 新增 validation 码可区分测试（A2）。
+  - [x] 新增回退链记录测试（A3）。
+  - [x] 反向验证 A4 并记录输出。
+  - [x] 跑全量：`npx tsc --noEmit`、`npx vitest run`。
+  - [x] 在本文件 Verification / Review 填写实测数字。
 - Acceptance: A5、A6、A7。
 - Verification: 全量测试输出。
 - Rollback: `git revert` 本步骤提交。
-- Status: completed
+- Status: done
 
 ## Checkpoints
 
