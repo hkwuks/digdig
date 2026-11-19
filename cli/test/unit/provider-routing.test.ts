@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-const installedTavily = vi.hoisted(() => ({ ready: vi.fn(), search: vi.fn(), extract: vi.fn() }));
+const installedTavily = vi.hoisted(() => ({ ready: vi.fn(), status: vi.fn().mockResolvedValue('not_installed'), search: vi.fn(), extract: vi.fn() }));
 vi.mock('../../src/deep/installed-tavily.js', () => ({
     installedTavilyReady: installedTavily.ready,
+    installedTavilyStatus: installedTavily.status,
     installedTavilySearch: installedTavily.search,
     installedTavilyExtract: installedTavily.extract,
 }));

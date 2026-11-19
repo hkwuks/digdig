@@ -30,12 +30,22 @@ function runTavily(args: string[], timeout: number) {
     return exec(command, [...prefix, ...args], { timeout, maxBuffer: 8 * 1024 * 1024, windowsHide: true });
 }
 
-export async function installedTavilyReady(): Promise<boolean> {
+export type TavilyCliStatus = 'authenticated' | 'keyless' | 'not_installed' | 'unavailable';
+
+export async function installedTavilyStatus(): Promise<TavilyCliStatus> {
     try {
         const result = await runTavily(['--status', '--json'], 3000);
         const status = JSON.parse(result.stdout);
-        return typeof status?.version === 'string' && typeof status?.authenticated === 'boolean';
-    } catch { return false; }
+        if (typeof status?.version !== 'string' || typeof status?.authenticated !== 'boolean') return 'unavailable';
+        return status.authenticated ? 'authenticated' : 'keyless';
+    } catch (error) {
+        return (error as NodeJS.ErrnoException)?.code === 'ENOENT' ? 'not_installed' : 'unavailable';
+    }
+}
+
+export async function installedTavilyReady(): Promise<boolean> {
+    const status = await installedTavilyStatus();
+    return status === 'authenticated' || status === 'keyless';
 }
 
 export async function installedTavilyExtract(url: string, timeoutMs: number): Promise<ExtractedContent | null> {

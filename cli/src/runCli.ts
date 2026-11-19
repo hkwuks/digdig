@@ -1,4 +1,4 @@
-import { installedTavilyReady, installedTavilySearch } from './deep/installed-tavily.js';
+import { installedTavilyReady, installedTavilySearch, installedTavilyStatus } from './deep/installed-tavily.js';
 import { externalSearch } from './external-search.js';
 import { feedbackLog, feedbackError } from './feedback-log.js';
 /**
@@ -378,10 +378,11 @@ const PROVIDER_IMPLS: Record<ExternalProvider, {
     jina: { configured: () => Boolean(process.env.JINA_API_KEY), maxResults: 5, search: (query, limit) => externalSearch('jina', process.env.JINA_API_KEY!, query, limit) },
 };
 
-async function configuredExternalProviders(): Promise<ExternalProvider[]> {
+async function configuredExternalProviders() {
     const providers = EXTERNAL_PROVIDERS.filter(p => PROVIDER_IMPLS[p].configured());
-    if (!providers.includes('tavily') && await installedTavilyReady()) providers.push('tavily');
-    return providers;
+    const tavilyCli = await installedTavilyStatus();
+    if (!providers.includes('tavily') && (tavilyCli === 'authenticated' || tavilyCli === 'keyless')) providers.push('tavily');
+    return { providers, tavilyCli };
 }
 
 /**
@@ -1626,7 +1627,7 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
         if (opts.enginesList) {
             try {
                 const serverEngines = await service.getEngines();
-                const configuredProviders = await configuredExternalProviders();
+                const { providers: configuredProviders, tavilyCli } = await configuredExternalProviders();
 
                 // Both empty is a legitimate-looking but useless answer: nothing
                 // this CLI can search with. Reaching here already means the
@@ -1652,16 +1653,18 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                 const envelope = createSuccessEnvelope({
                     engines: [...serverEngines, ...configuredProviders],
                     sources: { server: serverEngines, local: configuredProviders },
+                    tavilyCli,
                 });
                 console.log(JSON.stringify(envelope, null, 2));
                 process.exitCode = 0;
             } catch (error) {
                 if (printConfigError(error)) return;
-                const configuredProviders = await configuredExternalProviders();
+                const { providers: configuredProviders, tavilyCli } = await configuredExternalProviders();
                 if (configuredProviders.length) {
                     console.log(JSON.stringify(createSuccessEnvelope({
                         engines: configuredProviders,
                         sources: { server: [], local: configuredProviders },
+                        tavilyCli,
                         serverUnavailable: true,
                     }), null, 2));
                     process.exitCode = 0;

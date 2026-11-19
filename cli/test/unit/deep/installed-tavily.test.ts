@@ -5,7 +5,7 @@ beforeEach(() => vi.stubEnv('PATH', ''));
 afterEach(() => vi.unstubAllEnvs());
 const execute = vi.hoisted(() => vi.fn());
 vi.mock('child_process', () => ({ execFile: Object.assign(vi.fn(), { [Symbol.for('nodejs.util.promisify.custom')]: execute }) }));
-import { installedTavilyExtract, installedTavilyReady, installedTavilySearch } from '../../../src/deep/installed-tavily.js';
+import { installedTavilyExtract, installedTavilyReady, installedTavilySearch, installedTavilyStatus } from '../../../src/deep/installed-tavily.js';
 
 describe('installed Tavily', () => {
     it('recognizes a working CLI and rejects a broken installation', async () => {
@@ -14,6 +14,13 @@ describe('installed Tavily', () => {
         expect(await installedTavilyReady()).toBe(true);
         expect(await installedTavilyReady()).toBe(false);
         expect(await installedTavilyReady()).toBe(false);
+    });
+    it('reports missing, broken, and keyless CLI states separately', async () => {
+        execute.mockReset().mockRejectedValueOnce(Object.assign(new Error('not found'), { code: 'ENOENT' }))
+            .mockRejectedValueOnce(new Error('broken')).mockResolvedValueOnce({ stdout: JSON.stringify({ version: '1.0.1', authenticated: false }) });
+        expect(await installedTavilyStatus()).toBe('not_installed');
+        expect(await installedTavilyStatus()).toBe('unavailable');
+        expect(await installedTavilyStatus()).toBe('keyless');
     });
     it('recognizes the supported keyless mode', async () => {
         execute.mockReset().mockResolvedValue({ stdout: JSON.stringify({ version: '1.0.1', authenticated: false }) });
