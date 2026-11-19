@@ -1014,3 +1014,17 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Goal: 清理 SimHash 死代码与 deep 桶文件、让 provider 上限降级在输出中可见、为 README 命令表加漂移校验
 - Task: `TaskFlowDocs/achieved/2026-11-18-dead-code-and-limit-notice/`
 - Next action: None — completed and archived.
+
+## 让反馈日志的词表与代码实际分类对齐：session 错误码、valida
+
+- ID: TF-20261119-8dc94a
+- Status: promoted
+- Priority: normal
+- Owner: Claude
+- Source: direct user request
+- Kind: capability
+- Added: 2026-11-19
+- Updated: 2026-11-19
+- Goal: 让反馈日志的词表与代码实际分类对齐：session 错误码、validation 失败原因、抽取回退链逐次记录
+- Task: `TaskFlowDocs/2026-11-19-feedback-log-vocab/`
+- Next action: Complete PRD / Spec / Plan and request approval.

@@ -19,29 +19,46 @@
  * them — a stored `retryable` is a second place to get it wrong.
  */
 
-export type SearchErrorCode =
+/**
+ * Every failure classification this client can report.
+ *
+ * The array is the source of truth, not the type: the feedback log has to
+ * allowlist these values at runtime, and a type alone is invisible there.
+ * Written as a list once, the log cannot drift from the classifier — which it
+ * already had, silently, keeping a hand-copied copy of half of these.
+ */
+export const SEARCH_ERROR_CODES = [
     /** Missing or invalid SearXNG endpoint. */
-    | 'CONFIG_MISSING'
+    'CONFIG_MISSING',
     /** 401 / 403 — the credential is wrong or missing. Never retryable. */
-    | 'AUTH_FAILED'
+    'AUTH_FAILED',
     /** 429 — ask again later. */
-    | 'RATE_LIMITED'
+    'RATE_LIMITED',
     /** 5xx — the provider broke; the request was fine. */
-    | 'SERVER_ERROR'
+    'SERVER_ERROR',
     /** No response at all: DNS, timeout, refused connection, broken TLS. */
-    | 'NETWORK_ERROR'
+    'NETWORK_ERROR',
     /** Other 4xx — the request or endpoint is wrong. Retrying repeats it. */
-    | 'BAD_REQUEST'
+    'BAD_REQUEST',
     /** A 2xx body that does not have the shape this client requires. */
-    | 'BAD_RESPONSE';
+    'BAD_RESPONSE',
+] as const;
+
+export type SearchErrorCode = typeof SEARCH_ERROR_CODES[number];
 
 /**
  * Which provider failed, so a hint can name the right one.
  *
  * `searxng` is the only value for which a SearXNG hint is ever appropriate;
  * that asymmetry is the bug this type was built to fix.
+ *
+ * Like the codes above, this is an array rather than a bare union so the
+ * feedback log can allowlist providers at runtime from the same list. Adding a
+ * provider now updates the log's vocabulary by construction.
  */
-export type SearchProvider = 'searxng' | 'deepseek' | 'ollama' | 'exa' | 'tavily' | 'firecrawl' | 'jina';
+export const SEARCH_PROVIDERS = ['searxng', 'deepseek', 'ollama', 'exa', 'tavily', 'firecrawl', 'jina'] as const;
+
+export type SearchProvider = typeof SEARCH_PROVIDERS[number];
 
 const KEY_VARIABLE: Record<SearchProvider, string | null> = {
     searxng: null,

@@ -483,33 +483,53 @@ export class ContentExtractor {
             return result;
         }
 
+        // The fallback chain below used to run silently: only the three
+        // built-in tiers reported anything. A URL that needed exa, tavily or
+        // firecrawl left no trace, so a "why was this page empty" report could
+        // not be diagnosed from the log. Each real attempt now reports with the
+        // same event and fields the built-in tiers use. Attempts that never
+        // happen — unsupported content type, no credential — are not logged.
         const providerFailures: string[] = [];
         for (const provider of ['exa', 'tavily', 'firecrawl', 'ollama', 'deepseek'] as const) {
             if (!supportsType(provider, contentType)) continue;
             if (this.useInstalledTavily && provider === 'tavily') {
                 this.tavilyReady ??= this.externalKeys.tavily ? installedTavilyStatus().then(status => status === 'authenticated') : installedTavilyReady();
                 if (await this.tavilyReady) {
+                    const started = Date.now();
+                    feedbackLog('extract_method', 'start', { provider });
                     const installed = await installedTavilyExtract(url, this.timeoutMs);
+                    feedbackLog('extract_method', installed ? 'ok' : 'error', { provider, durationMs: Date.now() - started });
                     if (installed && installed.content.length > result.content.length) return installed;
                     providerFailures.push('tavily CLI: extraction failed');
                     continue;
                 }
             }
             if (this.useInstalledFirecrawl && provider === 'firecrawl' && await installedFirecrawlStatus() === 'authenticated') {
+                const started = Date.now();
+                feedbackLog('extract_method', 'start', { provider });
                 const installed = await installedFirecrawlExtract(url, this.timeoutMs);
+                feedbackLog('extract_method', installed ? 'ok' : 'error', { provider, durationMs: Date.now() - started });
                 if (installed && installed.content.length > result.content.length) return installed;
                 providerFailures.push('firecrawl CLI: extraction failed');
                 continue;
             }
             const key = this.externalKeys[provider];
             if (!key) continue;
+            const started = Date.now();
+            feedbackLog('extract_method', 'start', { provider });
             const external = await externalExtract(provider, key, url, this.timeoutMs);
+            // A string return is this function's failure shape; content is
+            // success even when it does not beat the earlier tiers.
+            feedbackLog('extract_method', typeof external === 'string' ? 'error' : 'ok', { provider, durationMs: Date.now() - started });
             if (typeof external === 'string') providerFailures.push(`${provider}: ${external}`);
             else if (external.content.length > result.content.length) return external;
         }
 
         if (this.jinaApiKey && (!contentType || contentType === 'application/pdf' || contentType === 'application/msword' || contentType.startsWith('application/vnd.ms-') || contentType.startsWith('application/vnd.openxmlformats-officedocument.'))) {
+            const started = Date.now();
+            feedbackLog('extract_method', 'start', { provider: 'jina' });
             const jina = await jinaExtract(url, { timeoutMs: this.timeoutMs, apiKey: this.jinaApiKey });
+            feedbackLog('extract_method', jina && !jina.error ? 'ok' : 'error', { provider: 'jina', durationMs: Date.now() - started });
             if (jina && !jina.error && jina.content.length > result.content.length) return jina;
             if (jina?.retryAfterMs && result.error) return jina;
             if (jina?.error) providerFailures.push(`jina: ${jina.error}`);
