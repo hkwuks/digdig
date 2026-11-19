@@ -185,7 +185,8 @@ describe('legacy session migration', () => {
         mkdirSync(lock);
         const old = new Date(Date.now() - 60_000);
         utimesSync(lock, old, old);
-        expect(() => openSessionStore(dir, false)).toThrow(expect.objectContaining({ code: 'SESSION_BUSY' }));
+        expect(() => openSessionStore(dir, false)).toThrow(expect.objectContaining({ code: 'SESSION_BUSY', message: expect.stringContaining(lock) }));
+        expect(() => openSessionStore(dir, false)).toThrow('Stop all digdig processes using this session');
         expect(existsSync(lock)).toBe(true);
         expect(existsSync(join(dir, 'session.sqlite'))).toBe(false);
     });

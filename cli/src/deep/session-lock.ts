@@ -35,7 +35,7 @@ export function withSessionLock<T>(sessionDir: string, action: () => T): T {
                     && readFileSync(marker, 'utf8') === 'digdig migration lock v1';
             } catch { /* Unknown or incomplete locks must not be removed. */ }
             if (!recoverable) {
-                throw new SessionStateError('SESSION_BUSY', `Session is busy: ${sessionDir}. If no process is using it, remove the legacy .lock directory.`);
+                throw new SessionStateError('SESSION_BUSY', `Session is busy: ${sessionDir}. Stop all digdig processes using this session. After confirming none remain, remove the lock directory: ${lockDir}. Do not remove the SQLite files.`);
             }
             rmSync(lockDir, { recursive: true });
             mkdirSync(lockDir);
