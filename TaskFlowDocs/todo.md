@@ -1,18 +1,5 @@
 # Todo
 
-## 排查 TaskFlow 在 Codex 的能力记录与文档写入门禁
-
-- ID: TF-20261110-codexhook
-- Status: inbox
-- Priority: normal
-- Owner: unassigned
-- Source: user-request:2026-11-10
-- Added: 2026-11-10
-- Updated: 2026-11-10
-- Goal: 排查 TaskFlow 的 Codex 能力调用证据未接线、计划文件门禁仅匹配 apply_patch 而无法覆盖 shell 写入的问题；在真实 Codex 会话中验证事件、记录和门禁行为，再决定可行的兼容方案。
-- Task: Not promoted.
-- Next action: 在 TaskFlow 项目中确认归属和方案；当前仅记录，不实施。
-
 ## 研究抽取能力优先级、外部工具复用和插件方案
 
 - ID: TF-20261110-a7e5c1
@@ -932,15 +919,15 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Source: code-review:2026-10-28-comprehensive
 - Kind: defect
 - Added: 2026-11-16
-- Updated: 2026-11-18
+- Updated: 2026-11-19
 - Goal: `--limit` 与 provider 真实能力不符时，用户拿不到也看不出差别。**2026-11-18 查证后订正，原描述称「三层各自静默截断」不准确——三处性质不同。** ①`cli/src/ollama-service.ts:32` `Math.min(options.limit ?? 5, 10)`：上限真实，[Ollama 官方文档](https://docs.ollama.com/capabilities/web-search)原文是 `max_results (integer, optional): maximum results to return (default 5, max 10)`，代码正确，缺陷只是静默——`-l 20 -e ollama` 实际得 10 条、输出无任何说明。②`cli/src/deepseek-service.ts:43` `Math.min(options.limit ?? 10, 50)`：同样正确，[DeepSeek 文档](https://api-docs.deepseek.com/guides/search)写 `count ... between 1 and 50`，超限会返回 `count must be between 1 and 50`，缺陷同样只是静默。③`cli/src/service.ts:245-246` `deduped.slice(0, options.limit)`：与上两者不同，这是**不翻页**而非遵守上限。SearXNG 的 `/search` 没有客户端可指定的页大小参数（`cli/src/service.ts:192-218` 只传 `q`/`engines`/`categories`/`language`/`time_range`/`pageno`），每页条数由服务端 `search.max_page` 决定（默认 0 = 不限页数）；因此要 20 条而首页只返回 12 条时，冗余的 8 条可以用 `pageno=2` 再取一页，代码只发一次请求。0.0.13 新增的 `cli/src/feedback-log.ts` 在 provider 返回处记了 `count`，但不记请求的 limit，所以上限降级对用户仍然不可见。
 - Task: Not promoted.
-- Next action: 分两个方向处理，性质不同不要合并成一个改动：①告知降级——provider 返回条数少于请求 limit 时在输出里说明（JSON 增字段 / md 增一行），不改变任何行为，风险最低；②SearXNG 翻页补齐——首页不足 limit 时用 `pageno=2` 继续取，需要考虑请求次数与延时代价，也可能选择明确告诉用户「这一页只有 N 条，可加 --page 2」。先确认 ② 是否值得做：SearXNG 单页通常已够 10-20 条，若实测很少触发则只做 ①。
+- Next action: provider 上限提示已由 `TaskFlowDocs/achieved/2026-11-18-dead-code-and-limit-notice/` 完成；保留 SearXNG 分页是否值得实现的研究。
 
 ## SimHash 是死代码且 deep/index.ts 桶文件零消费者：cli/src/deep/simha
 
 - ID: TF-20261116-48f7e2
-- Status: inbox
+- Status: done
 - Priority: normal
 - Owner: Claude
 - Source: code-review:2026-10-28-comprehensive
@@ -948,8 +935,8 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Added: 2026-11-16
 - Updated: 2026-11-16
 - Goal: SimHash 是死代码且 deep/index.ts 桶文件零消费者：cli/src/deep/simhash.ts 只被 cli/src/deep/index.ts:6 导出，而 grep -rn 'deep/index' src test 无匹配，所以整个模块只能通过它自己的测试到达；桶文件里的 mergeExtractedContent 等导出同样无真实调用方。CLAUDE.md 已注明 SimHash is dead code，但从未进 todo
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: `TaskFlowDocs/achieved/2026-11-18-dead-code-and-limit-notice/`
+- Next action: None — completed and archived.
 
 ## 阈值散落在各模块内且无可覆盖入口：dedupe.ts:99 Math.max(thresho
 
@@ -968,21 +955,15 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## withSessionLock 的陈旧锁清理存在 stat→rm 竞态且失败不重试：se
 
 - ID: TF-20261116-273731
-- Status: inbox
-- Priority: normal
-- Owner: Claude
-- Source: design report review
-- Kind: defect
-- Added: 2026-11-16
-- Updated: 2026-11-18
+- Status: done
 - Goal: 评估数据库打开路径是否仍需每次获取旧目录锁，并处理首次迁移时旧锁的过期清理竞态。当前会话写入已使用 SQLite BEGIN IMMEDIATE 事务；openSessionStore 每次打开仍先获取 .lock，旧锁 stat 后删除目录存在竞态，实际影响需用多进程测试验证。首次迁移必须保留与仍使用旧 JSON 的进程互斥及迁移原子性。SESSION_BUSY 已输出结构化 JSON，旧条目对此的描述已过时。
-- Task: Not promoted.
-- Next action: 设计并验证迁移与已迁移会话的锁边界，复现过期清理竞争，避免仅删除旧锁导致旧 JSON 进程与迁移并发。
+- Task: `TaskFlowDocs/achieved/2026-11-19-session-lock/`
+- Next action: None — completed and archived.
 
 ## CLAUDE.md 的命令表与 runCli.ts 实际注册的命令长期漂移且无校
 
 - ID: TF-20261116-fa0414
-- Status: inbox
+- Status: done
 - Priority: normal
 - Owner: Claude
 - Source: code-review:2026-10-28-comprehensive
@@ -990,8 +971,8 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Added: 2026-11-16
 - Updated: 2026-11-16
 - Goal: CLAUDE.md 的命令表与 runCli.ts 实际注册的命令长期漂移且无校验：CLAUDE.md 列 14 个命令，createProgram() 注册 27 个，缺 claim-add / claim-list / evidence-list / evidence-search / evidence-verify / doc-index / doc-search / extract / init / policy-aggregate / results-add / review-list / verdict-list 共 13 个。2026-11-07 的 skill-command-table.test.ts 只校验 skills/digdig/SKILL.md，明确把 CLAUDE.md 排除在外
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: `TaskFlowDocs/achieved/2026-11-18-dead-code-and-limit-notice/`
+- Next action: None — 用户已同意将检查对象调整为两个 README，相关补全和校验已完成并归档。
 
 ## 挑选并修复若干已记录的小缺陷，补充必要验证
 
