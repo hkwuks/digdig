@@ -1,5 +1,12 @@
 # Spec — 按能力路由搜索与正文抽取
-> Task version: v1
+> Task version: v2
+
+## v2 用户纠正（优先于下方 v1 的直连设计）
+
+- 搜索：移除新增 Exa/Tavily/Firecrawl/Jina 直连路径；保留 v0.0.14 已有的 SearXNG、Ollama、DeepSeek 显式路径。Agent 外部搜索结果通过现有 results-add 导入。
+- 抽取：不依据用户环境变量或已安装 CLI 自动调用第三方服务；Agent 外部抽取后导入。保留本地 Defuddle、原有显式 --obscura 与 --jina，保留内容类型保护。
+- 历史：根据 Jina 搜索来源和抽取元数据保守提示可能不完整，不修改正文、审批、证据、修订号或数据库；提示不是对原文完整性的断言。
+- 安全、已有 session 的兼容和不可确认输入类型的如实报告继续有效；不新建兼容 shim。
 
 ## Objective and Success Criteria
 

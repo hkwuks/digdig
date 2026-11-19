@@ -1,6 +1,6 @@
 # Plan — 按内容类型复用搜索与抽取工具
-> Task version: v1
-> Status: completed
+> Task version: v2
+> Status: ready
 
 ## Spec Pointers
 - `spec.md`：工具能力、发现、适配及结果契约。
@@ -23,6 +23,10 @@
 - `get-api-docs`：chub 查得 Tavily JavaScript 文档；Exa、Firecrawl、Ollama、DeepSeek Fetch 未找到匹配条目，使用官方 API 文档交叉核实。
 - Web / Exa：读取各厂商类型与接口文档；真实 Exa 宿主读取和本地 `dg` HTML/PDF/JSON 样本用于界定现状，不视为完整质量基准。
 
+## v2 用户决定
+- 用户于 2026-11-19 确认移除四家新增直连搜索，保留原有后端；外部抽取由 Agent 选择、调用和导入；历史 Jina 数据保留并提示核实。原 v1 直连及自动回退计划不再适用。
+- 工作树 `D:/WorkSpace/Node/digdig/.worktrees/2026-11-19-agent-tool-boundary`，分支 `fix/2026-11-19-agent-tool-boundary`。保留旧工作树数据。
+
 ## Preconditions
 - 用户已确认已配置工具允许使用、首批工具范围和未知类型先低成本探测；若已有用户预算配置则遵守。
 - 用户已明确要求并确认实施范围、自动调用及未知类型处理；按该授权进入实现。工作树 `D:/WorkSpace/Node/digdig/.worktrees/2026-11-19-extraction-routing`，分支 `feat/2026-11-19-extraction-routing`。
@@ -37,8 +41,8 @@
 ## Approval
 - Status: approved
 - Approved by: user
-- Approved at: 2026-11-19 12:04 +0800
-- Approved version: v1
+- Approved at: 2026-11-19 14:23 +0800
+- Approved version: v2
 - Approved scope: PRD / Spec / Plan
 
 ## Steps
@@ -170,3 +174,18 @@ Moved verbatim from the TODO entry by `hooks/archive`, grouped by the field each
 ### `- Notes:`
 
 - 2026-11-19 用户追加要求：更新 Tavily CLI 并实测；完善仓库发布规则，发布时创建 GitHub Release；当前功能的下一次发布目标版本为 0.1.0。沿用同一分支和原任务，不新建汇总 Todo。
+
+### Step 6 — 恢复 Agent 主导的工具边界
+- Goal: 移除新增直连搜索及自动外部抽取，保留既有显式后端、类型保护和结果导入。
+- [ ] 先验证默认不调用新增服务、已有搜索/抽取仍工作；再修改调用路径。
+- [ ] 更新项目内 skill、README 和能力说明，明确 Agent 选择与导入。
+- Status: pending
+
+### Step 7 — 历史提示和验证
+- Goal: 保留历史数据并提示核实 Jina 直连搜索内容完整性。
+- [ ] 为待审核及已审核历史记录提供无副作用提示；避免误称所有 Jina 抽取都不完整。
+- [ ] 验证现有 session、原有后端、Windows 与 WSL 兼容性和全量回归；记录限制。
+- Status: pending
+
+## v2 Change Log
+- 用户指出原 Agent 工具导入策略被误改；其已确认三项纠正决定。未新建 Todo，未删除远端分支。
