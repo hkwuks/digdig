@@ -111,6 +111,7 @@
 - 规划阶段：当前 `dg` 普通 HTML 成功，PDF/JSON 样本失败；Exa 宿主读取成功；`tvly` PATH 启动失败。样本不代表质量或所有类型。
 
 ## Change Log
+- 2026-11-19 reopen — retrieved achieved task `2026-11-19-extraction-routing` for new work; re-approval required before core changes
 - 2026-11-19：基于用户选择将原研究待办扩展为首批多工具能力路由和兼容实现，不新建汇总 Todo。
 
 ## Follow-ups
