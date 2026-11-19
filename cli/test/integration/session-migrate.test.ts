@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { spawn } from 'child_process';
@@ -178,6 +178,74 @@ describe('legacy session migration', () => {
         mkdirSync(join(dir, '.lock'));
         expect(() => openSessionStore(dir, false)).toThrow('Session is busy');
         expect(existsSync(join(dir, 'session.sqlite'))).toBe(false);
+    });
+
+    it('does not delete an old legacy lock during migration', () => {
+        const lock = join(dir, '.lock');
+        mkdirSync(lock);
+        const old = new Date(Date.now() - 60_000);
+        utimesSync(lock, old, old);
+        expect(() => openSessionStore(dir, false)).toThrow(expect.objectContaining({ code: 'SESSION_BUSY', message: expect.stringContaining(lock) }));
+        expect(() => openSessionStore(dir, false)).toThrow('Stop all digdig processes using this session');
+        expect(existsSync(lock)).toBe(true);
+        expect(existsSync(join(dir, 'session.sqlite'))).toBe(false);
+    });
+
+    it('recovers a crashed new lock without removing a live lock', async () => {
+        const worker = child(`
+            const { withSessionLock } = await import('./src/deep/session-lock.ts');
+            const { writeSync } = await import('node:fs');
+            withSessionLock(process.argv[1], () => {
+                writeSync(1, 'LOCKED\\n');
+                Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 30000);
+            });
+        `, [dir]);
+        const exited = childExit(worker);
+        try {
+            await new Promise<void>((resolve, reject) => {
+                const timer = setTimeout(() => reject(new Error('lock holder did not start')), 10000);
+                worker.stdout.once('data', () => { clearTimeout(timer); resolve(); });
+                worker.once('error', reject);
+            });
+            expect(() => openSessionStore(dir, false)).toThrow(expect.objectContaining({ code: 'SESSION_BUSY' }));
+            expect(existsSync(join(dir, '.lock'))).toBe(true);
+        } finally { worker.kill(); await exited; }
+        const script = `
+            const { withSessionWrite } = await import('./src/deep/session-store.ts');
+            const { setTimeout } = await import('node:timers/promises');
+            for (let n = 0; ; n++) {
+                try {
+                    withSessionWrite(process.argv[1], db => db.prepare('INSERT INTO results (id, data) VALUES (?, ?)').run(process.argv[2], '{}'));
+                    break;
+                } catch (error) {
+                    if (error.code !== 'SESSION_BUSY' || n >= 100) throw error;
+                    await setTimeout(50);
+                }
+            }
+        `;
+        const first = child(script, [dir, 'recover1']);
+        const second = child(script, [dir, 'recover2']);
+        expect(await Promise.all([childExit(first), childExit(second)])).toEqual([0, 0]);
+        const db = openSessionStore(dir, false)!;
+        try { expect(db.prepare('SELECT id FROM results ORDER BY id').all().map(row => row.id)).toEqual(['r1', 'recover1', 'recover2']); }
+        finally { db.close(); }
+        expect(existsSync(join(dir, '.lock'))).toBe(false);
+    }, 30000);
+
+    it('preserves a lock with an incomplete marker', () => {
+        const lock = join(dir, '.lock');
+        mkdirSync(lock);
+        writeFileSync(join(lock, 'digdig-migration-lock'), 'incomplete');
+        expect(() => openSessionStore(dir, false)).toThrow(expect.objectContaining({ code: 'SESSION_BUSY' }));
+        expect(readFileSync(join(lock, 'digdig-migration-lock'), 'utf8')).toBe('incomplete');
+    });
+
+    it('opens an already migrated session without the legacy lock', () => {
+        openSessionStore(dir, false)!.close();
+        mkdirSync(join(dir, '.lock'));
+        const db = openSessionStore(dir, false)!;
+        try { expect(db.prepare('SELECT count(*) AS n FROM results').get()?.n).toBe(1); }
+        finally { db.close(); }
     });
 
     it('migrates a complete old session through a read-only CLI without changing any source file', async () => {

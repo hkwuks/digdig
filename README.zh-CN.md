@@ -1093,7 +1093,7 @@ dg --session <session-name> --queries "tokio vs async-std,benchmark 2026" --redu
 - **`session.sqlite`** — 会话元数据、搜索结果、正文、图谱及 claim/evidence/review 状态
 - **`agent-inputs/`** — 写命令使用的 UTF-8 JSON；保留以便检查和重试
 
-旧 JSON 会话在首次访问时自动迁移，包括只读访问。原 JSON 文件保留且不再更新，数据库成为唯一可写状态。不要用旧版 digdig 同时访问同一会话。SQLite WAL 仅支持单机本地文件系统，不支持网络文件系统；数据库打开时不要只复制主文件，因为可能同时存在 WAL 文件。
+旧 JSON 会话在首次访问时自动迁移，包括只读访问。原 JSON 文件保留且不再更新，数据库成为唯一可写状态。首次迁移前先停止所有使用该会话的旧版 digdig 进程；等待迁移完成后，该会话统一使用 SQLite 版，不再用旧 JSON 版操作。不要用旧版 digdig 同时访问同一会话。SQLite WAL 仅支持单机本地文件系统，不支持网络文件系统；数据库打开时不要只复制主文件，因为可能同时存在 WAL 文件。 新版迁移锁在崩溃后可于安全确认时自动恢复；无法识别的 `.lock` 导致 `SESSION_BUSY` 时，须先确认没有 digdig 进程使用该会话，再手动删除该锁目录。请保留 `.migration-lock.sqlite`。
 
 仅有 `graph.json` 的旧会话可传入会话目录；标准会话目录下也可直接传该文件路径。自定义位置仅含 `graph.json` 时，传文件路径按独立图处理。
 

@@ -1,4 +1,5 @@
-import { mkdirSync, rmSync, statSync } from 'fs';
+import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'fs';
+import { DatabaseSync } from 'node:sqlite';
 import { join } from 'path';
 
 export class SessionStateError extends Error {
@@ -14,31 +15,38 @@ export function classifySqliteError(error: unknown): unknown {
         error instanceof Error ? error.message : 'SQLite operation failed');
 }
 
-const SESSION_LOCK_STALE_MS = 30_000;
-
 export function withSessionLock<T>(sessionDir: string, action: () => T): T {
     mkdirSync(sessionDir, { recursive: true });
     const lockDir = join(sessionDir, '.lock');
+    const marker = join(lockDir, 'digdig-migration-lock');
+    const guard = new DatabaseSync(join(sessionDir, '.migration-lock.sqlite'), { timeout: 0 });
     let acquired = false;
     try {
+        try { guard.exec('BEGIN IMMEDIATE'); }
+        catch (error) { throw classifySqliteError(error); }
         try {
             mkdirSync(lockDir);
-            acquired = true;
         } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+            let recoverable = false;
             try {
-                const age = Date.now() - statSync(lockDir).mtimeMs;
-                if (age > SESSION_LOCK_STALE_MS) rmSync(lockDir, { recursive: true, force: true });
-                else throw error;
-                mkdirSync(lockDir);
-                acquired = true;
-            } catch {
-                throw new SessionStateError('SESSION_BUSY', `Session is busy: ${sessionDir}`);
+                const entries = readdirSync(lockDir);
+                recoverable = entries.length === 1 && entries[0] === 'digdig-migration-lock'
+                    && readFileSync(marker, 'utf8') === 'digdig migration lock v1';
+            } catch { /* Unknown or incomplete locks must not be removed. */ }
+            if (!recoverable) {
+                throw new SessionStateError('SESSION_BUSY', `Session is busy: ${sessionDir}. Stop all digdig processes using this session. After confirming none remain, remove the lock directory: ${lockDir}. Do not remove the SQLite files.`);
             }
+            rmSync(lockDir, { recursive: true });
+            mkdirSync(lockDir);
         }
+        acquired = true;
+        writeFileSync(marker, 'digdig migration lock v1', { flag: 'wx' });
         return action();
     } finally {
         if (acquired) {
             try { rmSync(lockDir, { recursive: true, force: true }); } catch { /* lock cleanup is best effort */ }
         }
+        guard.close();
     }
 }
