@@ -41,6 +41,15 @@ describe('CLI program (commander)', () => {
         await expect(candidate.parseAsync(['node', 'dg', 'query', '--graph', 'output.json'])).rejects.toMatchObject({ code: 'commander.unknownOption' });
     });
 
+    it('requires explicit URLs when Obscura is selected from the CLI', async () => {
+        const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+        const previous = process.exitCode;
+        try {
+            await runCli(['extract', '--session', 'must-not-create', '--obscura'], {} as never);
+            expect(JSON.parse(log.mock.lastCall![0])).toMatchObject({ status: 'error', error: { code: 'SPECIAL_EXTRACTOR_REQUIRES_URLS' } });
+        } finally { process.exitCode = previous; }
+    });
+
     it('registers all subcommands', () => {
         const commandNames = program.commands.map(c => c.name());
         expect(commandNames).toContain('init');

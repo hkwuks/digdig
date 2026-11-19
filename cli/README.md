@@ -76,7 +76,7 @@ npm link
 
 ### Obscura (Optional — for JS-heavy pages)
 
-Content extraction uses **Defuddle + linkedom** by default. For JS-rendered pages (SPAs), enable [Obscura](https://github.com/h4ckf0r0day/obscura). When `--obscura` is used and the binary is absent, digdig automatically downloads the matching release asset from the official GitHub HTTPS download endpoint.
+Content extraction uses **Defuddle + linkedom** by default. If it produces no body, configured compatible services (Exa, Tavily, Firecrawl, Ollama, DeepSeek, Jina) or an available Tavily CLI may be used, including its rate-limited keyless mode; these services can charge for requests. PDF is sent only to providers with documented PDF support. Before external fallback, DNS answers must all be public addresses; unresolvable, private or credential-bearing URLs are not forwarded. DNS can change after this check, so this is not an SSRF security boundary. For JS-rendered pages (SPAs), enable [Obscura](https://github.com/h4ckf0r0day/obscura). When `--obscura` is used and the binary is absent, digdig automatically downloads the matching release asset from the official GitHub HTTPS download endpoint.
 
 ```bash
 # Linux x86_64
@@ -218,6 +218,7 @@ Configuration priority (highest to lowest):
 | `DIGDIG_REDUNDANCY_BIGRAM_THRESHOLD` | Bigram-level Jaccard threshold (short queries) | `0.5` |
 | `OLLAMA_API_KEY` | [Ollama web search](https://ollama.com) API key; select via `-e ollama` or engine configuration (not an automatic fallback) | *(none)* |
 | `DEEPSEEK_API_KEY` | [DeepSeek Search](https://api-docs.deepseek.com/api/search) API key (optional backend; billed per successful request) | *(none)* |
+| `EXA_API_KEY`, `TAVILY_API_KEY`, `FIRECRAWL_API_KEY`, `JINA_API_KEY` | Service keys for compatible extraction and explicit search via `-e exa`, `-e tavily`, `-e firecrawl`, or `-e jina` | *(none)* |
 
 Engine selection uses explicit `--engines`, then `DIGDIG_DEFAULT_ENGINE`, then `DIGDIG_ALLOWED_ENGINES`; when all are empty, the backend chooses its defaults. A nonempty allowlist also restricts the default engine. Configured external providers must have API keys and may incur charges.
 

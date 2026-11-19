@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
+const installedTavily = vi.hoisted(() => ({ ready: vi.fn(), search: vi.fn(), extract: vi.fn() }));
+vi.mock('../../src/deep/installed-tavily.js', () => ({
+    installedTavilyReady: installedTavily.ready,
+    installedTavilySearch: installedTavily.search,
+    installedTavilyExtract: installedTavily.extract,
+}));
+
 // The router constructs providers internally from the shared config, so the two
 // provider modules are mocked to observe which ones actually ran — no API key
 // and no network are needed to exercise the routing and merge logic.
@@ -80,6 +87,62 @@ describe('provider routing', () => {
         config.defaultEngine = originalKeys.defaultEngine;
         config.allowedEngines = originalKeys.allowedEngines;
         vi.restoreAllMocks();
+    });
+
+    it('routes an explicitly selected configured Exa search without calling SearXNG', async () => {
+        vi.stubEnv('EXA_API_KEY', 'test-key');
+        const fetchMock = vi.fn().mockResolvedValue(Response.json({ results: [{ title: 'Exa', url: 'https://exa.test' }] }));
+        vi.stubGlobal('fetch', fetchMock);
+        const service = stubSxng();
+        try {
+            const envelope = await run(['q', '-e', 'exa', '--format', 'json'], service);
+            expect(envelope.status).toBe('ok');
+            expect(service.search).not.toHaveBeenCalled();
+            expect(fetchMock.mock.calls[0][0]).toBe('https://api.exa.ai/search');
+        } finally { vi.unstubAllEnvs(); vi.unstubAllGlobals(); }
+    });
+
+    it('saves Jina search bodies as extracted in the existing session', async () => {
+        const { mkdtempSync, rmSync } = await import('fs');
+        const { join } = await import('path');
+        const { tmpdir } = await import('os');
+        const { loadSessionResults, getPendingExtractionResults } = await import('../../src/deep/session.js');
+        const root = mkdtempSync(join(tmpdir(), 'digdig-jina-search-'));
+        const session = join(root, 'session');
+        vi.stubEnv('JINA_API_KEY', 'test-key');
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ data: [{ title: 'Jina', url: 'https://example.com/a', content: 'Already fetched body' }] })));
+        try {
+            const envelope = await run(['q', '-e', 'jina', '--session', session, '--format', 'json'], stubSxng());
+            expect(envelope.status).toBe('ok');
+            expect(loadSessionResults(session)).toEqual(expect.arrayContaining([expect.objectContaining({ contentType: 'extracted', content: 'Already fetched body', extractor: 'jina' })]));
+            expect(getPendingExtractionResults(session)).toHaveLength(0);
+        } finally { vi.unstubAllEnvs(); vi.unstubAllGlobals(); rmSync(root, { recursive: true, force: true }); }
+    });
+
+    it('lists configured providers even when SearXNG is unavailable', async () => {
+        vi.stubEnv('EXA_API_KEY', 'test-key');
+        const output = vi.spyOn(console, 'log').mockImplementation(() => {});
+        const previous = process.exitCode;
+        try {
+            await runCli(['--engines-list'], { getEngines: vi.fn().mockRejectedValue(new Error('offline')) } as never);
+            const envelope = JSON.parse(output.mock.lastCall![0]);
+            expect(envelope.status).toBe('ok');
+            expect(envelope.data.sources.local).toContain('exa');
+            expect(envelope.data.serverUnavailable).toBe(true);
+        } finally { process.exitCode = previous; vi.unstubAllEnvs(); }
+    });
+
+    it('uses an authenticated installed Tavily CLI for a selected search', async () => {
+        vi.stubEnv('TAVILY_API_KEY', '');
+        installedTavily.ready.mockResolvedValue(true);
+        installedTavily.search.mockResolvedValue(providerResponse('tavily', 'https://tavily.test'));
+        const service = stubSxng();
+        try {
+            const envelope = await run(['q', '-e', 'tavily', '--format', 'json'], service);
+            expect(envelope.status).toBe('ok');
+            expect(installedTavily.search).toHaveBeenCalledWith('q', 10);
+            expect(service.search).not.toHaveBeenCalled();
+        } finally { vi.unstubAllEnvs(); }
     });
 
     it('selects the configured default engine when none is explicitly requested', async () => {

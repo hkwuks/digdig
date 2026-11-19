@@ -981,6 +981,7 @@ dg --categories-list
 | `DIGDIG_REDUNDANCY_BIGRAM_THRESHOLD` | 二元组 Jaccard 冗余阈值（短查询） | `0.5` |
 | `OLLAMA_API_KEY` | [Ollama 网页搜索](https://ollama.com) API 密钥；通过 `-e ollama` 或引擎配置选择（不是自动回退） | *（无）* |
 | `DEEPSEEK_API_KEY` | [DeepSeek Search](https://api-docs.deepseek.com/api/search) API 密钥（可选后端；按成功请求计费） | *（无）* |
+| `EXA_API_KEY`, `TAVILY_API_KEY`, `FIRECRAWL_API_KEY`, `JINA_API_KEY` | 对应服务的 API 密钥；可通过 `-e exa`、`-e tavily`、`-e firecrawl`、`-e jina` 搜索，也可用于抽取回退 | *（无）* |
 
 引擎选择依次使用显式 `--engines`、`DIGDIG_DEFAULT_ENGINE`、`DIGDIG_ALLOWED_ENGINES`；均为空时由后端选择默认引擎。非空允许列表也会约束默认引擎。配置的外部提供商必须有 API 密钥，且可能产生费用。
 
@@ -1217,10 +1218,13 @@ dg doc-search <session-name> "关键词" --path ./docs
 
 1. **Defuddle + linkedom**（默认，轻量）— 使用 linkedom 解析原始 HTML，通过 Defuddle 提取可读内容。速度快，无需浏览器。
 2. **Obscura**（JS 渲染回退）— 当 Defuddle 提取内容过少（< 50 字符）时，Obscura 使用 V8 JS 引擎渲染页面并重新提取。使用 `--obscura` 启用。
-3. **Jina Reader**（由 Agent 选择）— Agent 先检查默认提取结果，确认指定 URL 的正文不足后，才使用 `r.jina.ai` 提取。Jina 有速率限制，因此不作为自动回退。
+3. **Jina Reader** — 可通过 `--jina` 显式选择；设置 `JINA_API_KEY` 后也可按支持的类型自动回退，仍受速率限制。
+
+
+本地抽取无正文时，已配置密钥的 Exa、Tavily、Firecrawl、Ollama、DeepSeek 和 Jina 可按内容类型依次回退；这些服务可能计费。可用的 Tavily CLI 也可参与搜索和抽取，包括受限额约束的无密钥模式。明确为 PDF 时只调用已核实支持 PDF 的服务；JSON、图片等不会交给仅支持网页正文的回退。已有正文（包括短正文）不会为凑长度而重复付费抽取。Agent 可把宿主工具取得的完整正文通过 `results-add --kind extracted` 加入现有会话。
 
 ```bash
-# 默认：仅 Defuddle（快速）
+# 本地提取优先；无正文时可回退到已配置且支持的服务
 dg extract --urls "https://example.com"
 
 # 为 JS 密集页面启用 Obscura 回退

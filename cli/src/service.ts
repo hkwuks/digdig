@@ -25,6 +25,9 @@ export interface SearchResult {
     url: string;
     /** The longest body text this provider can give; what the analysis layer reads. */
     content: string;
+    contentType?: 'extracted';
+    extractor?: string;
+    extractedAt?: number;
     /**
      * The provider's own short, display-oriented blurb, when it has one. Optional
      * because only DeepSeek returns a dedicated field for it; for the others the

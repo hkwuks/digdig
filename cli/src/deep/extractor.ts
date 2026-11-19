@@ -1,9 +1,13 @@
+import { installedTavilyReady, installedTavilyExtract } from './installed-tavily.js';
+import { externalExtract, supportsType, type ExternalKeys, type ExternalProvider } from './external-extract.js';
 import { feedbackLog } from '../feedback-log.js';
 /**
  * Content extraction: Defuddle (linkedom) → optional Obscura fallback, or explicit Jina Reader
  */
 
 import { parseHTML } from 'linkedom';
+import { isIP } from 'net';
+import { lookup } from 'dns/promises';
 import { Defuddle } from 'defuddle/node';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
@@ -20,6 +24,43 @@ const DEFAULT_CONCURRENCY = 3;
 const MAX_RESPONSE_BYTES = 5 * 1024 * 1024;
 const MIN_CONTENT_LENGTH = 100;
 const OBSCURA_THRESHOLD = 50;
+
+class UnsupportedHtmlTypeError extends Error {
+    constructor(public readonly contentType: string) {
+        super(`Unsupported content type: ${contentType}`);
+    }
+}
+
+function isNonHtmlContentType(contentType: string): boolean {
+    const type = contentType.split(';', 1)[0].trim().toLowerCase();
+    return type === 'application/pdf' || type === 'application/json' || type.endsWith('+json')
+        || type.startsWith('image/') || type.startsWith('audio/') || type.startsWith('video/')
+        || type === 'application/msword' || type.startsWith('application/vnd.openxmlformats-officedocument.')
+        || type.startsWith('application/vnd.ms-');
+}
+
+function isPublicAddress(host: string): boolean {
+    if (isIP(host) === 4) {
+        const [a, b] = host.split('.').map(Number);
+        return !(a === 0 || a === 10 || a === 127 || a >= 224 || a === 169 && b === 254 || a === 172 && b >= 16 && b <= 31 || a === 192 && b === 168 || a === 100 && b >= 64 && b <= 127);
+    }
+    if (isIP(host) === 6) return !(host === '::' || host === '::1' || /^(fc|fd|fe[89ab]|ff|::ffff:)/.test(host));
+    return false;
+}
+
+async function isPublicTarget(url: string): Promise<boolean> {
+    try {
+        const target = new URL(url);
+        const host = target.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+        if (!['http:', 'https:'].includes(target.protocol) || target.username || target.password || !host.includes('.') && !host.includes(':') || host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local')) return false;
+        if (isIP(host)) return isPublicAddress(host);
+        const addresses = await Promise.race([
+            lookup(host, { all: true }),
+            new Promise<never>((_, reject) => AbortSignal.timeout(3000).addEventListener('abort', () => reject(new Error('DNS timeout')), { once: true })),
+        ]);
+        return addresses.length > 0 && addresses.every(item => isPublicAddress(item.address.toLowerCase()));
+    } catch { return false; }
+}
 
 const OBSCURA_SEARCH_PATHS = [
     'obscura',
@@ -43,6 +84,9 @@ export interface ExtractorOptions {
     obscuraPath?: string;
     obscuraDumpFormat?: 'html' | 'markdown';
     jina?: boolean;
+    jinaApiKey?: string;
+    useInstalledTavily?: boolean;
+    externalKeys?: ExternalKeys;
 }
 
 export interface ExtractedContent {
@@ -57,7 +101,7 @@ export interface ExtractedContent {
     error?: string;
     retryAfterMs?: number;
     retryAt?: number;
-    method?: 'defuddle' | 'obscura' | 'jina';
+    method?: 'defuddle' | 'obscura' | 'jina' | ExternalProvider;
 }
 
 let _obscuraAvailable: boolean | null = null;
@@ -287,7 +331,7 @@ function jinaAcquireSlot(): JinaSlotResult {
 
 async function jinaExtract(
     url: string,
-    options: { timeoutMs: number }
+    options: { timeoutMs: number; apiKey?: string }
 ): Promise<ExtractedContent | null> {
     const slot = jinaAcquireSlot();
     if (!slot.ok) {
@@ -302,11 +346,20 @@ async function jinaExtract(
             headers: {
                 'Accept': 'text/plain',
                 'X-Respond-With': 'frontmatter',
+                ...(options.apiKey ? { Authorization: `Bearer ${options.apiKey}` } : {}),
             },
             signal: AbortSignal.timeout(options.timeoutMs),
         });
 
-        if (!response.ok) return null;
+        if (!response.ok) {
+            const retrySeconds = Number(response.headers?.get('retry-after'));
+            const retryAfterMs = response.status === 429 && Number.isFinite(retrySeconds) && retrySeconds > 0 ? retrySeconds * 1000 : undefined;
+            return {
+                title: '', content: '', excerpt: '', url, length: 0, extractedAt: Date.now(), method: 'jina',
+                error: `Jina Reader HTTP ${response.status}`,
+                ...(retryAfterMs ? { retryAfterMs, retryAt: Date.now() + retryAfterMs } : {}),
+            };
+        }
 
         const text = await response.text();
         if (!text.trim()) return null;
@@ -344,6 +397,10 @@ export class ContentExtractor {
     private obscuraPath?: string;
     private obscuraDumpFormat: 'html' | 'markdown';
     private useJina: boolean;
+    private jinaApiKey?: string;
+    private useInstalledTavily: boolean;
+    private tavilyReady?: Promise<boolean>;
+    private externalKeys: ExternalKeys;
 
     constructor(options?: ExtractorOptions) {
         this.timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
@@ -353,13 +410,17 @@ export class ContentExtractor {
         this.obscuraPath = options?.obscuraPath;
         this.obscuraDumpFormat = options?.obscuraDumpFormat ?? 'html';
         this.useJina = options?.jina ?? false;
+        this.jinaApiKey = options?.jinaApiKey;
+        this.useInstalledTavily = options?.useInstalledTavily ?? false;
+        this.externalKeys = options?.externalKeys ?? {};
     }
 
     async extract(url: string): Promise<ExtractedContent> {
         if (this.useJina) {
+            if (!await isPublicTarget(url)) return { title: '', content: '', excerpt: '', url, length: 0, extractedAt: Date.now(), error: 'Jina requires a public HTTP(S) URL' };
             const started = Date.now();
             feedbackLog('extract_method', 'start', { provider: 'jina' });
-            const jinaResult = await jinaExtract(url, { timeoutMs: this.timeoutMs });
+            const jinaResult = await jinaExtract(url, { timeoutMs: this.timeoutMs, apiKey: this.jinaApiKey });
             feedbackLog('extract_method', jinaResult && !jinaResult.error ? 'ok' : 'error', { provider: 'jina', durationMs: Date.now() - started });
             if (jinaResult) return jinaResult;
             return {
@@ -375,6 +436,7 @@ export class ContentExtractor {
         }
 
         let result: ExtractedContent | null = null;
+        let contentType = '';
 
         const started = Date.now();
         feedbackLog('extract_method', 'start', { provider: 'defuddle' });
@@ -393,12 +455,13 @@ export class ContentExtractor {
                 extractedAt: Date.now(),
                 error: error instanceof Error ? error.message : String(error),
             };
+            if (error instanceof UnsupportedHtmlTypeError) contentType = error.contentType;
         }
 
         if (result.content.length >= MIN_CONTENT_LENGTH) return result;
 
         // Defuddle insufficient → Obscura fallback
-        if (this.useObscura && result.content.length < OBSCURA_THRESHOLD) {
+        if (!contentType && this.useObscura && result.content.length < OBSCURA_THRESHOLD) {
             const fallbackStarted = Date.now();
             feedbackLog('extract_method', 'start', { provider: 'obscura' });
             const obsResult = await obscuraExtract(url, {
@@ -410,6 +473,36 @@ export class ContentExtractor {
             if (obsResult && obsResult.content.length > result.content.length) return obsResult;
         }
 
+        if (result.content.trim() && !result.error) return result;
+        if (!await isPublicTarget(url)) {
+            if (result.error) result.error += '; external fallback skipped: URL is not publicly resolvable';
+            return result;
+        }
+
+        const providerFailures: string[] = [];
+        for (const provider of ['exa', 'tavily', 'firecrawl', 'ollama', 'deepseek'] as const) {
+            const key = this.externalKeys[provider];
+            if (!key || !supportsType(provider, contentType)) continue;
+            const external = await externalExtract(provider, key, url, this.timeoutMs);
+            if (typeof external === 'string') providerFailures.push(`${provider}: ${external}`);
+            else if (external.content.length > result.content.length) return external;
+        }
+
+        if (this.useInstalledTavily && !this.externalKeys.tavily && supportsType('tavily', contentType)) {
+            this.tavilyReady ??= installedTavilyReady();
+            if (await this.tavilyReady) {
+                const installed = await installedTavilyExtract(url, this.timeoutMs);
+                if (installed && installed.content.length > result.content.length) return installed;
+                providerFailures.push('tavily CLI: extraction failed');
+            }
+        }
+        if (this.jinaApiKey && (!contentType || contentType === 'application/pdf' || contentType === 'application/msword' || contentType.startsWith('application/vnd.ms-') || contentType.startsWith('application/vnd.openxmlformats-officedocument.'))) {
+            const jina = await jinaExtract(url, { timeoutMs: this.timeoutMs, apiKey: this.jinaApiKey });
+            if (jina && !jina.error && jina.content.length > result.content.length) return jina;
+            if (jina?.retryAfterMs && result.error) return jina;
+            if (jina?.error) providerFailures.push(`jina: ${jina.error}`);
+        }
+        if (providerFailures.length && result.error) result.error += `; ${providerFailures.join('; ')}`;
         return result;
     }
 
@@ -424,6 +517,12 @@ export class ContentExtractor {
 
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const contentType = response.headers.get('content-type') ?? '';
+        if (isNonHtmlContentType(contentType)) {
+            await response.body?.cancel();
+            throw new UnsupportedHtmlTypeError(contentType.split(';', 1)[0].trim().toLowerCase());
         }
 
         const contentLength = response.headers.get('content-length');

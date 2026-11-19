@@ -96,7 +96,7 @@ describe('runExtract', () => {
     const extractor = { extractBatch: vi.fn().mockResolvedValue([{ url, title: '', content: '', excerpt: '', length: 0, extractedAt: 1, error: 'unavailable' }]) } as any;
     const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
     expect(await runExtract(extractor, { session: sessionDir, urls: [url] })).toBe(1);
-    expect(JSON.parse(log.mock.lastCall![0])).toMatchObject({ status: 'error', error: { code: 'EXTRACT_FAILED', details: { failed: [url], stats: { total: 1, success: 0, failed: 1 } } } });
+    expect(JSON.parse(log.mock.lastCall![0])).toMatchObject({ status: 'error', error: { code: 'EXTRACT_FAILED', details: { failed: [url], failureDetails: [{ url, failure: { code: 'tool', message: 'unavailable' } }], stats: { total: 1, success: 0, failed: 1 } } } });
     expect(loadSessionResults(sessionDir)[0].failureCount).toBe(1);
   });
 

@@ -84,6 +84,7 @@ async function runExtractInner(extractor: ContentExtractor, options: ExtractOpti
                     retryable: true,
                     details: {
                         failed,
+                        failureDetails: failures,
                         stats,
                         session,
                         retryAfterMs: rateLimited.failure.retryAfterMs,
@@ -95,13 +96,14 @@ async function runExtractInner(extractor: ContentExtractor, options: ExtractOpti
         }
         if (extracted.length === 0) {
             console.log(JSON.stringify(createErrorEnvelope('EXTRACT_FAILED', 'No URLs were extracted successfully', {
-                retryable: true, details: { failed, stats, ...(session ? { session } : {}) },
+                retryable: true, details: { failed, failureDetails: failures, stats, ...(session ? { session } : {}) },
             }), null, 2));
             return 1;
         }
         console.log(JSON.stringify(createSuccessEnvelope({
             extracted,
             failed,
+            failureDetails: failures,
             skipped: [],
             stats,
             ...(session ? { session } : {}),

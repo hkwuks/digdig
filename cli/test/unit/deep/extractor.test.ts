@@ -1,3 +1,4 @@
+vi.mock('dns/promises', () => ({ lookup: vi.fn().mockResolvedValue([{ address: '93.184.216.34', family: 4 }]) }));
 import { describe, expect, it, vi } from 'vitest';
 import { ContentExtractor, obscuraDownloadUrl } from '../../../src/deep/extractor.js';
 
@@ -60,6 +61,26 @@ describe('ContentExtractor', () => {
         try {
             expect((await new ContentExtractor().extract('https://example.com/network')).error).toContain('network down');
             expect((await new ContentExtractor().extract('https://example.com/blank')).error).toBeTruthy();
+        } finally { vi.unstubAllGlobals(); }
+    });
+
+    it.each(['application/pdf', 'application/json', 'image/png'])('does not send %s to the HTML browser fallback', async (type) => {
+        execFileAsync.mockReset();
+        const fetchMock = vi.fn(async () => new Response('not html', { headers: { 'content-type': type } }));
+        vi.stubGlobal('fetch', fetchMock);
+        try {
+            const result = await new ContentExtractor({ obscura: true, obscuraPath: 'test-obscura' }).extract('https://example.com/document');
+            expect(result.error).toContain(`Unsupported content type: ${type}`);
+            expect(execFileAsync).not.toHaveBeenCalled();
+            expect(fetchMock).toHaveBeenCalledTimes(1);
+        } finally { vi.unstubAllGlobals(); }
+    });
+
+    it('uses the actual HTML response type rather than a misleading PDF suffix', async () => {
+        vi.stubGlobal('fetch', vi.fn(async () => new Response('<html><body><p>Actual HTML body</p></body></html>', { headers: { 'content-type': 'text/html' } })));
+        try {
+            const result = await new ContentExtractor().extract('https://example.com/report.pdf');
+            expect(result).toMatchObject({ method: 'defuddle', content: 'Actual HTML body' });
         } finally { vi.unstubAllGlobals(); }
     });
 

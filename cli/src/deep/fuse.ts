@@ -108,9 +108,8 @@ export function fuseResults(input: FusionInput): FusionOutput {
         for (const result of cleaned[index]) {
             const key = resultUrlKey(result);
             currentKeys.add(key);
-            // First provider to return a URL supplies its body and its source score;
-            // the others still contribute an origin, and RRF weighs the repeat.
-            if (!current.has(key)) current.set(key, result);
+            // Prefer an already extracted body over a search snippet; every source still contributes an origin.
+            if (!current.has(key) || (result.contentType === 'extracted' && current.get(key)?.contentType !== 'extracted')) current.set(key, result);
             const origins = originsByKey.get(key) ?? [];
             origins.push({
                 tool: (input.toolFor ?? (() => 'digdig'))(result.engine),
