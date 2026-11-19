@@ -1018,7 +1018,7 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## 让反馈日志的词表与代码实际分类对齐：session 错误码、valida
 
 - ID: TF-20261119-8dc94a
-- Status: inbox
+- Status: promoted
 - Priority: normal
 - Owner: Claude
 - Source: direct user request
@@ -1026,5 +1026,5 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Added: 2026-11-19
 - Updated: 2026-11-19
 - Goal: 让反馈日志的词表与代码实际分类对齐：session 错误码、validation 失败原因、抽取回退链逐次记录
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: `TaskFlowDocs/2026-11-19-feedback-log-vocab/`
+- Next action: Complete PRD / Spec / Plan and request approval.
