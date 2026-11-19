@@ -1,6 +1,6 @@
 # Plan — 按内容类型复用搜索与抽取工具
 > Task version: v3
-> Status: checking
+> Status: completed
 
 ## Spec Pointers
 - `spec.md`：工具能力、发现、适配及结果契约。

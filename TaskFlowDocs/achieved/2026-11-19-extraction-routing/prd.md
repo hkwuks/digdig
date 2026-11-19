@@ -1,6 +1,6 @@
 # 按内容类型复用搜索与抽取工具
 > Task version: v3
-> Status: checking
+> Status: completed
 
 ## Goal
 
