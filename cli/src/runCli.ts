@@ -540,14 +540,14 @@ async function runSearchInner(
 ): Promise<number> {
     feedbackLog('validation', 'start');
     if (options.limit !== undefined && (!Number.isSafeInteger(options.limit) || options.limit <= 0)) {
-        feedbackLog('validation', 'error', { error: 'validation' });
+        feedbackLog('validation', 'error', { error: 'INVALID_LIMIT' });
         console.log(JSON.stringify(createErrorEnvelope('INVALID_LIMIT', 'Limit must be a positive safe integer'), null, 2));
         return 1;
     }
     const queries = options.queries || (options.query ? [options.query] : []);
 
     if (queries.length === 0) {
-        feedbackLog('validation', 'error', { error: 'validation' });
+        feedbackLog('validation', 'error', { error: 'MISSING_QUERY' });
         const envelope = createErrorEnvelope(
             'MISSING_QUERY',
             'No search query provided',
@@ -558,7 +558,7 @@ async function runSearchInner(
     }
 
     if (options.engines && options.engines.length === 0) {
-        feedbackLog('validation', 'error', { error: 'validation' });
+        feedbackLog('validation', 'error', { error: 'INVALID_ENGINES' });
         console.log(JSON.stringify(createErrorEnvelope('INVALID_ENGINES', 'At least one engine must be specified'), null, 2));
         return 1;
     }
@@ -566,7 +566,7 @@ async function runSearchInner(
     if (config.allowedEngines.length > 0) {
         const invalid = engines.filter(e => !config.allowedEngines.includes(e));
         if (invalid.length > 0) {
-            feedbackLog('validation', 'error', { error: 'validation' });
+            feedbackLog('validation', 'error', { error: 'INVALID_ENGINES' });
             const envelope = createErrorEnvelope(
                 'INVALID_ENGINES',
                 `Engines not allowed: ${invalid.join(', ')}`,
@@ -586,7 +586,7 @@ async function runSearchInner(
     if (engines.length > 0) {
         const unconfigured = planProviderSearch(engines, tavilyCli, firecrawlCli).unconfigured;
         if (unconfigured.length > 0) {
-            feedbackLog('validation', 'error', { error: 'CONFIG_MISSING' });
+            feedbackLog('validation', 'error', { error: 'PROVIDER_NOT_CONFIGURED' });
             const envelope = createErrorEnvelope(
                 'PROVIDER_NOT_CONFIGURED',
                 `Provider selected but no API key configured: ${unconfigured.join(', ')}`,

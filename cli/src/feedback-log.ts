@@ -2,13 +2,35 @@ import { randomUUID } from 'crypto';
 import { homedir } from 'os';
 import { join } from 'path';
 import { appendFile, mkdir, open, rename, stat, unlink } from 'fs/promises';
+import { SEARCH_ERROR_CODES, SEARCH_PROVIDERS } from './errors.js';
+import { SESSION_ERROR_CODES } from './deep/session-lock.js';
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const runId = randomUUID();
 const events = ['search', 'validation', 'redundancy', 'provider', 'fusion', 'session', 'extract', 'extract_batch', 'extract_method'] as const;
 const statuses = ['start', 'ok', 'error', 'skip'] as const;
-const providers = ['searxng', 'deepseek', 'ollama', 'defuddle', 'obscura', 'jina', 'exa', 'tavily', 'firecrawl', 'unknown'] as const;
-const errors = ['CONFIG_MISSING', 'AUTH_FAILED', 'RATE_LIMITED', 'SERVER_ERROR', 'NETWORK_ERROR', 'BAD_REQUEST', 'BAD_RESPONSE', 'SESSION_BUSY', 'validation', 'unknown'] as const;
+
+/**
+ * The provider vocabulary, derived rather than copied.
+ *
+ * Every value here comes from a list that some other module already owns, so a
+ * new provider or error code cannot silently go unrecorded. This file used to
+ * keep its own hand-written copies; `exa`, `tavily` and `firecrawl` were added
+ * to the classifier in 0.1.0 and had to be added here by hand to match, which
+ * is exactly the drift this arrangement removes.
+ */
+const providers = [...SEARCH_PROVIDERS, 'defuddle', 'obscura', 'unknown'] as const;
+
+/**
+ * The error vocabulary, likewise derived.
+ *
+ * `INVALID_LIMIT`, `MISSING_QUERY`, `INVALID_ENGINES` and
+ * `PROVIDER_NOT_CONFIGURED` are the validation-stage envelope codes; the log
+ * records which one an invocation failed on instead of collapsing all four
+ * into a single `validation` string. `unknown` stays as the classifier's floor
+ * for anything unclassified.
+ */
+const errors = [...SEARCH_ERROR_CODES, ...SESSION_ERROR_CODES, 'INVALID_LIMIT', 'MISSING_QUERY', 'INVALID_ENGINES', 'PROVIDER_NOT_CONFIGURED', 'unknown'] as const;
 type Event = typeof events[number];
 type Status = typeof statuses[number];
 type Provider = typeof providers[number];

@@ -2,8 +2,20 @@ import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'fs'
 import { DatabaseSync } from 'node:sqlite';
 import { join } from 'path';
 
+/**
+ * Everything a session operation can fail with, as a runtime list.
+ *
+ * The log has to allowlist these at runtime, so the list — not the type — is
+ * the source of truth. `SESSION_BUSY` used to be the only one the log knew
+ * about; corruption, storage and migration failures all landed in `unknown`,
+ * which made three distinct failures indistinguishable from any stray error.
+ */
+export const SESSION_ERROR_CODES = ['SESSION_BUSY', 'SESSION_CORRUPTED', 'SESSION_STORAGE_ERROR', 'SESSION_MIGRATION_FAILED'] as const;
+
+export type SessionErrorCode = typeof SESSION_ERROR_CODES[number];
+
 export class SessionStateError extends Error {
-    constructor(readonly code: 'SESSION_BUSY' | 'SESSION_CORRUPTED' | 'SESSION_STORAGE_ERROR' | 'SESSION_MIGRATION_FAILED', message: string) {
+    constructor(readonly code: SessionErrorCode, message: string) {
         super(message);
     }
 }
