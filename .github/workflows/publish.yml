@@ -1,9 +1,9 @@
 name: Publish
 
-# Publishing hangs off the tag, not off `main`. `npm version patch` writes the
-# version into cli/package.json and creates the matching tag in one command, so
-# the two cannot drift; a push-to-main trigger would publish whatever landed
-# last and leave the version number to be set by hand somewhere else.
+# Publishing hangs off the tag, not off `main`. Bump the package and lockfile
+# with `npm version --no-git-tag-version`, then explicitly tag the main commit.
+# After npm publication succeeds, create the matching GitHub Release as required
+# by CONTRIBUTING.md.
 on:
   push:
     tags: ['v*']
