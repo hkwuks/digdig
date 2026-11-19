@@ -1,4 +1,5 @@
-import { installedTavilyReady, installedTavilySearch, installedTavilyStatus } from './deep/installed-tavily.js';
+import { installedFirecrawlStatus, installedFirecrawlSearch } from './deep/installed-firecrawl.js';
+import { installedTavilySearch, installedTavilyStatus } from './deep/installed-tavily.js';
 import { externalSearch } from './external-search.js';
 import { feedbackLog, feedbackError } from './feedback-log.js';
 /**
@@ -125,6 +126,7 @@ function formatAsMarkdown(data: any): string {
             const meta: string[] = [];
             if (r.rank !== undefined) meta.push(`Rank: ${r.rank}`);
             meta.push(`Engine: ${r.engine || 'unknown'}`);
+            if (r.contentCompleteness === 'unverified') meta.push('Content completeness: unverified');
             if (r.category) meta.push(`Category: ${r.category}`);
             if (r.publishedDate) meta.push(`Published: ${r.publishedDate}`);
             if (r.retrievedAt) meta.push(`Retrieved: ${new Date(r.retrievedAt).toISOString()}`);
@@ -134,6 +136,11 @@ function formatAsMarkdown(data: any): string {
         }
     } else {
         lines.push('No results found.');
+        lines.push('');
+    }
+
+    if (data.providerResults?.length) {
+        lines.push('**Search providers:** ' + data.providerResults.map((item: any) => `${item.provider} (${item.query}): ${item.status}${item.error ? ` (${item.error})` : ''}, received ${item.received}, returned ${item.returned}`).join(' · '));
         lines.push('');
     }
 
@@ -230,6 +237,11 @@ function formatFactsAsMarkdown(facts: PendingReport): string {
     lines.push(`**Sources:** ${facts.sources}`);
     if (facts.sourceList.length) lines.push(`**Source list:** ${facts.sourceList.join(' · ')}`);
     lines.push('');
+
+    if (facts.jinaSearchWarnings?.length) {
+        lines.push('**Jina search content needs completeness review:** ' + facts.jinaSearchWarnings.map(item => `${item.id} (${item.url})`).join(' · '));
+        lines.push('');
+    }
 
     if (facts.pending.length) {
         lines.push(`**Awaiting approval:** ${facts.pending.length}`);
@@ -381,8 +393,14 @@ const PROVIDER_IMPLS: Record<ExternalProvider, {
 async function configuredExternalProviders() {
     const providers = EXTERNAL_PROVIDERS.filter(p => PROVIDER_IMPLS[p].configured());
     const tavilyCli = await installedTavilyStatus();
+    const firecrawlCli = await installedFirecrawlStatus();
+    if (!providers.includes('firecrawl') && firecrawlCli === 'authenticated') providers.push('firecrawl');
     if (!providers.includes('tavily') && (tavilyCli === 'authenticated' || tavilyCli === 'keyless')) providers.push('tavily');
-    return { providers, tavilyCli };
+    const details = EXTERNAL_PROVIDERS.map(provider => ({
+        provider, configured: providers.includes(provider), access: providers.includes(provider) ? 'unverified' as const : 'not_configured' as const,
+        ...(provider === 'tavily' ? { cliStatus: tavilyCli } : provider === 'firecrawl' ? { cliStatus: firecrawlCli } : {}),
+    }));
+    return { providers, tavilyCli, details };
 }
 
 /**
@@ -400,8 +418,25 @@ interface LimitNote {
     applied: number;
 }
 
+type SearchAttempt = { provider: string; query: string } & (
+    | { status: 'ok'; response: SearchResponse }
+    | { status: 'error'; error: unknown }
+);
+
+function summarizeAttempts(attempts: SearchAttempt[], returnedKeys: Set<string>) {
+    return attempts.map(attempt => attempt.status === 'ok' ? {
+        query: attempt.query, provider: attempt.provider, status: 'ok' as const, received: attempt.response.results.length,
+        returned: new Set(attempt.response.results.map(result => resultUrlKey(result)).filter(key => returnedKeys.has(key))).size,
+    } : {
+        query: attempt.query, provider: attempt.provider, status: 'error' as const, received: 0, returned: 0,
+        error: attempt.error instanceof SearchError ? attempt.error.code : 'SEARCH_FAILED',
+        retryable: attempt.error instanceof SearchError ? attempt.error.retryable : false,
+    });
+}
+
 interface ProviderSearchPlan {
     tavilyCli: boolean;
+    firecrawlCli: boolean;
     /** Selected providers whose API key is present, in a stable order. */
     usable: ExternalProvider[];
     /** Providers named in `--engines` that the caller cannot reach. */
@@ -410,12 +445,12 @@ interface ProviderSearchPlan {
     sxngEngines: string[];
 }
 
-function planProviderSearch(engines: string[], tavilyCli = false): ProviderSearchPlan {
+function planProviderSearch(engines: string[], tavilyCli = false, firecrawlCli = false): ProviderSearchPlan {
     const selected = EXTERNAL_PROVIDERS.filter(p => engines.includes(p));
     return {
-        tavilyCli,
-        usable: selected.filter(p => PROVIDER_IMPLS[p].configured() || (p === 'tavily' && tavilyCli)),
-        unconfigured: selected.filter(p => !PROVIDER_IMPLS[p].configured() && !(p === 'tavily' && tavilyCli)),
+        tavilyCli, firecrawlCli,
+        usable: selected.filter(p => PROVIDER_IMPLS[p].configured() || ((p === 'tavily' && tavilyCli) || (p === 'firecrawl' && firecrawlCli))),
+        unconfigured: selected.filter(p => !PROVIDER_IMPLS[p].configured() && !((p === 'tavily' && tavilyCli) || (p === 'firecrawl' && firecrawlCli))),
         sxngEngines: engines.filter(e => !EXTERNAL_PROVIDERS.includes(e as ExternalProvider)),
     };
 }
@@ -431,9 +466,10 @@ async function searchOneQuery(
     plan: ProviderSearchPlan,
     searchOptions: SearchOptions,
     limit: number
-): Promise<{ providerResponses: SearchResponse[]; sxngResponse: SearchResponse | null; limitNotes: LimitNote[] }> {
+): Promise<{ providerResponses: SearchResponse[]; sxngResponse: SearchResponse | null; limitNotes: LimitNote[]; attempts: SearchAttempt[] }> {
     if (plan.usable.length === 0 || plan.sxngEngines.length > 0) assertSearXNGConfig();
     const providerResponses: SearchResponse[] = [];
+    const attempts: SearchAttempt[] = [];
     const limitNotes: LimitNote[] = [];
     for (const provider of plan.usable) {
         const started = Date.now();
@@ -441,6 +477,7 @@ async function searchOneQuery(
         try {
             const response = provider === 'tavily' && plan.tavilyCli
                 ? await installedTavilySearch(searchOptions.query, limit)
+                : provider === 'firecrawl' && plan.firecrawlCli ? await installedFirecrawlSearch(searchOptions.query, limit)
                 : await PROVIDER_IMPLS[provider].search(searchOptions.query, limit);
             feedbackLog('provider', 'ok', { provider, durationMs: Date.now() - started, count: response.results.length });
             // The provider caps the count itself, so compare against its ceiling
@@ -450,9 +487,10 @@ async function searchOneQuery(
             const applied = PROVIDER_IMPLS[provider].maxResults;
             if (limit > applied) limitNotes.push({ provider, requested: limit, applied });
             providerResponses.push(response);
+            attempts.push({ provider, query: searchOptions.query, status: 'ok', response });
         } catch (error) {
             feedbackLog('provider', 'error', { provider, durationMs: Date.now() - started, error: feedbackError(error) });
-            throw error;
+            attempts.push({ provider, query: searchOptions.query, status: 'error', error });
         }
     }
 
@@ -466,13 +504,14 @@ async function searchOneQuery(
                 engines: plan.sxngEngines.length > 0 ? plan.sxngEngines : searchOptions.engines,
             });
             feedbackLog('provider', 'ok', { provider: 'searxng', durationMs: Date.now() - started, count: sxngResponse.results.length });
+            attempts.push({ provider: 'searxng', query: searchOptions.query, status: 'ok', response: sxngResponse });
         } catch (error) {
             feedbackLog('provider', 'error', { provider: 'searxng', durationMs: Date.now() - started, error: feedbackError(error) });
-            throw error;
+            attempts.push({ provider: 'searxng', query: searchOptions.query, status: 'error', error });
         }
     }
 
-    return { providerResponses, sxngResponse, limitNotes };
+    return { providerResponses, sxngResponse, limitNotes, attempts };
 }
 
 /** Attribute a result to the tool that produced it, for session origin records. */
@@ -538,12 +577,14 @@ async function runSearchInner(
         }
     }
 
-    const tavilyCli = engines.includes('tavily') && !process.env.TAVILY_API_KEY && await installedTavilyReady();
+    const tavilyStatus = engines.includes('tavily') ? await installedTavilyStatus() : 'not_installed';
+    const tavilyCli = tavilyStatus === 'authenticated' || (tavilyStatus === 'keyless' && !process.env.TAVILY_API_KEY);
+    const firecrawlCli = engines.includes('firecrawl') && await installedFirecrawlStatus() === 'authenticated';
 
     // A selected provider without its API key cannot run. Failing loudly beats
     // silently answering from SearXNG, which would make the provider look active.
     if (engines.length > 0) {
-        const unconfigured = planProviderSearch(engines, tavilyCli).unconfigured;
+        const unconfigured = planProviderSearch(engines, tavilyCli, firecrawlCli).unconfigured;
         if (unconfigured.length > 0) {
             feedbackLog('validation', 'error', { error: 'CONFIG_MISSING' });
             const envelope = createErrorEnvelope(
@@ -673,6 +714,7 @@ async function runSearchInner(
         queries.push(...adjustedQueries);
     }
 
+    const attempts: SearchAttempt[] = [];
     try {
         // Read the merge file before anything writes, so a bad path cannot leave
         // half a session behind.
@@ -696,7 +738,7 @@ async function runSearchInner(
 
         // One invocation, N queries: the only difference from a single query is
         // how many responses land in the array.
-        const plan = planProviderSearch(engines, tavilyCli);
+        const plan = planProviderSearch(engines, tavilyCli, firecrawlCli);
         const responses: SearchResponse[] = [];
         // One note per provider across every query in this invocation: repeating
         // "ollama capped at 10" once per query would bury the fact in noise.
@@ -712,13 +754,19 @@ async function runSearchInner(
                 language: options.language,
                 timeRange: options.timeRange as any,
             };
-            const { providerResponses, sxngResponse, limitNotes: notes } = await searchOneQuery(service, plan, searchOptions, limit);
-            if (options.session) searchRound = recordSuccessfulQuery(options.session, query, searchRound);
+            const { providerResponses, sxngResponse, limitNotes: notes, attempts: queryAttempts } = await searchOneQuery(service, plan, searchOptions, limit);
+            attempts.push(...queryAttempts);
+            if (options.session && queryAttempts.some(attempt => attempt.status === 'ok')) searchRound = recordSuccessfulQuery(options.session, query, searchRound);
             for (const note of notes) {
                 if (!limitNotes.some(existing => existing.provider === note.provider)) limitNotes.push(note);
             }
             responses.push(...providerResponses);
             if (sxngResponse) responses.push(sxngResponse);
+        }
+
+        if (!responses.length) {
+            const failure = attempts.find(attempt => attempt.status === 'error');
+            if (failure?.status === 'error') throw failure.error;
         }
 
         // Snapshot before writing: history must not include this invocation's own
@@ -763,7 +811,10 @@ async function runSearchInner(
         }
 
         const outputFormat = (options.format || config.defaultFormat) as 'json' | 'md';
+        const returnedKeys = new Set(fusion.display.map(result => resultUrlKey(result)));
+        const providerResults = summarizeAttempts(attempts, returnedKeys);
         const displayData = {
+            providerResults,
             query: queries.length > 1 ? queries.join(' · ') : queries[0],
             queries,
             // The deduplicated candidate pool, not a sum of provider self-reports
@@ -781,7 +832,7 @@ async function runSearchInner(
             // Absent when nothing was capped, so a request the providers could
             // honour in full keeps the exact shape it had before this field.
             ...(limitNotes.length ? { limitNotes } : {}),
-            ...(sessionInfo ? { session: { dir: options.session, added: sessionInfo.added, total: sessionInfo.total } } : {}),
+            ...(sessionInfo ? { session: { dir: options.session, added: sessionInfo.added, updated: sessionInfo.updated, total: sessionInfo.total } } : {}),
         };
 
         if (outputFormat === 'md') {
@@ -802,7 +853,12 @@ async function runSearchInner(
     } catch (error) {
         feedbackLog('search', 'error', { error: feedbackError(error) });
         if (error instanceof SessionStateError) {
-            console.log(JSON.stringify(createErrorEnvelope(error.code, error.message, { retryable: error.code === 'SESSION_BUSY' }), null, 2));
+            const partialResults = attempts.flatMap(attempt => attempt.status === 'ok' ? attempt.response.results : []);
+            const details = attempts.length ? {
+                providerResults: summarizeAttempts(attempts, new Set(partialResults.map(result => resultUrlKey(result)))),
+                partialResults, sessionWrite: 'unconfirmed',
+            } : undefined;
+            console.log(JSON.stringify(createErrorEnvelope(error.code, error.message, { retryable: error.code === 'SESSION_BUSY', details }), null, 2));
             return 1;
         }
         // `retryable` and the hint come from the error, not from this block.
@@ -814,7 +870,7 @@ async function runSearchInner(
             const envelope = createErrorEnvelope(error.code, error.message, {
                 retryable: error.retryable,
                 hint: error.hint,
-                details: { provider: error.provider, ...(error.status === undefined ? {} : { status: error.status }) },
+                details: { provider: error.provider, ...(error.status === undefined ? {} : { status: error.status }), ...(attempts.length ? { providerResults: summarizeAttempts(attempts, new Set()) } : {}) },
             });
             console.log(JSON.stringify(envelope, null, 2));
             return 1;
@@ -822,7 +878,8 @@ async function runSearchInner(
 
         const envelope = createErrorEnvelope(
             'SEARCH_FAILED',
-            error instanceof Error ? error.message : 'Search request failed',
+            attempts.length ? 'Search request failed' : error instanceof Error ? error.message : 'Search request failed',
+            attempts.length ? { details: { providerResults: summarizeAttempts(attempts, new Set()) } } : {},
         );
         console.log(JSON.stringify(envelope, null, 2));
         return 1;
@@ -910,11 +967,12 @@ export function createProgram(argv: string[] = []): Command {
                 jina: opts.jina ?? false,
                 jinaApiKey: process.env.JINA_API_KEY,
                 useInstalledTavily: true,
+                useInstalledFirecrawl: true,
                 externalKeys: {
                     exa: process.env.EXA_API_KEY, tavily: process.env.TAVILY_API_KEY,
                     firecrawl: process.env.FIRECRAWL_API_KEY,
-                    ollama: process.env.OLLAMA_API_KEY || config.ollamaApiKey,
-                    deepseek: process.env.DEEPSEEK_API_KEY || config.deepseekApiKey,
+                    ollama: config.ollamaApiKey,
+                    deepseek: config.deepseekApiKey,
                 },
             });
             const extractOptions: ExtractOptions = {
@@ -1627,7 +1685,7 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
         if (opts.enginesList) {
             try {
                 const serverEngines = await service.getEngines();
-                const { providers: configuredProviders, tavilyCli } = await configuredExternalProviders();
+                const { providers: configuredProviders, tavilyCli, details } = await configuredExternalProviders();
 
                 // Both empty is a legitimate-looking but useless answer: nothing
                 // this CLI can search with. Reaching here already means the
@@ -1638,7 +1696,7 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                     const envelope = createErrorEnvelope(
                         'ENGINES_FETCH_EMPTY',
                         'No engines returned from SearXNG server',
-                        { hint: 'Check if SearXNG server is properly configured' }
+                        { hint: 'Check if SearXNG server is properly configured', details: { providers: details, tavilyCli } }
                     );
                     console.log(JSON.stringify(envelope, null, 2));
                     process.exitCode = 1;
@@ -1654,20 +1712,28 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                     engines: [...serverEngines, ...configuredProviders],
                     sources: { server: serverEngines, local: configuredProviders },
                     tavilyCli,
+                    providers: details,
                 });
                 console.log(JSON.stringify(envelope, null, 2));
                 process.exitCode = 0;
             } catch (error) {
-                if (printConfigError(error)) return;
-                const { providers: configuredProviders, tavilyCli } = await configuredExternalProviders();
+                const { providers: configuredProviders, tavilyCli, details } = await configuredExternalProviders();
                 if (configuredProviders.length) {
                     console.log(JSON.stringify(createSuccessEnvelope({
                         engines: configuredProviders,
                         sources: { server: [], local: configuredProviders },
                         tavilyCli,
+                        providers: details,
                         serverUnavailable: true,
                     }), null, 2));
                     process.exitCode = 0;
+                    return;
+                }
+                if (error instanceof SearchError && error.code === 'CONFIG_MISSING') {
+                    console.log(JSON.stringify(createErrorEnvelope(error.code, error.message, {
+                        retryable: error.retryable, hint: error.hint, details: { providers: details, tavilyCli },
+                    }), null, 2));
+                    process.exitCode = 1;
                     return;
                 }
                 const envelope = createErrorEnvelope(

@@ -1,6 +1,6 @@
 # Plan — 按内容类型复用搜索与抽取工具
-> Task version: v2
-> Status: ready
+> Task version: v3
+> Status: checking
 
 ## Spec Pointers
 - `spec.md`：工具能力、发现、适配及结果契约。
@@ -23,7 +23,7 @@
 - `get-api-docs`：chub 查得 Tavily JavaScript 文档；Exa、Firecrawl、Ollama、DeepSeek Fetch 未找到匹配条目，使用官方 API 文档交叉核实。
 - Web / Exa：读取各厂商类型与接口文档；真实 Exa 宿主读取和本地 `dg` HTML/PDF/JSON 样本用于界定现状，不视为完整质量基准。
 
-## v2 用户决定
+## v2 用户决定（已撤回，未实施）
 - 用户于 2026-11-19 确认移除四家新增直连搜索，保留原有后端；外部抽取由 Agent 选择、调用和导入；历史 Jina 数据保留并提示核实。原 v1 直连及自动回退计划不再适用。
 - 工作树 `D:/WorkSpace/Node/digdig/.worktrees/2026-11-19-agent-tool-boundary`，分支 `fix/2026-11-19-agent-tool-boundary`。保留旧工作树数据。
 
@@ -41,8 +41,8 @@
 ## Approval
 - Status: approved
 - Approved by: user
-- Approved at: 2026-11-19 14:23 +0800
-- Approved version: v2
+- Approved at: 2026-11-19 14:31 +0800
+- Approved version: v3
 - Approved scope: PRD / Spec / Plan
 
 ## Steps
@@ -175,17 +175,57 @@ Moved verbatim from the TODO entry by `hooks/archive`, grouped by the field each
 
 - 2026-11-19 用户追加要求：更新 Tavily CLI 并实测；完善仓库发布规则，发布时创建 GitHub Release；当前功能的下一次发布目标版本为 0.1.0。沿用同一分支和原任务，不新建汇总 Todo。
 
-### Step 6 — 恢复 Agent 主导的工具边界
-- Goal: 移除新增直连搜索及自动外部抽取，保留既有显式后端、类型保护和结果导入。
-- [ ] 先验证默认不调用新增服务、已有搜索/抽取仍工作；再修改调用路径。
-- [ ] 更新项目内 skill、README 和能力说明，明确 Agent 选择与导入。
-- Status: pending
-
-### Step 7 — 历史提示和验证
-- Goal: 保留历史数据并提示核实 Jina 直连搜索内容完整性。
-- [ ] 为待审核及已审核历史记录提供无副作用提示；避免误称所有 Jina 抽取都不完整。
-- [ ] 验证现有 session、原有后端、Windows 与 WSL 兼容性和全量回归；记录限制。
-- Status: pending
+### v2 已撤销方案
+- 用户最初选择移除新增直连搜索和自动外部抽取，随后明确改为保留两条路径；该方案未实施。
+- 历史 Jina 内容完整性提示仍由 v3 覆盖。
 
 ## v2 Change Log
 - 用户指出原 Agent 工具导入策略被误改；其已确认三项纠正决定。未新建 Todo，未删除远端分支。
+
+## v3 用户最新决定
+- 同时保留 dg 直连和 Agent 导入；Agent 优先使用 dg 实际已经返回的结果，在不兼容或存在缺口时调用自身工具。
+- 实际成功、返回数量和已返回/已存储事实与仅配置状态分开，避免主动付费探测。历史 Jina 内容提示核实，不改会话正文和审批。
+
+### Step 8 — 调用结果和能力提示
+- [x] 测试并呈现配置和实际查询结果，区分零结果、失败与成功，保留已有直连和导入。
+- [x] 补充项目 skill 和中英文配置说明，说明 API Key、免密 Tavily、Agent 补充及费用边界。
+- Status: done
+
+### Step 9 — 历史记录提示与验证
+- [x] 对可能来自 Jina 直连搜索的历史正文给出非破坏性完整性提示。
+- [x] 测试现有会话与无重复请求，完成 Windows/WSL 验证、文档和审查。
+- Status: done
+
+### v3 补充决定（用户确认）
+- 项目内 skill 和工具输出均明确已有调用结果，成功但零结果允许 Agent 补充；`--engines-list` 不发送收费探测，仅报告配置或本地启动事实。
+- 非空 Jina 搜索内容存在完整性不明问题；按此前确认保留历史并提示，不改用户数据。
+
+### 2026-11-19 v3 验证记录
+- 保留 dg 直连及 Agent 导入，输出实际 provider 状态与数量；配置列表不对外部服务发付费探测。部分搜索失败保留成功结果，会话写入失败时返回可恢复结果。
+- 历史 Jina 搜索正文仅提示完整性待核实，不修改会话数据；Ollama/DeepSeek 原始环境变量及前缀优先级已统一。
+- Windows 类型检查与构建通过；完整测试首次并行内存不足，单并发出现本地文档索引测试超时后中止，不能视为全量通过。定向复验及最终审查仍在进行。
+- 配置测试曾误读取本机配置并可能在失败输出暴露 Ollama 凭据，已告知用户轮换；后续测试使用隔离目录和模拟凭据。
+
+- Windows 隔离环境单并发全量复跑通过 75 个文件、874 项；构建、类型检查通过。WSL 确认 Node 24.15.0，本轮修改未完成 WSL 测试。项目内 `.test-tmp` 含测试会话锁文件暂予保留，`.npm-test-cache` 为本次安装缓存。
+
+- WSL Node 24.15.0：隔离环境下 7 个定向测试文件、93 项通过；本轮没有真实云服务请求。Windows 与 WSL 本轮创建的隔离测试目录及 npm 缓存已清理。
+
+### 2026-11-19 复用现有认证
+- 用户要求 Agent 或 CLI 已认证时避免在 dg 重复配置。按现有任务范围继续：优先使用具备公开非交互接口的已认证 CLI；宿主私有工具由 Agent 调用并通过现有契约导入。无需读取或输出凭据文件。
+- 官方 Firecrawl CLI 支持本机 `view-config`、搜索和抽取；配置检查不发送搜索请求。Jina 官方 CLI 使用环境变量。Exa 宿主 MCP 的凭据不自动暴露给 dg。详细契约以官方资料及受控验证为准。
+
+- 用户确认：优先已认证 CLI，Agent 私有 MCP 工具由 Agent 调用并导入，只使用公开接口。用户提出程序化桥接以减少模型上下文：仅在宿主支持直接编排工具及文件操作时转存，当前项目 skill 提供条件性指引，未声称自动连接任意宿主 MCP 或证明 Token 节省。
+- Firecrawl 官方 CLI 的本地配置检查、搜索 JSON、抽取 JSON 及零结果行为依据其源码核对： https://github.com/firecrawl/cli 。Jina 官方 CLI 目前以环境变量配置： https://github.com/jina-ai/cli 。Exa 宿主 MCP 的 OAuth/私有连接不能由普通子进程自动继承： https://github.com/exa-labs/exa-mcp-server 。
+- Windows 全量 77 文件、881 测试通过；构建通过。使用隔离安装的官方 Firecrawl CLI 1.29.0 和假环境变量验证配置检查，未访问真实凭据或实际搜索；搜索和抽取结果使用 mock。WSL 定向测试进行中。
+
+- WSL Node 24：CLI 复用定向 46 项通过、1 项 Windows 专属测试跳过。
+- 用户后续确认先支持 Codex 桥接：Exa MCP 原始页面文本在 host 编排中直接写入会话 `agent-inputs`，由 `results-add` 导入，模型只收到状态/数量；按可能截断的 excerpt 而非完整正文保存。首次真实 Exa MCP 页面读取并导入成功；后续在线调用连接失败，示例使用保留的真实响应复验成功。其他 MCP 格式或宿主未验证，Token 节省量未测。
+
+- 本轮隔离测试文件及临时缓存已清理。改动仍在工作树，待任务最终验收；没有提交、合并或发布。
+
+### 2026-11-19 发布前复核
+- 用户请求发布；当前 0.1.0 已发布，准备补丁版 0.1.1。合并功能改动后直接在有权限的 main 上准备版本提交与 tag，并创建相同 tag 的 GitHub Release；不新建发布分支。
+- npm 生产依赖审计发现 4 项高危；将 axios 升至 1.21.1、Defuddle 升至 0.19.7，并更新传递依赖。更新后 `npm audit --omit=dev --audit-level=high` 为 0，Windows 构建及 881 项全量测试通过；WSL 复验进行中。
+- 按 `agent-skills:code-review-and-quality` 复核搜索部分成功、会话写入恢复、Jina 标记、CLI 执行参数、认证信息泄露和桥接入库；保留真实 Firecrawl 搜索/抽取未端到端测试、MCP 仅验证当前 Codex 与 Exa、Token 用量未实测等限制。
+
+- 依赖更新后 WSL Node 24 抽取及 provider 路由定向 59 项通过；Windows 全量 881 项通过、构建通过。发布前完成检查，等合并后在 main 归档。

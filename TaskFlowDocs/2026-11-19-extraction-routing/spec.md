@@ -1,12 +1,9 @@
 # Spec — 按能力路由搜索与正文抽取
-> Task version: v2
+> Task version: v3
 
-## v2 用户纠正（优先于下方 v1 的直连设计）
+## v3 用户决定与接口边界
 
-- 搜索：移除新增 Exa/Tavily/Firecrawl/Jina 直连路径；保留 v0.0.14 已有的 SearXNG、Ollama、DeepSeek 显式路径。Agent 外部搜索结果通过现有 results-add 导入。
-- 抽取：不依据用户环境变量或已安装 CLI 自动调用第三方服务；Agent 外部抽取后导入。保留本地 Defuddle、原有显式 --obscura 与 --jina，保留内容类型保护。
-- 历史：根据 Jina 搜索来源和抽取元数据保守提示可能不完整，不修改正文、审批、证据、修订号或数据库；提示不是对原文完整性的断言。
-- 安全、已有 session 的兼容和不可确认输入类型的如实报告继续有效；不新建兼容 shim。
+保留 0.1.0 的 dg 直连、提取回退与 Agent results-add；v2 移除方案未实施并已撤回。配置发现只说明配置或工具启动状态，不消耗额度、不保证认证；实际调用结果按工具、查询和返回数量报告。保留请求失败原因和成功结果，避免误称结果已可复用。Agent 可根据结果及缺口决定外部补充，不强制全局拦截或隐式缓存。历史 Jina 可能不完整时只提示，不能破坏已有会话或审核状态。
 
 ## Objective and Success Criteria
 
@@ -54,3 +51,7 @@
 ## Open Questions
 
 各适配器对未知内容和扫描件等细分类型只有在官方有明确证据或已实测时才赋确定值；其余保持 unknown，并在测试和用户说明中披露。各运行环境实际安装的工具仍由运行时探测。
+
+## 认证复用及 Codex MCP 桥接
+- 搜索和抽取优先使用已认证的官方 Tavily / Firecrawl CLI；使用公开状态检查，不输出密钥，不在失败后重复调用同一服务的 API。无可用 CLI 时回退到已配置 API；Tavily 的免密模式只在没有密钥时使用。
+- Codex 可用工具编排及 Node REPL 时，调用 Exa MCP 后直接生成会话内 `agent-inputs` 并调用 `results-add`，仅将导入状态和计数返回模型。可截断文本存为 excerpt；错误时保留输入文件以便恢复。没有能力的宿主走既有 Agent 导入。

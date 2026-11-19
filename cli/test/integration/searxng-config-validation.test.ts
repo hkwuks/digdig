@@ -33,11 +33,22 @@ describe('SearXNG configuration validation', () => {
 
   it.each(['', 'not-a-url', 'http://localhost:99999', 'file:///tmp/test'])('rejects invalid baseUrl %j consistently', async baseUrl => {
     config.baseUrl = baseUrl;
-    for (const args of [['q'], ['--health'], ['--engines-list'], ['--categories-list']]) {
+    for (const args of [['q'], ['--health'], ['--categories-list']]) {
       await runCli(args, new SearXNGService());
       expect(process.exitCode).toBe(1);
       expect(JSON.parse(vi.mocked(console.log).mock.lastCall![0])).toMatchObject({ status: 'error', error: { code: 'CONFIG_MISSING', retryable: false }, hint: expect.stringContaining('baseUrl') });
     }
+    expect(get).not.toHaveBeenCalled();
+  });
+
+  it('lists configured external providers without paid requests when SearXNG is unconfigured', async () => {
+    config.baseUrl = '';
+    await runCli(['--engines-list'], new SearXNGService());
+    const output = JSON.parse(vi.mocked(console.log).mock.lastCall![0]);
+    expect(process.exitCode).toBe(0);
+    expect(output.data).toMatchObject({ serverUnavailable: true, sources: { local: expect.arrayContaining(['deepseek', 'ollama']) } });
+    expect(output.data.providers).toContainEqual(expect.objectContaining({ provider: 'deepseek', configured: true, access: 'unverified' }));
+    expect(providerSearch).not.toHaveBeenCalled();
     expect(get).not.toHaveBeenCalled();
   });
 

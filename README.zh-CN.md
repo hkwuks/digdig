@@ -983,7 +983,13 @@ dg --categories-list
 | `DEEPSEEK_API_KEY` | [DeepSeek Search](https://api-docs.deepseek.com/api/search) API 密钥（可选后端；按成功请求计费） | *（无）* |
 | `EXA_API_KEY`, `TAVILY_API_KEY`, `FIRECRAWL_API_KEY`, `JINA_API_KEY` | 对应服务的 API 密钥；可通过 `-e exa`、`-e tavily`、`-e firecrawl`、`-e jina` 搜索，也可用于抽取回退 | *（无）* |
 
-引擎选择依次使用显式 `--engines`、`DIGDIG_DEFAULT_ENGINE`、`DIGDIG_ALLOWED_ENGINES`；均为空时由后端选择默认引擎。非空允许列表也会约束默认引擎。配置的外部提供商必须有 API 密钥，且可能产生费用。
+搜索与抽取优先复用已认证的 Tavily / 官方 Firecrawl CLI；CLI 不可用时使用对应环境变量。Exa 和 Jina 直连分别读取 `EXA_API_KEY`、`JINA_API_KEY`。无密钥时 Tavily CLI 也可使用限额内的免密模式。Ollama、DeepSeek 接受配置文件或对应环境变量，`DIGDIG_` 前缀变量优先。Agent 私有 MCP 认证不会自动共享给 dg；Agent 可调用工具并导入会话。请不要把密钥提交到仓库。
+
+`dg --engines-list` 的 `providers` 区分 `not_configured` 与 `unverified`：后者只表示已配置或本机工具可启动，不代表密钥有效；不会向外部搜索服务发送付费探测。SearXNG 的引擎发现仍可能访问其 `/config`。实际搜索返回的 `providerResults` 按查询和工具报告成功/失败、`received`（服务返回数量）和 `returned`（过滤、融合和限制后返回数量）；同时指定会话并成功写入时，返回结果已在该会话中。Agent 应先使用这些结果，只有零结果、失败、不支持或仍有证据缺口时才考虑补充外部搜索；主动刷新和独立验证仍可按需进行。会话写入失败时，`partialResults` 可帮助恢复已获得的结果，`sessionWrite: unconfirmed` 表示需先检查会话，不要直接重复请求。
+
+Jina 搜索的 `contentCompleteness: unverified` 表示正文完整性未确认；`--quality` 会提示可能受影响的历史记录，不改写会话。独立 Agent 的并发调用不会被自动拦截或跨进程去重。
+
+引擎选择依次使用显式 `--engines`、`DIGDIG_DEFAULT_ENGINE`、`DIGDIG_ALLOWED_ENGINES`；均为空时由后端选择默认引擎。非空允许列表也会约束默认引擎。外部提供商通常需要 API 密钥，且可能产生费用；已安装的 Tavily CLI 也可以使用其无密钥模式。
 
 > `SEARXNG_*` 旧变量名在 `0.5.0` 前仍会被读取，用到时在 stderr 打一行 `[deprecation]`；两者同时设置时 `DIGDIG_*` 优先。
 
@@ -1221,7 +1227,7 @@ dg doc-search <session-name> "关键词" --path ./docs
 3. **Jina Reader** — 可通过 `--jina` 显式选择；设置 `JINA_API_KEY` 后也可按支持的类型自动回退，仍受速率限制。
 
 
-本地抽取无正文时，已配置密钥的 Exa、Tavily、Firecrawl、Ollama、DeepSeek 和 Jina 可按内容类型依次回退；这些服务可能计费。可用的 Tavily CLI 也可参与搜索和抽取，包括受限额约束的无密钥模式。明确为 PDF 时只调用已核实支持 PDF 的服务；JSON、图片等不会交给仅支持网页正文的回退。已有正文（包括短正文）不会为凑长度而重复付费抽取。Agent 可把宿主工具取得的完整正文通过 `results-add --kind extracted` 加入现有会话。
+本地抽取无正文时，已配置密钥的 Exa、Tavily、Firecrawl、Ollama、DeepSeek 和 Jina 可按内容类型依次回退；这些服务可能计费。已认证的 Tavily 和官方 Firecrawl CLI 可优先参与搜索和抽取；无密钥时 Tavily CLI 也可使用受限模式。明确为 PDF 时只调用已核实支持 PDF 的服务；JSON、图片等不会交给仅支持网页正文的回退。已有正文（包括短正文）不会为凑长度而重复付费抽取。Agent 可把宿主工具取得的完整正文通过 `results-add --kind extracted` 加入现有会话。
 
 ```bash
 # 本地提取优先；无正文时可回退到已配置且支持的服务

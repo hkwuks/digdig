@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
+const installedFirecrawl = vi.hoisted(() => ({ status: vi.fn().mockResolvedValue('not_installed'), search: vi.fn(), extract: vi.fn() }));
+vi.mock('../../src/deep/installed-firecrawl.js', () => ({ installedFirecrawlStatus: installedFirecrawl.status, installedFirecrawlSearch: installedFirecrawl.search, installedFirecrawlExtract: installedFirecrawl.extract }));
+
 const installedTavily = vi.hoisted(() => ({ ready: vi.fn(), status: vi.fn().mockResolvedValue('not_installed'), search: vi.fn(), extract: vi.fn() }));
 vi.mock('../../src/deep/installed-tavily.js', () => ({
     installedTavilyReady: installedTavily.ready,
@@ -90,6 +93,123 @@ describe('provider routing', () => {
         vi.restoreAllMocks();
     });
 
+    it('reports all failed providers without exposing raw errors', async () => {
+        const { SearchError } = await import('../../src/errors.js');
+        config.ollamaApiKey = 'k'; config.deepseekApiKey = 'k';
+        ollamaSearch.mockRejectedValue(new SearchError('AUTH_FAILED', 'bad key', 'ollama', 401));
+        deepseekSearch.mockRejectedValue(new SearchError('RATE_LIMITED', 'limited', 'deepseek', 429));
+        const envelope = await run(['q', '-e', 'ollama,deepseek', '--format', 'json'], stubSxng());
+        expect(envelope.status).toBe('error');
+        expect(envelope.error.details.providerResults).toEqual(expect.arrayContaining([
+            expect.objectContaining({ provider: 'ollama', status: 'error', error: 'AUTH_FAILED' }),
+            expect.objectContaining({ provider: 'deepseek', status: 'error', error: 'RATE_LIMITED' }),
+        ]));
+    });
+
+    it('does not expose an unexpected provider error', async () => {
+        config.deepseekApiKey = 'fake-key';
+        deepseekSearch.mockRejectedValue(new Error('fake-secret'));
+        const envelope = await run(['q', '-e', 'deepseek', '--format', 'json'], stubSxng());
+        expect(envelope.error.code).toBe('SEARCH_FAILED');
+        expect(JSON.stringify(envelope)).not.toContain('fake-secret');
+    });
+
+    it('keeps a successful provider result when another provider fails', async () => {
+        const { SearchError } = await import('../../src/errors.js');
+        config.ollamaApiKey = 'k';
+        config.deepseekApiKey = 'k';
+        deepseekSearch.mockRejectedValue(new SearchError('RATE_LIMITED', 'rate limited', 'deepseek', 429));
+        const envelope = await run(['q', '-e', 'ollama,deepseek', '--format', 'json'], stubSxng());
+        expect(envelope.status).toBe('ok');
+        expect(envelope.data.results).toEqual(expect.arrayContaining([expect.objectContaining({ engine: 'ollama' })]));
+        expect(envelope.data.providerResults).toEqual(expect.arrayContaining([
+            expect.objectContaining({ provider: 'ollama', status: 'ok', returned: 1 }),
+            expect.objectContaining({ provider: 'deepseek', status: 'error', error: 'RATE_LIMITED', received: 0, returned: 0 }),
+        ]));
+    });
+
+    it('uses authenticated Firecrawl CLI without a second API key', async () => {
+        vi.stubEnv('FIRECRAWL_API_KEY', '');
+        installedFirecrawl.status.mockResolvedValue('authenticated');
+        installedFirecrawl.search.mockResolvedValue(providerResponse('firecrawl', 'https://firecrawl.test'));
+        try {
+            const envelope = await run(['q', '-e', 'firecrawl', '--format', 'json'], stubSxng());
+            expect(envelope.status).toBe('ok');
+            expect(installedFirecrawl.search).toHaveBeenCalledOnce();
+            expect(envelope.data.providerResults[0]).toMatchObject({ provider: 'firecrawl', status: 'ok', returned: 1 });
+        } finally { vi.unstubAllEnvs(); installedFirecrawl.status.mockResolvedValue('not_installed'); }
+    });
+
+    it('prefers an authenticated CLI over an available API key', async () => {
+        vi.stubEnv('FIRECRAWL_API_KEY', 'fake-key');
+        installedFirecrawl.status.mockResolvedValue('authenticated');
+        installedFirecrawl.search.mockResolvedValue(providerResponse('firecrawl', 'https://firecrawl.test'));
+        const fetchMock = vi.fn(); vi.stubGlobal('fetch', fetchMock);
+        try {
+            const envelope = await run(['q', '-e', 'firecrawl', '--format', 'json'], stubSxng());
+            expect(envelope.status).toBe('ok');
+            expect(installedFirecrawl.search).toHaveBeenCalledOnce();
+            expect(fetchMock).not.toHaveBeenCalled();
+        } finally { vi.unstubAllEnvs(); vi.unstubAllGlobals(); installedFirecrawl.status.mockResolvedValue('not_installed'); }
+    });
+
+    it('reports the selected provider and results actually returned', async () => {
+        config.deepseekApiKey = 'k';
+        const envelope = await run(['q', '-e', 'deepseek', '--format', 'json'], stubSxng());
+        expect(envelope.data.providerResults).toEqual([{ query: 'q', provider: 'deepseek', status: 'ok', received: 1, returned: 1 }]);
+    });
+
+    it('keeps returned and received counts separate after result limits', async () => {
+        config.ollamaApiKey = 'k'; config.deepseekApiKey = 'k';
+        const envelope = await run(['q', '-e', 'ollama,deepseek', '-l', '1', '--format', 'json'], stubSxng());
+        expect(envelope.data.results).toHaveLength(1);
+        expect(envelope.data.providerResults.reduce((sum: number, item: any) => sum + item.received, 0)).toBe(2);
+        expect(envelope.data.providerResults.reduce((sum: number, item: any) => sum + item.returned, 0)).toBe(1);
+    });
+
+    it('reports actual provider results in Markdown too', async () => {
+        config.deepseekApiKey = 'k';
+        const output = vi.spyOn(console, 'log').mockImplementation(() => {});
+        vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+        try {
+            await runCli(['q', '-e', 'deepseek', '--format', 'md'], stubSxng() as never);
+            expect(output.mock.lastCall![0]).toContain('deepseek (q): ok, received 1, returned 1');
+        } finally { output.mockRestore(); }
+    });
+
+    it('shows the unverified Jina content marker in Markdown', async () => {
+        vi.stubEnv('JINA_API_KEY', 'fake-key');
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ data: [{ title: 'Page', url: 'https://example.com', content: 'body' }] })));
+        const output = vi.spyOn(console, 'log').mockImplementation(() => {});
+        vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+        try {
+            await runCli(['q', '-e', 'jina', '--format', 'md'], stubSxng() as never);
+            expect(output.mock.lastCall![0]).toContain('Content completeness: unverified');
+        } finally { output.mockRestore(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); }
+    });
+
+    it('reports a successful search with zero results separately', async () => {
+        config.deepseekApiKey = 'k';
+        deepseekSearch.mockResolvedValue({ ...providerResponse('deepseek', 'https://deepseek.test'), results: [], numberOfResults: 0 });
+        const envelope = await run(['q', '-e', 'deepseek', '--format', 'json'], stubSxng());
+        expect(envelope.data.providerResults).toEqual([{ query: 'q', provider: 'deepseek', status: 'ok', received: 0, returned: 0 }]);
+    });
+
+    it('lists configuration as unverified without querying external providers', async () => {
+        vi.stubEnv('EXA_API_KEY', 'fake-key');
+        const fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+        const output = vi.spyOn(console, 'log').mockImplementation(() => {});
+        const previous = process.exitCode;
+        try {
+            await runCli(['--engines-list'], { getEngines: vi.fn().mockResolvedValue([]) } as never);
+            const envelope = JSON.parse(output.mock.lastCall![0]);
+            expect(envelope.data.providers).toContainEqual(expect.objectContaining({ provider: 'exa', configured: true, access: 'unverified' }));
+            expect(envelope.data.providers).toContainEqual(expect.objectContaining({ provider: 'deepseek', configured: false, access: 'not_configured' }));
+            expect(fetchMock).not.toHaveBeenCalled();
+        } finally { process.exitCode = previous; vi.unstubAllEnvs(); vi.unstubAllGlobals(); }
+    });
+
     it('routes an explicitly selected configured Exa search without calling SearXNG', async () => {
         vi.stubEnv('EXA_API_KEY', 'test-key');
         const fetchMock = vi.fn().mockResolvedValue(Response.json({ results: [{ title: 'Exa', url: 'https://exa.test' }] }));
@@ -135,7 +255,7 @@ describe('provider routing', () => {
 
     it('uses an authenticated installed Tavily CLI for a selected search', async () => {
         vi.stubEnv('TAVILY_API_KEY', '');
-        installedTavily.ready.mockResolvedValue(true);
+        installedTavily.status.mockResolvedValue('authenticated');
         installedTavily.search.mockResolvedValue(providerResponse('tavily', 'https://tavily.test'));
         const service = stubSxng();
         try {
@@ -143,7 +263,7 @@ describe('provider routing', () => {
             expect(envelope.status).toBe('ok');
             expect(installedTavily.search).toHaveBeenCalledWith('q', 10);
             expect(service.search).not.toHaveBeenCalled();
-        } finally { vi.unstubAllEnvs(); }
+        } finally { vi.unstubAllEnvs(); installedTavily.status.mockResolvedValue('not_installed'); }
     });
 
     it('selects the configured default engine when none is explicitly requested', async () => {

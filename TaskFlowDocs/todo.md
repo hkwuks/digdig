@@ -3,10 +3,10 @@
 ## 研究抽取能力优先级、外部工具复用和插件方案
 
 - ID: TF-20261110-a7e5c1
-- Status: promoted
+- Status: in_progress
 - Goal: 盘点已有正文抽取能力及其调用方式，研究如何按适用场景安排抽取优先级和回退；验证 Ollama、DeepSeek 是否提供可复用的抽取接口，以及能否借用 Agent 已安装的搜索或抽取工具。比较直接集成与插件方案的收益、复杂度和边界，再讨论是否需要启用插件机制。接口是否存在、工具能否复用及优先级均待验证，不预设结论。
 - Task: `TaskFlowDocs/2026-11-19-extraction-routing/`
-- Next action: Re-approve the new Task version before core changes.
+- Next action: 调研并实现复用已认证 CLI 和 Agent 工具，明确凭据可见性与工具边界；沿用现有任务，不新建 Todo。
 - Updated: 2026-11-19
 
 ## Add DeepSeek Search API as a search provider

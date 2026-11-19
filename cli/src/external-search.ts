@@ -33,7 +33,7 @@ export async function externalSearch(provider: Provider, apiKey: string, query: 
     const results = raw.slice(0, count).filter(item => typeof item?.url === 'string' && item.url).map((item, index) => ({
         title: typeof item.title === 'string' ? item.title : '', url: item.url,
         content: provider === 'tavily' ? item.content ?? '' : provider === 'firecrawl' ? item.description ?? '' : provider === 'jina' && typeof item.content === 'string' ? item.content : '',
-        ...(provider === 'jina' && typeof item.content === 'string' && item.content.trim() ? { contentType: 'extracted' as const, extractor: 'jina', extractedAt: retrievedAt } : {}),
+        ...(provider === 'jina' && typeof item.content === 'string' && item.content.trim() ? { contentType: 'extracted' as const, contentCompleteness: 'unverified' as const, extractor: 'jina', extractedAt: retrievedAt } : {}),
         engine: provider, category: 'general', retrievedAt, rank: index + 1,
     }));
     return { query, numberOfResults: results.length, results, suggestions: [], answers: [], corrections: [], infoboxes: [], unresponsiveEngines: [] };

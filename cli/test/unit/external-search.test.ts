@@ -31,4 +31,12 @@ describe('external search providers', () => {
             await expect(externalSearch('exa', 'secret-key', 'query', 10)).rejects.toMatchObject({ code: 'AUTH_FAILED', provider: 'exa' });
         } finally { vi.unstubAllGlobals(); }
     });
+    it('marks Jina search content as completeness unverified', async () => {
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ data: [{ title: 'Page', url: 'https://example.com', content: 'body' }] })));
+        try {
+            const result = await externalSearch('jina', 'key', 'query', 1);
+            expect(result.results[0]).toMatchObject({ contentCompleteness: 'unverified' });
+        } finally { vi.unstubAllGlobals(); }
+    });
+
 });

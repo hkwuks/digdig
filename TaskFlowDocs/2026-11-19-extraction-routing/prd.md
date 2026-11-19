@@ -1,10 +1,10 @@
 # 按内容类型复用搜索与抽取工具
-> Task version: v2
-> Status: ready
+> Task version: v3
+> Status: checking
 
 ## Goal
 
-恢复 Agent 主导外部搜索和抽取：Agent 选用自身可用工具并导入同一 dg 会话；dg 保留原有搜索后端、本地抽取及显式选择的既有抽取能力，避免自动发起额外第三方请求。
+让 digdig 根据已配置工具的实际能力、可用性和输入类型选择搜索与正文抽取路径，避免向明确不支持该类型的服务发送请求，复用用户已有能力。
 
 ## Task Kind
 
@@ -17,10 +17,17 @@
 - `results-add` 已支持外部搜索记录和正文导入；已有 Ollama、DeepSeek 搜索适配器。短非空正文、原文、摘要、来源和历史审批行为应保留。
 - 现有 `--obscura` 路径未传递命令层选项，导致其显式 URL 检查失效；应纳入本任务对真实调用链的验证。
 
+## v3 用户决定
+
+- 保留 dg 现有直连搜索及抽取能力，也保留 Agent 自行调用、通过 results-add 导入的路径；撤回 v2 尚未实施的移除方案。
+- 已配置不代表认证有效：不以一次收费探测判断可用性；将实际搜索的工具、成功/失败和返回结果事实明确暴露给 Agent，避免对已有结果重复调用。
+- dg 不支持或没有合适结果时，Agent 可选择自身工具补充；不禁止有意刷新或互补搜索。
+- 此前确认的历史 Jina 内容完整性待核实原则继续有效：保留正文和状态，提示而不批量改写。
+
 ## Requirements
 
-1. 移除 0.1.0 新增 Exa、Tavily、Firecrawl、Jina 的 dg 直连搜索；保留此前已有的 SearXNG、Ollama、DeepSeek 显式搜索。Agent 可调用自身工具并通过 results-add 导入同一会话。
-2. dg 本地抽取失败时不自动调用任何新增第三方服务；由 Agent 决定并调用外部工具，正文和摘要分别正确导入。此前显式的 --jina、--obscura 保持可用。
+1. 首批覆盖现有 Defuddle、Obscura、Jina，以及 Exa、Tavily、Firecrawl、Ollama、DeepSeek 的已确认搜索/抽取能力，分别核实接口、格式、授权与平台，不把未验证能力当已支持。
+2. 已配置的工具即允许调用；节省额度通过类型适配、复用现有正文、去重和避免无效请求实现。存在用户显式配置的限制时遵守，不强制引入额外预算或逐次确认。
 3. 识别 HTML、PDF、Office、图片、结构化文本及未知类型，区分可支持、明确不支持、未知；不以扩展名当最终 MIME，不把未知误判为不支持。未知类型先有限、低成本探测，探测失败保持可解释。
 4. 同时支持独立 CLI 可用的配置/API/工具和 Agent 宿主可用工具；宿主工具通过明确桥接或现有正文导入契约接入，不假定子进程继承宿主权限。
 5. 结果保留 URL、实际工具、时间和全文/片段语义；不把摘要、搜索片段或被截断内容冒充完整正文。失败、部分成功、限流和不支持均可区分，不泄露密钥。
@@ -28,25 +35,25 @@
 
 ## Acceptance Criteria
 
-- 默认提取不会因环境变量或已安装工具而发送第三方请求；Agent 可将正文或摘要分别导入。
-- 0.1.0 中来自 Jina 直连搜索且被标记为已抽取的历史记录保留原文、状态和审核历史；以可见提示提醒核实完整性，不批量改写会话。
-- 用户明确要求移除新增直连，因此这是有意的 0.1.0 行为变更；不增加兼容桥接。
+- 对每个实际搜索工具和查询，区分配置/未配置与真实成功/失败、零结果和有返回；Agent 能看到哪些结果实际返回或已写入会话，不据配置猜测有效。
+- 保持 Agent 导入与 dg 直连，明确指导先消费 dg 已得结果，再在确有缺口时调用外部工具；保留主动刷新。
+- 历史可能来自 0.1.0 Jina 搜索的正文保留数据及状态，提示核实，不宣称已验证全文。
 
 
-- Agent 可读取工具的类型与适用范围并选择调用；dg 不再自动调用本次新增外部服务，原有显式后端保留。
+- 每种首批工具有可检查的能力和可用性声明；已配置且与已识别输入相容时，实际请求可达；明确不支持的组合无外部工具调用。搜索和抽取分别验证，不以安装或配置字符串代替实际可用性。
 - 对 HTML、动态页面、PDF、Office、图片、JSON、未知 MIME、误导后缀、重定向及未授权协议使用受控测试，包含不同工具的支持、未知和不支持分支。
-- 外部搜索或抽取结果导入保持真实来源，摘要不冒充正文；默认路径不新增自动付费回退。
+- 外部搜索/抽取返回多项、部分失败、片段及错误时，规范化与会话导入保持真实来源，自动回退不重复扣费或误认成功。
 - Windows 和 Linux 验证 CLI/进程边界，宿主工具桥接至少验证一种真实可用接口与无宿主降级；不读取或打印用户凭据。
 - 现有 `extract`、搜索与会话行为的回归、全量测试及类型检查通过；第三方线上有效性与计费测试结果和未测限制如实记录。
 
 ## External Facts
 
 - Depends on external facts: no
-- Why not: v2 restores the user's confirmed ownership boundary using `cli/src/commands/results-add.ts` and `cli/src/runCli.ts`; provider capability references and their earlier evidence are preserved in archived v1, not reasserted as new v2 implementation facts.
+- Why not: v3 reports actual execution and configuration facts from `cli/src/runCli.ts` and `cli/src/commands/results-add.ts`; previous provider research remains in archived v1.
 
 ## In Scope
 
-Agent 工具选择与导入指引、移除新增直连和自动回退、历史记录提示、必要文档和测试；保留类型判断及原有显式后端。
+能力分类和路由、用户已配置工具发现与使用、首批搜索和抽取适配、明确宿主桥接、失败/来源语义、必要配置/文档和测试。
 
 ## Out of Scope
 
@@ -59,3 +66,7 @@ SearXNG 自动分页；自动安装第三方工具；绕过登录或验证码；
 ## Open Questions
 
 无新的产品决策；具体桥接机制需以现有宿主契约、接口文档及测试证据确认，不能假定所有 Agent 宿主提供同一接口。
+
+## 用户追加：认证复用与 Codex 桥接
+- 优先调用已认证的兼容 CLI，CLI 不可用时使用 dg 可见的对应环境变量；不读取工具私有凭据文件。仅配置于 Agent 宿主的工具，在支持程序化调用时由宿主桥接，否则由 Agent 调用和导入。
+- 桥接先验证 Codex：将 MCP 返回直接保存进会话并导入，模型只接收精简状态；响应可能截断时不能标成完整正文。不假定所有 MCP 内容形状或宿主接口一致。

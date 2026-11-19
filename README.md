@@ -1002,7 +1002,13 @@ Configuration priority (highest to lowest):
 | `DEEPSEEK_API_KEY` | [DeepSeek Search](https://api-docs.deepseek.com/api/search) API key (optional backend; billed per successful request) | *(none)* |
 | `EXA_API_KEY`, `TAVILY_API_KEY`, `FIRECRAWL_API_KEY`, `JINA_API_KEY` | API keys for these services; also support search via `-e exa`, `-e tavily`, `-e firecrawl`, `-e jina` | *(none)* |
 
-Engine selection uses explicit `--engines`, then `DIGDIG_DEFAULT_ENGINE`, then `DIGDIG_ALLOWED_ENGINES`; when all are empty, the backend chooses its defaults. A nonempty allowlist also restricts the default engine. Configured external providers must have API keys and may incur charges.
+Exa and Jina direct search read `EXA_API_KEY` and `JINA_API_KEY`. For Tavily and Firecrawl, an authenticated local `tvly` or official `firecrawl` CLI is preferred; otherwise the corresponding `TAVILY_API_KEY` or `FIRECRAWL_API_KEY` is used. Tavily CLI also supports limited keyless mode when no key is available. Ollama and DeepSeek accept their standard environment variables or config-file keys; `DIGDIG_`-prefixed variables take precedence. Never commit credentials.
+
+`dg --engines-list` reports provider configuration as `not_configured` or `unverified`: configuration is not proof of valid authentication, and external providers are not queried for a paid probe. SearXNG discovery may still request its `/config` endpoint. Search output includes `providerResults` per query and provider: `received` is the provider response count; `returned` is the number included after filtering, fusion and limits. A successful session call has already saved the returned results. Agents should use them before searching externally; zero results, failures, unsupported capabilities or an evidence gap can justify a follow-up. A session error can include `partialResults` and `sessionWrite: unconfirmed` so the caller can inspect and import rather than repeat a paid search.
+
+Jina search content is marked `contentCompleteness: unverified`; `--quality` warns about possibly incomplete historic search bodies without changing them. Independent concurrent Agents are not intercepted or globally deduplicated.
+
+Engine selection uses explicit `--engines`, then `DIGDIG_DEFAULT_ENGINE`, then `DIGDIG_ALLOWED_ENGINES`; when all are empty, the backend chooses its defaults. A nonempty allowlist also restricts the default engine. External providers generally require API keys and may incur charges; an installed Tavily CLI can also use its keyless mode.
 
 > `SEARXNG_*` variable names are still read until `0.5.0` and emit one `[deprecation]` line on stderr; `DIGDIG_*` wins when both are set.
 
@@ -1233,7 +1239,7 @@ See the local, not-yet-published PRD-005 design-improvements document for the de
 
 1. **Defuddle + linkedom** (default, lightweight) — Parses raw HTML with linkedom, extracts readable content with Defuddle. Fast, no browser needed.
 2. **Obscura** (JS rendering fallback) — When Defuddle extracts too little content (< 50 chars), Obscura renders the page with V8 JS engine and re-extracts. Use `--obscura` to enable.
-3. **Configured providers** — If local extraction has no body, configured Exa, Tavily, Firecrawl, Ollama, DeepSeek and Jina can be tried according to the detected content type. An available Tavily CLI can also be used, including its rate-limited keyless mode. These services may charge for requests; an existing body, including a short one, is retained without another paid extraction. For PDF, only providers with documented PDF support are tried. Agent-host tools can import an existing full body with `results-add --kind extracted`.
+3. **Configured providers** — If local extraction has no body, configured Exa, Tavily, Firecrawl, Ollama, DeepSeek and Jina can be tried according to the detected content type. Authenticated Tavily and official Firecrawl CLIs can also be used, with limited keyless Tavily mode when no key is available. These services may charge for requests; an existing body, including a short one, is retained without another paid extraction. For PDF, only providers with documented PDF support are tried. Agent-host tools can import an existing full body with `results-add --kind extracted`.
 
 ```bash
 # Local extraction first; configured compatible providers may be used as fallback
