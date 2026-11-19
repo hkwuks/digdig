@@ -1000,6 +1000,7 @@ Configuration priority (highest to lowest):
 | `DIGDIG_REDUNDANCY_BIGRAM_THRESHOLD` | Bigram-level Jaccard threshold (short queries) | `0.5` |
 | `OLLAMA_API_KEY` | [Ollama web search](https://ollama.com) API key; select via `-e ollama` or engine configuration (not an automatic fallback) | *(none)* |
 | `DEEPSEEK_API_KEY` | [DeepSeek Search](https://api-docs.deepseek.com/api/search) API key (optional backend; billed per successful request) | *(none)* |
+| `EXA_API_KEY`, `TAVILY_API_KEY`, `FIRECRAWL_API_KEY`, `JINA_API_KEY` | API keys for these services; also support search via `-e exa`, `-e tavily`, `-e firecrawl`, `-e jina` | *(none)* |
 
 Engine selection uses explicit `--engines`, then `DIGDIG_DEFAULT_ENGINE`, then `DIGDIG_ALLOWED_ENGINES`; when all are empty, the backend chooses its defaults. A nonempty allowlist also restricts the default engine. Configured external providers must have API keys and may incur charges.
 
@@ -1232,10 +1233,10 @@ See the local, not-yet-published PRD-005 design-improvements document for the de
 
 1. **Defuddle + linkedom** (default, lightweight) — Parses raw HTML with linkedom, extracts readable content with Defuddle. Fast, no browser needed.
 2. **Obscura** (JS rendering fallback) — When Defuddle extracts too little content (< 50 chars), Obscura renders the page with V8 JS engine and re-extracts. Use `--obscura` to enable.
-3. **Jina Reader** (Agent-selected extraction) — Uses `r.jina.ai` for a specific URL only after the Agent reviews the default extraction and decides it is insufficient. It is not an automatic fallback because Jina is rate-limited.
+3. **Configured providers** — If local extraction has no body, configured Exa, Tavily, Firecrawl, Ollama, DeepSeek and Jina can be tried according to the detected content type. An available Tavily CLI can also be used, including its rate-limited keyless mode. These services may charge for requests; an existing body, including a short one, is retained without another paid extraction. For PDF, only providers with documented PDF support are tried. Agent-host tools can import an existing full body with `results-add --kind extracted`.
 
 ```bash
-# Default: Defuddle only (fast)
+# Local extraction first; configured compatible providers may be used as fallback
 dg extract --urls "https://example.com"
 
 # With Obscura fallback for JS-heavy pages

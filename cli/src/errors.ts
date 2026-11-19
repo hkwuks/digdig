@@ -41,24 +41,27 @@ export type SearchErrorCode =
  * `searxng` is the only value for which a SearXNG hint is ever appropriate;
  * that asymmetry is the bug this type was built to fix.
  */
-export type SearchProvider = 'searxng' | 'deepseek' | 'ollama';
+export type SearchProvider = 'searxng' | 'deepseek' | 'ollama' | 'exa' | 'tavily' | 'firecrawl' | 'jina';
 
 const KEY_VARIABLE: Record<SearchProvider, string | null> = {
     searxng: null,
     deepseek: 'DEEPSEEK_API_KEY',
     ollama: 'OLLAMA_API_KEY',
+    exa: 'EXA_API_KEY', tavily: 'TAVILY_API_KEY', firecrawl: 'FIRECRAWL_API_KEY', jina: 'JINA_API_KEY',
 };
 
 const CONFIG_KEY: Record<SearchProvider, string | null> = {
     searxng: null,
     deepseek: 'deepseekApiKey',
     ollama: 'ollamaApiKey',
+    exa: null, tavily: null, firecrawl: null, jina: null,
 };
 
 const LABEL: Record<SearchProvider, string> = {
     searxng: 'SearXNG',
     deepseek: 'DeepSeek',
     ollama: 'Ollama',
+    exa: 'Exa', tavily: 'Tavily', firecrawl: 'Firecrawl', jina: 'Jina',
 };
 
 export class SearchError extends Error {
@@ -106,7 +109,7 @@ export class SearchError extends Error {
                     return `${label} rejected the request as unauthorised. Check the server's access policy or any reverse proxy in front of it.`;
                 }
                 const configKey = CONFIG_KEY[this.provider];
-                return `${label} rejected the API key. Set ${variable} or update "${configKey}" in digdig.config.json. Retrying will not help.`;
+                return `${label} rejected the API key. Set ${variable}${configKey ? ` or update "${configKey}" in digdig.config.json` : ""}. Retrying will not help.`;
             }
             case 'RATE_LIMITED':
                 return `${label} is rate limiting this client. Wait, then retry; lowering --limit may also help.`;

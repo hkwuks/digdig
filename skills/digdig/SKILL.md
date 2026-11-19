@@ -110,7 +110,7 @@ dg --health                   # Check server status
 
 ## Extract
 
-Extract full article content from web pages. Use `--obscura` as a fallback for JS-heavy pages. Jina is rate-limited: inspect the default extraction first, then let the Agent decide whether a specific URL needs `--jina`.
+Extract full article content from web pages. Use `--obscura` as a fallback for JS-heavy pages. Configured compatible providers may be called automatically when local extraction yields no body. Jina is rate-limited; `--jina` explicitly selects it for a URL.
 
 A batch succeeds when at least one URL is extracted; inspect `failed` and any `rateLimit` details for the remaining URLs. If every URL fails, the command returns an error and a nonzero exit status.
 
@@ -267,6 +267,8 @@ dg graph-add <session> --data-file .\.digdig\sessions\<session>\agent-inputs\gra
 ```
 
 **External results**: Import search discovery with `results-add --kind search` -> `extract` -> `--approve-file` -> `graph-add`. If the external tool already returned a body, import it with `--kind extracted`, non-empty `content`, and `extractor`; it awaits approval without re-extraction.
+
+Use compatible search and extraction tools already available in the Agent host, including configured MCP tools, when appropriate. Check their documented URL and content-type support first; skip known unsupported types and probe unknown types inexpensively. A search snippet or query-selected chunk is not a full body. When a tool already returned a full body, import it as extracted rather than paying to fetch it again. A tool visible to the Agent host is not automatically available to the dg subprocess.
 
 ### Structured JSON Input
 

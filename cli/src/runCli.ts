@@ -1,3 +1,5 @@
+import { installedTavilyReady, installedTavilySearch, installedTavilyStatus } from './deep/installed-tavily.js';
+import { externalSearch } from './external-search.js';
 import { feedbackLog, feedbackError } from './feedback-log.js';
 /**
  * SearXNG CLI - CLI Runner (Commander-based)
@@ -351,7 +353,7 @@ function formatSessionReportAsMarkdown(data: any): string {
  * Search providers reachable through `--engines` magic words. Each is selected
  * by placing its name in the engine list; every other name goes to SearXNG.
  */
-const EXTERNAL_PROVIDERS = ['ollama', 'deepseek'] as const;
+const EXTERNAL_PROVIDERS = ['ollama', 'deepseek', 'exa', 'tavily', 'firecrawl', 'jina'] as const;
 type ExternalProvider = typeof EXTERNAL_PROVIDERS[number];
 
 const PROVIDER_IMPLS: Record<ExternalProvider, {
@@ -370,7 +372,18 @@ const PROVIDER_IMPLS: Record<ExternalProvider, {
         maxResults: DEEPSEEK_MAX_RESULTS,
         search: (query, limit) => new DeepSeekService({ apiKey: config.deepseekApiKey }).search({ query, limit }),
     },
+    exa: { configured: () => Boolean(process.env.EXA_API_KEY), maxResults: 100, search: (query, limit) => externalSearch('exa', process.env.EXA_API_KEY!, query, limit) },
+    tavily: { configured: () => Boolean(process.env.TAVILY_API_KEY), maxResults: 20, search: (query, limit) => externalSearch('tavily', process.env.TAVILY_API_KEY!, query, limit) },
+    firecrawl: { configured: () => Boolean(process.env.FIRECRAWL_API_KEY), maxResults: 100, search: (query, limit) => externalSearch('firecrawl', process.env.FIRECRAWL_API_KEY!, query, limit) },
+    jina: { configured: () => Boolean(process.env.JINA_API_KEY), maxResults: 5, search: (query, limit) => externalSearch('jina', process.env.JINA_API_KEY!, query, limit) },
 };
+
+async function configuredExternalProviders() {
+    const providers = EXTERNAL_PROVIDERS.filter(p => PROVIDER_IMPLS[p].configured());
+    const tavilyCli = await installedTavilyStatus();
+    if (!providers.includes('tavily') && (tavilyCli === 'authenticated' || tavilyCli === 'keyless')) providers.push('tavily');
+    return { providers, tavilyCli };
+}
 
 /**
  * A request the provider answered with fewer results than asked for, because
@@ -388,6 +401,7 @@ interface LimitNote {
 }
 
 interface ProviderSearchPlan {
+    tavilyCli: boolean;
     /** Selected providers whose API key is present, in a stable order. */
     usable: ExternalProvider[];
     /** Providers named in `--engines` that the caller cannot reach. */
@@ -396,11 +410,12 @@ interface ProviderSearchPlan {
     sxngEngines: string[];
 }
 
-function planProviderSearch(engines: string[]): ProviderSearchPlan {
+function planProviderSearch(engines: string[], tavilyCli = false): ProviderSearchPlan {
     const selected = EXTERNAL_PROVIDERS.filter(p => engines.includes(p));
     return {
-        usable: selected.filter(p => PROVIDER_IMPLS[p].configured()),
-        unconfigured: selected.filter(p => !PROVIDER_IMPLS[p].configured()),
+        tavilyCli,
+        usable: selected.filter(p => PROVIDER_IMPLS[p].configured() || (p === 'tavily' && tavilyCli)),
+        unconfigured: selected.filter(p => !PROVIDER_IMPLS[p].configured() && !(p === 'tavily' && tavilyCli)),
         sxngEngines: engines.filter(e => !EXTERNAL_PROVIDERS.includes(e as ExternalProvider)),
     };
 }
@@ -424,7 +439,9 @@ async function searchOneQuery(
         const started = Date.now();
         feedbackLog('provider', 'start', { provider });
         try {
-            const response = await PROVIDER_IMPLS[provider].search(searchOptions.query, limit);
+            const response = provider === 'tavily' && plan.tavilyCli
+                ? await installedTavilySearch(searchOptions.query, limit)
+                : await PROVIDER_IMPLS[provider].search(searchOptions.query, limit);
             feedbackLog('provider', 'ok', { provider, durationMs: Date.now() - started, count: response.results.length });
             // The provider caps the count itself, so compare against its ceiling
             // rather than against what came back: a provider may also return
@@ -521,10 +538,12 @@ async function runSearchInner(
         }
     }
 
+    const tavilyCli = engines.includes('tavily') && !process.env.TAVILY_API_KEY && await installedTavilyReady();
+
     // A selected provider without its API key cannot run. Failing loudly beats
     // silently answering from SearXNG, which would make the provider look active.
     if (engines.length > 0) {
-        const unconfigured = planProviderSearch(engines).unconfigured;
+        const unconfigured = planProviderSearch(engines, tavilyCli).unconfigured;
         if (unconfigured.length > 0) {
             feedbackLog('validation', 'error', { error: 'CONFIG_MISSING' });
             const envelope = createErrorEnvelope(
@@ -532,7 +551,8 @@ async function runSearchInner(
                 `Provider selected but no API key configured: ${unconfigured.join(', ')}`,
                 { hint: unconfigured.map(p => p === 'ollama'
                     ? 'Set OLLAMA_API_KEY or add "ollamaApiKey" to digdig.config.json'
-                    : 'Set DEEPSEEK_API_KEY or add "deepseekApiKey" to digdig.config.json').join('; ') }
+                    : p === 'deepseek' ? 'Set DEEPSEEK_API_KEY or add "deepseekApiKey" to digdig.config.json'
+                    : `Set ${p.toUpperCase()}_API_KEY`).join('; ') }
             );
             console.log(JSON.stringify(envelope, null, 2));
             return 1;
@@ -676,7 +696,7 @@ async function runSearchInner(
 
         // One invocation, N queries: the only difference from a single query is
         // how many responses land in the array.
-        const plan = planProviderSearch(engines);
+        const plan = planProviderSearch(engines, tavilyCli);
         const responses: SearchResponse[] = [];
         // One note per provider across every query in this invocation: repeating
         // "ollama capped at 10" once per query would bury the fact in noise.
@@ -888,12 +908,21 @@ export function createProgram(argv: string[] = []): Command {
                 obscuraPath: opts.obscuraPath,
                 obscuraDumpFormat: opts.obscuraDump === 'markdown' ? 'markdown' : 'html',
                 jina: opts.jina ?? false,
+                jinaApiKey: process.env.JINA_API_KEY,
+                useInstalledTavily: true,
+                externalKeys: {
+                    exa: process.env.EXA_API_KEY, tavily: process.env.TAVILY_API_KEY,
+                    firecrawl: process.env.FIRECRAWL_API_KEY,
+                    ollama: process.env.OLLAMA_API_KEY || config.ollamaApiKey,
+                    deepseek: process.env.DEEPSEEK_API_KEY || config.deepseekApiKey,
+                },
             });
             const extractOptions: ExtractOptions = {
                 urls: opts.urls?.split(',').map((u: string) => u.trim()).filter(Boolean),
                 // Commander resolves a duplicated root/subcommand option on the parent.
                 session: opts.session ?? command.parent?.opts().session,
                 jina: opts.jina ?? false,
+                obscura: opts.obscura ?? false,
             };
             const code = await runExtract(extractor, extractOptions);
             process.exitCode = code;
@@ -1598,7 +1627,7 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
         if (opts.enginesList) {
             try {
                 const serverEngines = await service.getEngines();
-                const configuredProviders = EXTERNAL_PROVIDERS.filter(p => PROVIDER_IMPLS[p].configured());
+                const { providers: configuredProviders, tavilyCli } = await configuredExternalProviders();
 
                 // Both empty is a legitimate-looking but useless answer: nothing
                 // this CLI can search with. Reaching here already means the
@@ -1624,11 +1653,23 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                 const envelope = createSuccessEnvelope({
                     engines: [...serverEngines, ...configuredProviders],
                     sources: { server: serverEngines, local: configuredProviders },
+                    tavilyCli,
                 });
                 console.log(JSON.stringify(envelope, null, 2));
                 process.exitCode = 0;
             } catch (error) {
                 if (printConfigError(error)) return;
+                const { providers: configuredProviders, tavilyCli } = await configuredExternalProviders();
+                if (configuredProviders.length) {
+                    console.log(JSON.stringify(createSuccessEnvelope({
+                        engines: configuredProviders,
+                        sources: { server: [], local: configuredProviders },
+                        tavilyCli,
+                        serverUnavailable: true,
+                    }), null, 2));
+                    process.exitCode = 0;
+                    return;
+                }
                 const envelope = createErrorEnvelope(
                     'ENGINES_FETCH_FAILED',
                     error instanceof Error ? error.message : 'Failed to fetch engines',

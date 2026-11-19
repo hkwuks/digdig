@@ -3,15 +3,10 @@
 ## 研究抽取能力优先级、外部工具复用和插件方案
 
 - ID: TF-20261110-a7e5c1
-- Status: inbox
-- Priority: normal
-- Owner: unassigned
-- Source: user-request:2026-11-10
-- Added: 2026-11-10
-- Updated: 2026-11-10
+- Status: done
 - Goal: 盘点已有正文抽取能力及其调用方式，研究如何按适用场景安排抽取优先级和回退；验证 Ollama、DeepSeek 是否提供可复用的抽取接口，以及能否借用 Agent 已安装的搜索或抽取工具。比较直接集成与插件方案的收益、复杂度和边界，再讨论是否需要启用插件机制。接口是否存在、工具能否复用及优先级均待验证，不预设结论。
-- Task: Not promoted.
-- Next action: 研究现有实现和候选能力，提出有依据的优先级与架构选项供讨论；本条仅登记，不实施。
+- Task: `TaskFlowDocs/achieved/2026-11-19-extraction-routing/`
+- Next action: None — completed and archived.
 
 ## Add DeepSeek Search API as a search provider
 
@@ -913,7 +908,7 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## --limit 在三个 provider 路径上静默截断：ollama-service.ts:32 Math.min
 
 - ID: TF-20261116-f8776d
-- Status: inbox
+- Status: done
 - Priority: normal
 - Owner: Claude
 - Source: code-review:2026-10-28-comprehensive
@@ -922,7 +917,7 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Updated: 2026-11-19
 - Goal: `--limit` 与 provider 真实能力不符时，用户拿不到也看不出差别。**2026-11-18 查证后订正，原描述称「三层各自静默截断」不准确——三处性质不同。** ①`cli/src/ollama-service.ts:32` `Math.min(options.limit ?? 5, 10)`：上限真实，[Ollama 官方文档](https://docs.ollama.com/capabilities/web-search)原文是 `max_results (integer, optional): maximum results to return (default 5, max 10)`，代码正确，缺陷只是静默——`-l 20 -e ollama` 实际得 10 条、输出无任何说明。②`cli/src/deepseek-service.ts:43` `Math.min(options.limit ?? 10, 50)`：同样正确，[DeepSeek 文档](https://api-docs.deepseek.com/guides/search)写 `count ... between 1 and 50`，超限会返回 `count must be between 1 and 50`，缺陷同样只是静默。③`cli/src/service.ts:245-246` `deduped.slice(0, options.limit)`：与上两者不同，这是**不翻页**而非遵守上限。SearXNG 的 `/search` 没有客户端可指定的页大小参数（`cli/src/service.ts:192-218` 只传 `q`/`engines`/`categories`/`language`/`time_range`/`pageno`），每页条数由服务端 `search.max_page` 决定（默认 0 = 不限页数）；因此要 20 条而首页只返回 12 条时，冗余的 8 条可以用 `pageno=2` 再取一页，代码只发一次请求。0.0.13 新增的 `cli/src/feedback-log.ts` 在 provider 返回处记了 `count`，但不记请求的 limit，所以上限降级对用户仍然不可见。
 - Task: Not promoted.
-- Next action: provider 上限提示已由 `TaskFlowDocs/achieved/2026-11-18-dead-code-and-limit-notice/` 完成；保留 SearXNG 分页是否值得实现的研究。
+- Next action: 无。provider 上限提示已实现；2026-11-19 的小样本研究中，请求 50 条时 4 个成功首页得到 39–46 条，另 2 次超时，暂不能证明默认自动翻页的收益值得额外请求和延迟。保持显式分页能力，后续若有更大样本或明确用户需求再重新评估。
 
 ## SimHash 是死代码且 deep/index.ts 桶文件零消费者：cli/src/deep/simha
 

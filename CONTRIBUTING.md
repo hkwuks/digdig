@@ -196,6 +196,18 @@ git checkout main && git pull
 git tag v<version> && git push origin v<version>
 ```
 
+### 创建 GitHub Release
+
+每次正式发布除了 npm 包，还必须创建与版本号和 tag 完全一致的 GitHub Release。先确认 tag 已指向 `main` 的目标提交、`publish.yml` 已成功且 npm 上的版本可用；再根据 `CHANGELOG.md` 编写本次发布说明，包含主要变更、兼容性和升级注意事项。
+
+```bash
+# 在仓库内准备只含当前版本发布说明的临时文件，发布并核对后删除该文件。
+gh release create v<version> --verify-tag --title "v<version>" --notes-file <release-notes-file>
+gh release view v<version>
+```
+
+确认 Release 关联正确 tag、说明与 npm 包版本一致。若 npm 发布成功但 GitHub Release 创建失败，只修复并重试 Release；不要重新发布已占用的 npm 版本。已存在的 Release 先检查其 tag 和说明，避免创建重复记录。
+
 ### 为什么显式打 tag，而不是让 `npm version` 自己打
 
 因为在这个仓库里，它打不出来，**而且不告诉你**。
