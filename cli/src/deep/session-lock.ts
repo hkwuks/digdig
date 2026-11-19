@@ -1,4 +1,5 @@
-import { mkdirSync, rmSync } from 'fs';
+import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'fs';
+import { DatabaseSync } from 'node:sqlite';
 import { join } from 'path';
 
 export class SessionStateError extends Error {
@@ -17,18 +18,35 @@ export function classifySqliteError(error: unknown): unknown {
 export function withSessionLock<T>(sessionDir: string, action: () => T): T {
     mkdirSync(sessionDir, { recursive: true });
     const lockDir = join(sessionDir, '.lock');
+    const marker = join(lockDir, 'digdig-migration-lock');
+    const guard = new DatabaseSync(join(sessionDir, '.migration-lock.sqlite'), { timeout: 0 });
+    let acquired = false;
     try {
-        mkdirSync(lockDir);
-    } catch (error) {
-        // A lock's age cannot prove its holder is dead or that the directory is unchanged.
-        if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
-            throw new SessionStateError('SESSION_BUSY', `Session is busy: ${sessionDir}`);
+        try { guard.exec('BEGIN IMMEDIATE'); }
+        catch (error) { throw classifySqliteError(error); }
+        try {
+            mkdirSync(lockDir);
+        } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+            let recoverable = false;
+            try {
+                const entries = readdirSync(lockDir);
+                recoverable = entries.length === 1 && entries[0] === 'digdig-migration-lock'
+                    && readFileSync(marker, 'utf8') === 'digdig migration lock v1';
+            } catch { /* Unknown or incomplete locks must not be removed. */ }
+            if (!recoverable) {
+                throw new SessionStateError('SESSION_BUSY', `Session is busy: ${sessionDir}. If no process is using it, remove the legacy .lock directory.`);
+            }
+            rmSync(lockDir, { recursive: true });
+            mkdirSync(lockDir);
         }
-        throw error;
-    }
-    try {
+        acquired = true;
+        writeFileSync(marker, 'digdig migration lock v1', { flag: 'wx' });
         return action();
     } finally {
-        try { rmSync(lockDir, { recursive: true, force: true }); } catch { /* lock cleanup is best effort */ }
+        if (acquired) {
+            try { rmSync(lockDir, { recursive: true, force: true }); } catch { /* lock cleanup is best effort */ }
+        }
+        guard.close();
     }
 }
