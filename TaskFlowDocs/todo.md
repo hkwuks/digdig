@@ -1030,3 +1030,17 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Goal: 订正三份 README 的过时内容：Query Plan/Quality Assess 阶段、provider 列表、跨文件事务限制、悬空引用的 PRD-005、缺失命令与选项
 - Task: `TaskFlowDocs/achieved/2026-11-19-readme-refresh/`
 - Next action: None — completed and archived.
+
+## 为 Claude Code 提供 MCP 结果自动入会话的 PostToolUse hook：拦截结
+
+- ID: TF-20261120-d27d3d
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: direct user request
+- Kind: capability
+- Added: 2026-11-20
+- Updated: 2026-11-20
+- Goal: 为 Claude Code 提供 MCP 结果自动入会话的 PostToolUse hook：拦截结果、落到 agent-inputs、调 results-add，模型只看到摘要
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
