@@ -1008,6 +1008,8 @@ Exa and Jina direct search read `EXA_API_KEY` and `JINA_API_KEY`. For Tavily and
 
 Jina search content is marked `contentCompleteness: unverified`; `--quality` warns about possibly incomplete historic search bodies without changing them. Independent concurrent Agents are not intercepted or globally deduplicated.
 
+Host-private MCP tools stay available through Agent calls and `results-add`. In Claude Code a `PostToolUse` hook can import matched MCP results into a session automatically, returning only counts to the model; Codex has an equivalent manual bridge. Neither shares the host's credentials, and provider charges are unchanged. See `skills/digdig/references/` for both.
+
 Engine selection uses explicit `--engines`, then `DIGDIG_DEFAULT_ENGINE`, then `DIGDIG_ALLOWED_ENGINES`; when all are empty, the backend chooses its defaults. A nonempty allowlist also restricts the default engine. External providers generally require API keys and may incur charges; an installed Tavily CLI can also use its keyless mode.
 
 > `SEARXNG_*` variable names are still read until `0.5.0` and emit one `[deprecation]` line on stderr; `DIGDIG_*` wins when both are set.

@@ -365,7 +365,7 @@ Options on these commands:
 
 ### External Search Results
 
-Authenticated Tavily and official Firecrawl CLIs are preferred without copying credentials; dg uses the corresponding environment variable when the CLI is unavailable. Host-private MCP tools remain available through Agent calls and import.
+Authenticated Tavily and official Firecrawl CLIs are preferred without copying credentials; dg uses the corresponding environment variable when the CLI is unavailable. Host-private MCP tools remain available through Agent calls and import: in Claude Code a `PostToolUse` hook imports matched MCP results into the session automatically, and Codex has an equivalent manual bridge. Neither shares the host's credentials, and provider charges are unchanged.
 
 Results from other search tools (Tavily, Exa, etc.) can be injected into any active session via `results-add`, following the same pipeline as native dg results:
 

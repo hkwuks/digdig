@@ -983,7 +983,7 @@ dg --categories-list
 | `DEEPSEEK_API_KEY` | [DeepSeek Search](https://api-docs.deepseek.com/api/search) API 密钥（可选后端；按成功请求计费） | *（无）* |
 | `EXA_API_KEY`, `TAVILY_API_KEY`, `FIRECRAWL_API_KEY`, `JINA_API_KEY` | 对应服务的 API 密钥；可通过 `-e exa`、`-e tavily`、`-e firecrawl`、`-e jina` 搜索，也可用于抽取回退 | *（无）* |
 
-搜索与抽取优先复用已认证的 Tavily / 官方 Firecrawl CLI；CLI 不可用时使用对应环境变量。Exa 和 Jina 直连分别读取 `EXA_API_KEY`、`JINA_API_KEY`。无密钥时 Tavily CLI 也可使用限额内的免密模式。Ollama、DeepSeek 接受配置文件或对应环境变量，`DIGDIG_` 前缀变量优先。Agent 私有 MCP 认证不会自动共享给 dg；Agent 可调用工具并导入会话。请不要把密钥提交到仓库。
+搜索与抽取优先复用已认证的 Tavily / 官方 Firecrawl CLI；CLI 不可用时使用对应环境变量。Exa 和 Jina 直连分别读取 `EXA_API_KEY`、`JINA_API_KEY`。无密钥时 Tavily CLI 也可使用限额内的免密模式。Ollama、DeepSeek 接受配置文件或对应环境变量，`DIGDIG_` 前缀变量优先。Agent 私有 MCP 认证不会自动共享给 dg；Agent 可调用工具并导入会话。Claude Code 中有一个 `PostToolUse` hook 可把匹配到的 MCP 结果自动导入会话，Codex 侧有等价的手动桥接；两者都不共享宿主凭据，provider 计费也不变。请不要把密钥提交到仓库。
 
 `dg --engines-list` 的 `providers` 区分 `not_configured` 与 `unverified`：后者只表示已配置或本机工具可启动，不代表密钥有效；不会向外部搜索服务发送付费探测。SearXNG 的引擎发现仍可能访问其 `/config`。实际搜索返回的 `providerResults` 按查询和工具报告成功/失败、`received`（服务返回数量）和 `returned`（过滤、融合和限制后返回数量）；同时指定会话并成功写入时，返回结果已在该会话中。Agent 应先使用这些结果，只有零结果、失败、不支持或仍有证据缺口时才考虑补充外部搜索；主动刷新和独立验证仍可按需进行。会话写入失败时，`partialResults` 可帮助恢复已获得的结果，`sessionWrite: unconfirmed` 表示需先检查会话，不要直接重复请求。
 
