@@ -6,7 +6,8 @@
  * file the CLI will accept, and the CLI reporting a shape the hook can read.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'fs/promises';
+import { mkdtemp, mkdir, rm, writeFile } from 'fs/promises';
+import { existsSync } from 'fs';
 import { execFile, spawn } from 'child_process';
 import { promisify } from 'util';
 import { join, resolve } from 'path';
@@ -26,6 +27,9 @@ const response = [{
 }];
 
 beforeAll(async () => {
+    // Say so plainly instead of failing later with an empty stdout, which the
+    // CI run that shipped this test first reported as "Unexpected end of JSON".
+    if (!existsSync(cli)) throw new Error(`build first: ${cli} is missing (run npm run build in cli/)`);
     home = await mkdtemp(join(tmpdir(), 'dg-bridge-e2e-'));
     session = join(home, 'session');
     config = join(home, 'mcp-bridge.json');

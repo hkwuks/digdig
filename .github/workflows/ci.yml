@@ -56,6 +56,12 @@ jobs:
         working-directory: cli
         run: npm ci
 
+      # The integration tests drive the built CLI and hook as subprocesses, so
+      # `dist/` is a real input here, not an artifact of a later job.
+      - name: Build
+        working-directory: cli
+        run: npm run build
+
       - name: Test
         working-directory: cli
         run: npm test

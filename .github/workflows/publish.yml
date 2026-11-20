@@ -52,15 +52,20 @@ jobs:
         working-directory: cli
         run: npm ci
 
+      # Integration tests drive the built CLI and hook as subprocesses; without
+      # this they fail on a missing `dist/` rather than on a real defect.
+      - name: Build
+        working-directory: cli
+        run: npm run build
+
       # Before publish, never after: a failure above this line can be fixed and
       # the tag rebuilt, while a failure below it means shipping a new version.
       - name: Test
         working-directory: cli
         run: npm test
 
-      # `prepublishOnly` in cli/package.json runs the build, so there is no
-      # separate build step. No --provenance (automatic under OIDC) and no
-      # --access public (the package is unscoped and already published).
+      # The build already ran above, so `prepublishOnly` re-runs it rather than
+      # being the only build. Harmless, and cheaper than splitting the script.
       - name: Publish
         working-directory: cli
         run: npm publish
