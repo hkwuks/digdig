@@ -888,7 +888,7 @@ obscura --version
 | `dg graph-drill <session>` | 追踪特定关系 |
 | `dg graph-traverse <session>` | 遍历推理路径 |
 | `dg graph-obfuscate <session>` | 列出混淆候选 |
-| `dg results-add <session> --kind <search|extracted> --data-file <path>` | 从会话专属 UTF-8 JSON 导入外部搜索或已提取正文 |
+| `dg results-add <session> --kind <search|extracted> --data-file <path>` | 从会话专属 UTF-8 JSON 导入外部搜索或已提取正文；所有接收 JSON 的命令都同时支持 `--data-stdin` |
 | `dg doc-index <path>` | 索引本地文档（用于 BM25 搜索） |
 | `dg doc-search <session> <query> --path <path>` | 搜索已索引文档并将结果注入会话 |
 | `dg claim-add <session> --claims-file <path>` | 从 UTF-8 JSON 文件提交原子化陈述（支持单条或批量，自动证据搜索） |
@@ -983,7 +983,7 @@ dg --categories-list
 | `DEEPSEEK_API_KEY` | [DeepSeek Search](https://api-docs.deepseek.com/api/search) API 密钥（可选后端；按成功请求计费） | *（无）* |
 | `EXA_API_KEY`, `TAVILY_API_KEY`, `FIRECRAWL_API_KEY`, `JINA_API_KEY` | 对应服务的 API 密钥；可通过 `-e exa`、`-e tavily`、`-e firecrawl`、`-e jina` 搜索，也可用于抽取回退 | *（无）* |
 
-搜索与抽取优先复用已认证的 Tavily / 官方 Firecrawl CLI；CLI 不可用时使用对应环境变量。Exa 和 Jina 直连分别读取 `EXA_API_KEY`、`JINA_API_KEY`。无密钥时 Tavily CLI 也可使用限额内的免密模式。Ollama、DeepSeek 接受配置文件或对应环境变量，`DIGDIG_` 前缀变量优先。Agent 私有 MCP 认证不会自动共享给 dg；Agent 可调用工具并导入会话。Claude Code 中有一个 `PostToolUse` hook 可把匹配到的 MCP 结果自动导入会话，Codex 侧有等价的手动桥接；两者都不共享宿主凭据，provider 计费也不变。请不要把密钥提交到仓库。
+搜索与抽取优先复用已认证的 Tavily / 官方 Firecrawl CLI；CLI 不可用时使用对应环境变量。Exa 和 Jina 直连分别读取 `EXA_API_KEY`、`JINA_API_KEY`。无密钥时 Tavily CLI 也可使用限额内的免密模式。Ollama、DeepSeek 接受配置文件或对应环境变量，`DIGDIG_` 前缀变量优先。Agent 私有 MCP 认证不会自动共享给 dg；Agent 可调用工具并导入会话。宿主返回什么都行——MCP 结果、原生工具调用、已经抓到的页面——都是一条命令导入，来源可以是会话内文件，也可以是 stdin。正文能不能不进模型上下文取决于宿主：只有在能从代码里调用工具、并且只把代码的输出交回模型时，那一次读取才省得掉；省不掉时，导入一次至少能让同一段正文不在后续轮次被反复读取。任何宿主的凭据都不共享，provider 计费也不变。详见 [`skills/digdig/references/importing-agent-results.md`](skills/digdig/references/importing-agent-results.md)。请不要把密钥提交到仓库。
 
 `dg --engines-list` 的 `providers` 区分 `not_configured` 与 `unverified`：后者只表示已配置或本机工具可启动，不代表密钥有效；不会向外部搜索服务发送付费探测。SearXNG 的引擎发现仍可能访问其 `/config`。实际搜索返回的 `providerResults` 按查询和工具报告成功/失败、`received`（服务返回数量）和 `returned`（过滤、融合和限制后返回数量）；同时指定会话并成功写入时，返回结果已在该会话中。Agent 应先使用这些结果，只有零结果、失败、不支持或仍有证据缺口时才考虑补充外部搜索；主动刷新和独立验证仍可按需进行。会话写入失败时，`partialResults` 可帮助恢复已获得的结果，`sessionWrite: unconfirmed` 表示需先检查会话，不要直接重复请求。
 
