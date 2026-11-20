@@ -1048,16 +1048,10 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## 给所有 JSON 输入命令加 --data-stdin，拆掉 Claude Code hook，文档
 
 - ID: TF-20261120-b75811
-- Status: promoted
-- Priority: normal
-- Owner: Claude
-- Source: direct user request
-- Kind: capability
-- Added: 2026-11-20
-- Updated: 2026-11-20
+- Status: done
 - Goal: 给所有 JSON 输入命令加 --data-stdin，拆掉 Claude Code hook，文档合并成一份通用导入说明
-- Task: `TaskFlowDocs/2026-11-20-data-stdin/`
-- Next action: Complete PRD / Spec / Plan and request approval.
+- Task: `TaskFlowDocs/achieved/2026-11-20-data-stdin/`
+- Next action: None — completed and archived.
 
 ## 把 MCP 桥接从 cli/ 内部挪成独立插件，按宿主分发 hooks 配置
 
