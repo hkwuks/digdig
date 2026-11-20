@@ -2,7 +2,7 @@
 
 <p align="center">
   <b>面向 Agent 的多后端网页搜索 CLI</b><br>
-  SearXNG · Ollama · DeepSeek —— 终端中的隐私优先网页搜索
+  SearXNG · Ollama · DeepSeek · Exa · Tavily · Firecrawl · Jina —— 终端中的隐私优先网页搜索
 </p>
 
 <p align="center">
@@ -910,7 +910,7 @@ obscura --version
 
 | 选项 | 说明 |
 |------|------|
-| `-e, --engines <list>` | 逗号分隔的搜索引擎列表（如 `google,github`）；`ollama` 与 `deepseek` 会改走对应后端而不是 SearXNG |
+| `-e, --engines <list>` | 逗号分隔的搜索引擎列表（如 `google,github`）；`ollama`、`deepseek`、`exa`、`tavily`、`firecrawl`、`jina` 会改走对应后端而不是 SearXNG |
 | `-c, --categories <list>` | 逗号分隔的分类列表（如 `it,science`） |
 | `-l, --limit <n>` | 最大结果数（默认：10） |
 | `-p, --page <n>` | 翻页页码 |
@@ -1023,12 +1023,12 @@ Jina 搜索的 `contentCompleteness: unverified` 表示正文完整性未确认�
 
 ## 🧠 深度搜索
 
-深度搜索支持多轮迭代研究，具备会话累积、可数的覆盖事实、Agent 控制图谱注入，以及记录「还缺什么」的 Query Plan。
+深度搜索支持多轮迭代研究，具备会话累积、可数的覆盖事实、Agent 控制图谱注入，以及陈述—证据—审核管线。CLI 报告会话已获得什么——`dg coverage` 给出整场会话的视图，`--quality` 给出每条结果的抽取与核验状态。哪些方面还没覆盖，是 Agent 的判断；CLI 里没有算法去给它打分。
 
 ### 工作流
 
 ```
-搜索 → 提取 → 审查事实 → 审批 → 构建图谱 →（循环或探索）
+搜索 → 提取 → 查看事实 → 审批 → 构建图谱 →（循环或探索）
                                                                          ↓
                                           (L2/L3) 陈述—证据—审核管线 → 最终输出
 ```
@@ -1069,6 +1069,13 @@ dg --session <session-name> --queries "tokio vs async-std,benchmark 2026" --redu
 它报的是可数事实而不是结论：每轮的查询与引擎、每轮首次引入了多少结果、有多少条是更早轮次已见过的、哪些 URL 跨轮重复出现、每一轮独有（不跨轮）的词、实际用到的域名，以及常用一手来源站（arXiv、GitHub、Stack Overflow、各类包仓库）里还没碰过哪些。某一轮的全部结果都是旧的就说明该方向已经饱和。跨所有轮次出现的词属于会话主题，会被排除，因此每轮由它真正新增的内容来命名。
 
 判断"哪些方面已覆盖、哪些还缺"是 Agent 的职责，`dg coverage` 只提供数字。
+
+`dg strategy-info` 报告会话已进入哪个阶段（`broad_exploration` 还是 `targeted_deep_dive`）以及支撑这个判断的数字：
+
+| 选项 | 说明 |
+|------|------|
+| `--broad-rounds <n>` | 进入阶段切换检查前的轮数（默认 2） |
+| `--transition-threshold <n>` | 触发阶段切换的实体增长率（默认 0.2） |
 
 ### 质量与证据语义
 
@@ -1124,6 +1131,20 @@ dg --session <session-name> --queries "tokio vs async-std,benchmark 2026" --redu
 | `p:` | 路径节点 | `p:chain_001` |
 
 图谱导航命令：`graph-search`（发现实体）、`graph-explore`（查看关系）、`graph-drill`（追踪特定关系）、`graph-traverse`（遍历推理路径）。
+
+这些命令的选项：
+
+| 命令 | 选项 | 说明 |
+|------|------|------|
+| `graph-search` | `--keyword <term>`、`-l, --limit <n>` | 匹配关键词；返回上限（默认 10） |
+| `graph-explore` | `--seed <entity>` | 作为起点的实体 ID 或标签 |
+| `graph-drill` | `--seed <entity>`、`--relations <list>` | 起始实体；要追踪的关系 |
+| `graph-traverse` | `--path <id>` | 来自 `graph-preprocess` 的路径节点 ID |
+| `graph-preprocess` | `--top <n>` | 返回的前 N 个词（默认 30） |
+| `graph-preprocess` | `--max-terms <n>` | 共现矩阵的最大词数（默认 50） |
+| `graph-preprocess` | `--co-occurrence-threshold <n>` | 最小共现次数（默认 2） |
+| `graph-obfuscate` | `--list` / `--fallback-rules` / `--skip-types <t1,t2>` | 列出候选（默认）；应用规则式标签（实验性）；跳过实体类型 |
+| `graph-pending` | *（无选项）* | 等待来源重新确认的语义事实 |
 
 `graph-preprocess` 会为每条已提取正文输出 `resultProvenance`（`id`、`revision`、`url`、`title`、`approval`）。每个语义实体或边必须把一个或多个当前已审批的 `id` 填入 `sourceResultIds`，从而追溯到确切的已审批正文，而不是搜索轮次。
 
@@ -1207,12 +1228,10 @@ dg doc-search <session-name> "关键词" --path ./docs
 
 ### 已知限制
 
-- 会话结果和图谱写入使用会话级短锁与原子替换；Claim、Evidence、Review 多文件之间仍没有跨文件事务。
+- 会话结果和图谱写入使用会话级锁加事务。Claim、Evidence、Verdict、Review 都在同一个 `session.sqlite` 里，一次 `evidence-verify` 在单个事务内写完这四张表，不涉及多文件。
 - URL 提取不构成 SSRF 安全边界，只应处理受信任的公开 URL。
 - 本地文档扫描尚未定义符号链接的遍历边界或循环保护策略。
 - 索引重建会直接覆盖当前持久化文件；进程中断或磁盘故障后可能需要重新建立索引。
-
-延后处理方案见 本地尚未发布的 PRD-005 设计改进文档。
 
 ---
 

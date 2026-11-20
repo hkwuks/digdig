@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>A multi-backend web search CLI for agents</b><br>
-  SearXNG · Ollama · DeepSeek — privacy-respecting search from your terminal
+  SearXNG · Ollama · DeepSeek · Exa · Tavily · Firecrawl · Jina — privacy-respecting search from your terminal
 </p>
 
 <p align="center">
@@ -123,6 +123,7 @@ obscura --version
 | `dg suggest-queries <session>` | Get query suggestion data for Agent |
 | `dg strategy-info <session>` | Check current search stage |
 | `dg session-report <session>` | Full session analysis report |
+| `dg coverage <session>` | What the session has looked at so far, as counted facts (rounds, queries, new vs repeated, round-local terms) |
 | `dg session-list` | List all sessions |
 | `dg session-delete <name>` | Delete a session |
 | `dg graph-preprocess <session>` | Co-occurrence + term frequencies + result provenance analysis |
@@ -144,6 +145,7 @@ obscura --version
 | `dg policy-aggregate <session>` | Run policy aggregation manually |
 | `dg source-relations <session> --claim-id <id> [--data-file <path>]` | Inspect or record source judgments |
 | `dg review-list <session>` | List reviews |
+| `dg graph-pending <session>` | List graph facts awaiting source reconfirmation |
 | `dg --health` | Check the SearXNG backend health (Ollama/DeepSeek have no health endpoint) |
 | `dg --engines-list` | List available search engines (includes `ollama` if configured) |
 | `dg --categories-list` | List available categories |
@@ -152,7 +154,7 @@ obscura --version
 
 | Option | Description |
 |--------|-------------|
-| `-e, --engines <list>` | Comma-separated list of search engines (e.g., `google,github`); `ollama` and `deepseek` route to those providers instead of SearXNG |
+| `-e, --engines <list>` | Comma-separated list of search engines (e.g., `google,github`); `ollama`, `deepseek`, `exa`, `tavily`, `firecrawl` and `jina` route to those providers instead of SearXNG |
 | `-c, --categories <list>` | Comma-separated list of categories (e.g., `it,science`) |
 | `-l, --limit <n>` | Maximum number of results, as a positive safe integer (default: 10) |
 | `-p, --page <n>` | Page number for pagination |
@@ -250,12 +252,12 @@ Create `digdig.config.json`:
 
 ## 🧠 Deep Search
 
-Deep search enables multi-round iterative research with session accumulation, counted coverage facts, agent-controlled graph injection, and a Query Plan that records what is still missing.
+Deep search enables multi-round iterative research with session accumulation, counted coverage facts, agent-controlled graph injection, and a claim–evidence–review pipeline. The CLI reports what the session has gathered — `dg coverage` for the whole-session view, `--quality` for per-result extraction and verification state. Deciding which aspects remain uncovered is the Agent's judgement; no algorithm in the CLI scores it.
 
 ### Workflow
 
 ```
-Search → Extract → Quality Assess → Approve → Build Graph → (Loop or Explore)
+Search → Extract → Review Facts → Approve → Build Graph → (Loop or Explore)
                                                                          ↓
                                           (L2/L3) Claim—Evidence—Review → Final Output
 ```
@@ -302,6 +304,13 @@ dg --session ds_1712345678_abcdef --queries "tokio vs async-std,benchmark 2026" 
 
 Record a judgment by saving `{"action":"record","left":{"resultId":"r1","snapshotId":"s1"},"right":{"resultId":"r2","snapshotId":"s2"},"relation":"independent","reason":"Independent original interviews"}` as UTF-8 JSON under the session's `agent-inputs`, then pass its path to `source-relations --data-file`. Use the IDs from `evidence-list`; `relation` may also be `same`. List judgments without `--data-file`. To correct one, submit `{"action":"revoke","id":"<relation-id>","reason":"<reason>"}`. The prior record remains available for audit. Re-run `policy-aggregate` to review the claim after recording a judgment.
 
+`dg strategy-info` reports which stage the session has moved into (`broad_exploration` vs `targeted_deep_dive`) and the numbers behind that call:
+
+| Option | Description |
+|--------|-------------|
+| `--broad-rounds <n>` | Rounds before the transition check runs (default: 2) |
+| `--transition-threshold <n>` | Entity growth rate that triggers the stage change (default: 0.2) |
+
 ### Session Management
 
 | Command | Description |
@@ -337,6 +346,20 @@ Two layers:
 | `p:` | Path node | `p:chain_001` |
 
 Graph navigation commands: `graph-search` (discover entities), `graph-explore` (view relations), `graph-drill` (follow specific relations), `graph-traverse` (traverse reasoning paths).
+
+Options on these commands:
+
+| Command | Option | Description |
+|---------|--------|-------------|
+| `graph-search` | `--keyword <term>`, `-l, --limit <n>` | Keyword to match; max results (default: 10) |
+| `graph-explore` | `--seed <entity>` | Entity ID or label to explore |
+| `graph-drill` | `--seed <entity>`, `--relations <list>` | Entity to start from; relations to follow |
+| `graph-traverse` | `--path <id>` | Path node ID from `graph-preprocess` |
+| `graph-preprocess` | `--top <n>` | Top N terms to return (default: 30) |
+| `graph-preprocess` | `--max-terms <n>` | Max terms for the co-occurrence matrix (default: 50) |
+| `graph-preprocess` | `--co-occurrence-threshold <n>` | Min co-occurrence count (default: 2) |
+| `graph-obfuscate` | `--list` / `--fallback-rules` / `--skip-types <t1,t2>` | List candidates (default); apply rule-based labels (experimental); skip entity types |
+| `graph-pending` | *(no options)* | Semantic facts awaiting source reconfirmation |
 
 `graph-preprocess` returns `resultProvenance` (`id`, `revision`, `url`, `title`, `approval`) for every extracted body. For each semantic entity or edge, copy one or more currently approved `id` values into `sourceResultIds`. This keeps semantic facts traceable to the exact approved bodies rather than a search round.
 
@@ -427,14 +450,22 @@ dg doc-search <session-name> "query" --path ./docs
 
 **Source facts:** The quality report counts distinct local files as sources, so chunks from one file share a source. Assess whether the available sources are sufficient for the question.
 
+**Options:**
+
+| Command | Option | Description |
+|---------|--------|-------------|
+| `doc-index` | `-t, --type <exts>` | File extensions to index (default: `md,txt`) |
+| `doc-search` | `-k, --top <n>` | Top-K results (default: 10) |
+| `doc-search` | `--boost <field:w,...>` | Field weight overrides (default: `title:3,headings:2,content:1`) |
+
+`evidence-list` accepts `--include-invalid` to also show evidence awaiting review or relocation.
+
 ### Known Limitations
 
-- Session result and graph mutations use a per-session lock plus atomic replacement; Claim, Evidence, and Review files still have no cross-file transaction.
+- Session result and graph mutations use a per-session lock plus a transaction. Claims, evidence, verdicts and reviews live in the same `session.sqlite`, so one `evidence-verify` writes all four tables in a single transaction rather than across separate files.
 - URL extraction is not an SSRF security boundary; use only trusted public URLs.
 - Local document scanning has no defined symbolic-link boundary or cycle policy.
 - Index rebuilds overwrite the current persistence files; an interruption or disk failure can require re-indexing.
-
-See the local, not-yet-published PRD-005 design-improvements document for the deferred remediation plan.
 
 ## 💡 Projects Using digdig
 

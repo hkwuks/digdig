@@ -34,11 +34,16 @@ const EXEMPT: Array<{ name: string; reason: string }> = [
  * are what a person reads to find one. Both are hand-maintained; `graph-pending`
  * was already described in the prose of both READMEs while missing from both
  * tables, which is the same shape of gap that `doc-index` left in `SKILL.md`.
+ *
+ * `cli/README.md` is the one `package.json` publishes, so it is what someone
+ * who installed from npm actually reads. It was missing from this list, which
+ * made it the only documented surface with no guard at all.
  */
 const DOCUMENTS = [
     '../../../skills/digdig/SKILL.md',
     '../../../README.md',
     '../../../README.zh-CN.md',
+    '../../../cli/README.md',
 ] as const;
 
 /** Command names one document's tables list: `| \`dg <name> ...\`` rows. */
