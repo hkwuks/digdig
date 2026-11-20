@@ -10,6 +10,7 @@ import { extractPaths } from '../deep/path-extraction.js';
 export interface GraphAddOptions {
     session: string;
     dataFile?: string;
+    dataStdin?: boolean;
 }
 
 interface EntityInput {
@@ -60,7 +61,10 @@ function mergeIds(left: string[] | undefined, right: string[]): string[] {
 
 export async function runGraphAdd(options: GraphAddOptions): Promise<number> {
     const sessionDir = resolveSessionPath(options.session);
-    const input = readSessionJsonInput(sessionDir, [{ option: '--data-file', value: options.dataFile, file: true }]);
+    const input = readSessionJsonInput(sessionDir, [
+        { option: '--data-file', value: options.dataFile, file: true },
+        { option: '--data-stdin', stdin: options.dataStdin },
+    ]);
     if (!input.ok) {
         console.log(JSON.stringify(createErrorEnvelope(input.code, input.message), null, 2));
         return 1;

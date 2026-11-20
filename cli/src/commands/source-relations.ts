@@ -14,11 +14,14 @@ class RelationError extends Error {
   constructor(readonly code: string, message: string) { super(message); }
 }
 
-export async function runSourceRelations(session: string, options: { claimId: string; dataFile?: string }): Promise<number> {
+export async function runSourceRelations(session: string, options: { claimId: string; dataFile?: string; dataStdin?: boolean }): Promise<number> {
   const dir = resolveSessionPath(session);
   let data: Record<string, unknown> | undefined;
-  if (options.dataFile !== undefined) {
-    const input = readSessionJsonInput(dir, [{ option: '--data-file', value: options.dataFile, file: true }]);
+  if (options.dataFile !== undefined || options.dataStdin) {
+    const input = readSessionJsonInput(dir, [
+      { option: '--data-file', value: options.dataFile, file: true },
+      { option: '--data-stdin', stdin: options.dataStdin },
+    ]);
     if (!input.ok) { console.log(JSON.stringify(createErrorEnvelope(input.code, input.message))); return 1; }
     if (!isJsonObject(input.value)) { console.log(JSON.stringify(createErrorEnvelope('INVALID_SOURCE_RELATION', 'Input must be an object'))); return 1; }
     data = input.value;

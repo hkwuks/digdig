@@ -8,6 +8,7 @@ export interface ResultsAddOptions {
     session: string;
     kind: 'search' | 'extracted';
     dataFile?: string;
+    dataStdin?: boolean;
     query?: string;
     tool?: string;
 }
@@ -26,7 +27,10 @@ export async function runResultsAdd(options: ResultsAddOptions): Promise<number>
         console.log(JSON.stringify(createErrorEnvelope('INVALID_RESULTS', 'Import kind must be search or extracted'), null, 2));
         return 1;
     }
-    const input = readSessionJsonInput(sessionDir, [{ option: '--data-file', value: options.dataFile, file: true }]);
+    const input = readSessionJsonInput(sessionDir, [
+        { option: '--data-file', value: options.dataFile, file: true },
+        { option: '--data-stdin', stdin: options.dataStdin },
+    ]);
     if (!input.ok) {
         console.log(JSON.stringify(createErrorEnvelope(input.code, input.message), null, 2));
         return 1;

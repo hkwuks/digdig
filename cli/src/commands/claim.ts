@@ -32,6 +32,8 @@ export async function runClaimAdd(
   options: {
     claimFile?: string;
     claimsFile?: string;
+    claimStdin?: boolean;
+    claimsStdin?: boolean;
     format?: string;
   }
 ): Promise<number> {
@@ -43,13 +45,15 @@ export async function runClaimAdd(
   const input = readSessionJsonInput(sessionDir, [
     { option: '--claim-file', value: options.claimFile, file: true },
     { option: '--claims-file', value: options.claimsFile, file: true },
+    { option: '--claim-stdin', stdin: options.claimStdin && !options.claimsStdin },
+    { option: '--claims-stdin', stdin: options.claimsStdin },
   ]);
   if (!input.ok) {
     console.log(JSON.stringify(createErrorEnvelope(input.code, input.message), null, 2));
     return 1;
   }
 
-  const batchInput = input.source === '--claims-file';
+  const batchInput = input.source === '--claims-file' || input.source === '--claims-stdin';
   if (batchInput && !Array.isArray(input.value)) {
     console.log(JSON.stringify(createErrorEnvelope('INVALID_CLAIMS', '--claims-file must contain a JSON array'), null, 2));
     return 1;
