@@ -1034,7 +1034,7 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## 为 Claude Code 提供 MCP 结果自动入会话的 PostToolUse hook：拦截结
 
 - ID: TF-20261120-d27d3d
-- Status: inbox
+- Status: promoted
 - Priority: normal
 - Owner: Claude
 - Source: direct user request
@@ -1042,5 +1042,5 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Added: 2026-11-20
 - Updated: 2026-11-20
 - Goal: 为 Claude Code 提供 MCP 结果自动入会话的 PostToolUse hook：拦截结果、落到 agent-inputs、调 results-add，模型只看到摘要
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: `TaskFlowDocs/2026-11-20-claude-mcp-bridge/`
+- Next action: Complete PRD / Spec / Plan and request approval.
