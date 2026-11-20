@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it } from 'vitest';
-import { mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { readSessionJsonInput } from '../../../src/commands/json-input.js';
@@ -66,5 +66,73 @@ describe('readSessionJsonInput', () => {
 
         expect(readSessionJsonInput(directory, [{ option: '--data-file', value: file, file: true }]))
             .toMatchObject({ ok: false, code: 'UNSUPPORTED_JSON_ENCODING' });
+    });
+
+    describe('stdin source', () => {
+        // `readFileSync(0)` reads the test process's own stdin, so it is swapped
+        // here rather than feeding a subprocess. The shapes below are the only
+        // thing the function can observe from a pipe.
+        let stdinBytes = Buffer.alloc(0);
+        const realReadFileSync = readFileSync;
+        beforeEach(() => {
+            vi.resetModules();
+            stdinBytes = Buffer.alloc(0);
+        });
+        afterEach(() => { vi.doUnmock('fs'); });
+
+        async function withStdin(bytes: Buffer, run: (read: typeof readSessionJsonInput) => void): Promise<void> {
+            vi.doMock('fs', async () => ({
+                ...await vi.importActual<typeof import('fs')>('fs'),
+                readFileSync: (target: unknown, ...rest: unknown[]) => {
+                    if (target === 0) {
+                        if (stdinBytes.length === 0) throw new Error('EAGAIN');
+                        return stdinBytes;
+                    }
+                    return (realReadFileSync as (...a: unknown[]) => unknown)(target, ...rest);
+                },
+            }));
+            const module = await import('../../../src/commands/json-input.js');
+            run(module.readSessionJsonInput);
+        }
+
+        it('parses JSON piped on stdin without any session file', async () => {
+            const directory = mkdtempSync(join(tmpdir(), 'sxng-json-input-'));
+            directories.push(directory);
+            initSessionDir(directory);
+            stdinBytes = Buffer.from(JSON.stringify([{ url: 'https://example.com', title: 'Example' }]), 'utf8');
+
+            await withStdin(stdinBytes, read => {
+                expect(read(directory, [{ option: '--data-stdin', stdin: true }])).toEqual({
+                    ok: true, source: '--data-stdin',
+                    value: [{ url: 'https://example.com', title: 'Example' }],
+                });
+            });
+        });
+
+        it('reports STDIN_EMPTY rather than INVALID_JSON when nothing is piped', async () => {
+            const directory = mkdtempSync(join(tmpdir(), 'sxng-json-input-'));
+            directories.push(directory);
+            initSessionDir(directory);
+
+            await withStdin(stdinBytes, read => {
+                expect(read(directory, [{ option: '--data-stdin', stdin: true }]))
+                    .toMatchObject({ ok: false, code: 'STDIN_EMPTY' });
+            });
+        });
+
+        it('rejects a file and stdin together', async () => {
+            const directory = mkdtempSync(join(tmpdir(), 'sxng-json-input-'));
+            directories.push(directory);
+            initSessionDir(directory);
+            const file = join(directory, 'agent-inputs', 'results.json');
+            writeFileSync(file, '[]', 'utf8');
+
+            await withStdin(stdinBytes, read => {
+                expect(read(directory, [
+                    { option: '--data-file', value: file, file: true },
+                    { option: '--data-stdin', stdin: true },
+                ])).toMatchObject({ ok: false, code: 'MULTIPLE_JSON_INPUTS' });
+            });
+        });
     });
 });

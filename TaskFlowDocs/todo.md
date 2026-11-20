@@ -1030,3 +1030,45 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Goal: 订正三份 README 的过时内容：Query Plan/Quality Assess 阶段、provider 列表、跨文件事务限制、悬空引用的 PRD-005、缺失命令与选项
 - Task: `TaskFlowDocs/achieved/2026-11-19-readme-refresh/`
 - Next action: None — completed and archived.
+
+## 为 Claude Code 提供 MCP 结果自动入会话的 PostToolUse hook：拦截结
+
+- ID: TF-20261120-d27d3d
+- Status: cancelled
+- Priority: normal
+- Owner: Claude
+- Source: direct user request
+- Kind: capability
+- Added: 2026-11-20
+- Updated: 2026-11-20
+- Goal: **2026-11-20 取消** — hook 实现随 `TF-20261120-b75811` 一并删除。`PostToolUse` 的 `updatedToolOutput` 确实是唯一能让正文完全不进上下文的机制，但只有 Claude Code 和 CodeBuddy 支持，且两者的契约不同：前者的替换值必须与原工具输出形状一致，后者的 frontmatter hooks 只在 `context: fork` 生效、够不到主会话。维护成本高于收益。模型现在直接用 `results-add --data-stdin` 导入，所有宿主通用。实现过的代码在 PR #76 的历史里可查。原始描述保留供追溯：为 Claude Code 提供 MCP 结果自动入会话的 PostToolUse hook：拦截结果、落到 agent-inputs、调 results-add，模型只看到摘要。
+- Task: Not promoted.
+- Next action: None — superseded by `TF-20261120-b75811`.
+
+## 给所有 JSON 输入命令加 --data-stdin，拆掉 Claude Code hook，文档
+
+- ID: TF-20261120-b75811
+- Status: promoted
+- Priority: normal
+- Owner: Claude
+- Source: direct user request
+- Kind: capability
+- Added: 2026-11-20
+- Updated: 2026-11-20
+- Goal: 给所有 JSON 输入命令加 --data-stdin，拆掉 Claude Code hook，文档合并成一份通用导入说明
+- Task: `TaskFlowDocs/2026-11-20-data-stdin/`
+- Next action: Complete PRD / Spec / Plan and request approval.
+
+## 把 MCP 桥接从 cli/ 内部挪成独立插件，按宿主分发 hooks 配置
+
+- ID: TF-20261120-9ada7d
+- Status: cancelled
+- Priority: normal
+- Owner: Claude
+- Source: direct user request
+- Kind: capability
+- Added: 2026-11-20
+- Updated: 2026-11-20
+- Goal: **2026-11-20 取消** — 整个方向被放弃，不是延后。跨宿主 hook 的兼容矩阵（Claude Code 的 `updatedToolOutput` 要求替换值与工具原输出形状一致、CodeBuddy 的 frontmatter hooks 只在 `context: fork` 生效、Codex/dsh/Trae 无改写字段）维护成本高于它挡住的那一次上下文读取。替代方案是 `--data-stdin`（`TF-20261120-b75811`）：一条命令、所有宿主通用、不需要插件或映射表。原始描述保留供追溯：把 MCP 桥接从 cli/ 内部挪成独立插件，按宿主分发 hooks 配置（Claude Code 改写、CodeBuddy 改写、Codex/dsh/Trae 附加上下文）。
+- Task: Not promoted.
+- Next action: None — superseded by `TF-20261120-b75811`.

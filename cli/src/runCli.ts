@@ -937,6 +937,9 @@ export function createProgram(argv: string[] = []): Command {
         .option('--approve-file <path>', 'UTF-8 approval JSON array under this session agent-inputs directory')
         .option('--skip-file <path>', 'UTF-8 skip JSON array under this session agent-inputs directory')
         .option('--unskip-file <path>', 'UTF-8 restore JSON array under this session agent-inputs directory')
+        .option('--approve-stdin', 'Read the approval array from stdin')
+        .option('--skip-stdin', 'Read the skip array from stdin')
+        .option('--unskip-stdin', 'Read the restore array from stdin')
         .option('--health', 'Check the SearXNG backend health (Ollama/DeepSeek have no health endpoint)')
         .option('--engines-list', 'List available search engines')
         .option('--categories-list', 'List available categories')
@@ -1011,11 +1014,13 @@ export function createProgram(argv: string[] = []): Command {
         .command('graph-add')
         .argument('<session>', 'Session directory or name')
         .description('Add semantic entities/edges supported by approved extracted result IDs.')
-        .requiredOption('--data-file <path>', 'UTF-8 JSON under this session agent-inputs directory')
+        .option('--data-file <path>', 'UTF-8 JSON under this session agent-inputs directory')
+        .option('--data-stdin', 'Read the same JSON from stdin instead of a file')
         .action(async (session, opts) => {
             const code = await runGraphAdd({
                 session,
                 dataFile: opts.dataFile,
+                dataStdin: opts.dataStdin ?? false,
             });
             process.exitCode = code;
         });
@@ -1025,12 +1030,14 @@ export function createProgram(argv: string[] = []): Command {
         .argument('<session>', 'Session directory or name')
         .description('Import external search records or extracted bodies into a session')
         .requiredOption('--kind <kind>', 'Import kind: search or extracted')
-        .requiredOption('--data-file <path>', 'UTF-8 JSON under this session agent-inputs directory')
+        .option('--data-file <path>', 'UTF-8 JSON under this session agent-inputs directory')
+        .option('--data-stdin', 'Read the same JSON from stdin instead of a file')
         .option('--query <query>', 'Discovery query (may instead be supplied per item)')
         .option('--tool <tool>', 'Origin tool (may instead be supplied per item)')
         .addHelpText('after', `
 Examples:
   dg results-add my-session --kind search --tool exa --query "async runtime" --data-file .digdig/sessions/my-session/agent-inputs/results.json
+  dg results-add my-session --kind extracted --data-stdin < results.json
 
 Search imports await extraction; extracted imports await approval.`)
         .action(async (session, opts) => {
@@ -1038,6 +1045,7 @@ Search imports await extraction; extracted imports await approval.`)
                 session,
                 kind: opts.kind,
                 dataFile: opts.dataFile,
+                dataStdin: opts.dataStdin ?? false,
                 query: opts.query,
                 tool: opts.tool,
             });
@@ -1368,15 +1376,20 @@ See also: graph-explore (for viewing relations of a known entity)`)
         .description('Add claims (single or batch) with auto evidence-search')
         .option('--claim-file <path>', 'UTF-8 JSON file with one claim')
         .option('--claims-file <path>', 'UTF-8 JSON file with a claim array')
+        .option('--claim-stdin', 'Read one claim from stdin')
+        .option('--claims-stdin', 'Read a claim array from stdin')
         .option('-f, --format <fmt>', 'Output format: json (default), md')
         .addHelpText('after', `
 Examples:
   dg claim-add my-session --claim-file .digdig/sessions/my-session/agent-inputs/claim.json
-  dg claim-add my-session --claims-file .digdig/sessions/my-session/agent-inputs/claims.json`)
+  dg claim-add my-session --claims-file .digdig/sessions/my-session/agent-inputs/claims.json
+  dg claim-add my-session --claims-stdin < claims.json`)
         .action(async (session, opts, command) => {
             const code = await runClaimAdd(session, {
                 claimFile: opts.claimFile,
                 claimsFile: opts.claimsFile,
+                claimStdin: opts.claimStdin ?? false,
+                claimsStdin: opts.claimsStdin ?? false,
                 format: command.optsWithGlobals().format,
             });
             process.exitCode = code;
@@ -1416,6 +1429,7 @@ Examples:
         .description('Confirm evidence + submit stance + optional auto-policy')
         .requiredOption('--claim-id <id>', 'Claim ID')
         .requiredOption('--evidence-file <path>', 'UTF-8 JSON file with evidence object under this session agent-inputs directory')
+        .option('--evidence-stdin', 'Read the same JSON from stdin instead of a file')
         .requiredOption('--stance <s>', 'Stance: support, refute, insufficient')
         .requiredOption('--reason <text>', 'Judgement rationale')
         .option('--confidence <n>', 'Confidence 0-1')
@@ -1425,6 +1439,7 @@ Examples:
             const code = await runEvidenceVerify(session, {
                 claimId: opts.claimId,
                 evidenceFile: opts.evidenceFile,
+                evidenceStdin: opts.evidenceStdin ?? false,
                 stance: opts.stance,
                 reason: opts.reason,
                 confidence: opts.confidence === undefined ? undefined : (opts.confidence.trim() ? Number(opts.confidence) : NaN),
@@ -1470,7 +1485,8 @@ Examples:
         .description('List or record source independence judgments')
         .requiredOption('--claim-id <id>', 'Claim ID')
         .option('--data-file <path>', 'Judgment or revocation JSON in agent-inputs')
-        .action(async (session, opts) => { process.exitCode = await runSourceRelations(session, { claimId: opts.claimId, dataFile: opts.dataFile }); });
+        .option('--data-stdin', 'Read the same JSON from stdin instead of a file')
+        .action(async (session, opts) => { process.exitCode = await runSourceRelations(session, { claimId: opts.claimId, dataFile: opts.dataFile, dataStdin: opts.dataStdin ?? false }); });
 
     program
         .command('policy-aggregate')
@@ -1560,8 +1576,11 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
             if (!opts.skipFile && !opts.unskipFile && !opts.approveFile && reportEmptySession(sessionResults.length)) return;
             const sessionGraph = loadSessionGraph(sessionDir);
 
-            const readSelections = (option: string, file: string | undefined): Array<{ id: string; revision: number }> | undefined => {
-                const input = readSessionJsonInput(sessionDir, [{ option, value: file, file: true }]);
+            const readSelections = (option: string, file: string | undefined, stdin?: boolean): Array<{ id: string; revision: number }> | undefined => {
+                const input = readSessionJsonInput(sessionDir, [
+                    { option, value: file, file: true },
+                    { option: `${option.slice(0, -'-file'.length)}-stdin`, stdin },
+                ]);
                 if (!input.ok || !Array.isArray(input.value) || !input.value.every(item => typeof item === 'object' && item !== null && typeof item.id === 'string' && Number.isSafeInteger(item.revision))) {
                     console.log(JSON.stringify(createErrorEnvelope(
                         input.ok ? 'INVALID_APPROVAL_SELECTION' : input.code,
@@ -1572,8 +1591,8 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                 return input.value as Array<{ id: string; revision: number }>;
             };
 
-            const applySkip = (option: string, file: string | undefined, skipped: boolean): boolean => {
-                const selections = readSelections(option, file);
+            const applySkip = (option: string, file: string | undefined, stdin: boolean, skipped: boolean): boolean => {
+                const selections = readSelections(option, file, stdin);
                 if (!selections) return false;
                 const result = setSkipped(sessionDir, selections, skipped);
                 if (result.error) {
@@ -1584,13 +1603,15 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
                 return true;
             };
 
-            if (opts.skipFile || opts.unskipFile) {
-                if (opts.skipFile && opts.unskipFile) {
-                    console.log(JSON.stringify(createErrorEnvelope('MULTIPLE_SKIP_ACTIONS', 'Use only one of --skip-file or --unskip-file'), null, 2));
+            if (opts.skipFile || opts.unskipFile || opts.skipStdin || opts.unskipStdin) {
+                if ((opts.skipFile || opts.skipStdin) && (opts.unskipFile || opts.unskipStdin)) {
+                    console.log(JSON.stringify(createErrorEnvelope('MULTIPLE_SKIP_ACTIONS', 'Use only one of --skip-file, --skip-stdin, --unskip-file or --unskip-stdin'), null, 2));
                     process.exitCode = 1;
                     return;
                 }
-                process.exitCode = applySkip(opts.skipFile ? '--skip-file' : '--unskip-file', opts.skipFile ?? opts.unskipFile, Boolean(opts.skipFile)) ? 0 : 1;
+                const skipping = Boolean(opts.skipFile || opts.skipStdin);
+                const option = skipping ? '--skip-file' : '--unskip-file';
+                process.exitCode = applySkip(option, opts.skipFile ?? opts.unskipFile, skipping ? opts.skipStdin : opts.unskipStdin, skipping) ? 0 : 1;
                 return;
             }
 
@@ -1601,7 +1622,7 @@ export async function runCli(args: string[], service: SearXNGService): Promise<n
             // Approval is allowed only after reporting what is waiting and how
             // much of it carries a body.
             if (opts.approveFile) {
-                const selections = readSelections('--approve-file', opts.approveFile);
+                const selections = readSelections('--approve-file', opts.approveFile, opts.approveStdin);
                 if (!selections) {
                     process.exitCode = 1;
                     return;

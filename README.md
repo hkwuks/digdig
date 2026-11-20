@@ -907,7 +907,7 @@ No extra npm dependencies needed — Obscura is called via CLI. Auto-detected fr
 | `dg graph-drill <session>` | Follow specific relations |
 | `dg graph-traverse <session>` | Traverse reasoning paths |
 | `dg graph-obfuscate <session>` | List obfuscation candidates |
-| `dg results-add <session> --kind <search|extracted> --data-file <path>` | Import external discovery or extracted bodies from session-scoped UTF-8 JSON |
+| `dg results-add <session> --kind <search|extracted> --data-file <path>` | Import external discovery or extracted bodies from session-scoped UTF-8 JSON; every JSON-input command also accepts `--data-stdin` |
 | `dg doc-index <path>` | Index local documents for BM25 search |
 | `dg doc-search <session> <query> --path <path>` | Search indexed docs and inject results into session |
 | `dg claim-add <session> --claims-file <path>` | Submit atomic claims from UTF-8 JSON (single or batch, auto evidence-search) |
@@ -1007,6 +1007,8 @@ Exa and Jina direct search read `EXA_API_KEY` and `JINA_API_KEY`. For Tavily and
 `dg --engines-list` reports provider configuration as `not_configured` or `unverified`: configuration is not proof of valid authentication, and external providers are not queried for a paid probe. SearXNG discovery may still request its `/config` endpoint. Search output includes `providerResults` per query and provider: `received` is the provider response count; `returned` is the number included after filtering, fusion and limits. A successful session call has already saved the returned results. Agents should use them before searching externally; zero results, failures, unsupported capabilities or an evidence gap can justify a follow-up. A session error can include `partialResults` and `sessionWrite: unconfirmed` so the caller can inspect and import rather than repeat a paid search.
 
 Jina search content is marked `contentCompleteness: unverified`; `--quality` warns about possibly incomplete historic search bodies without changing them. Independent concurrent Agents are not intercepted or globally deduplicated.
+
+Host-private MCP tools stay available through Agent calls and `results-add`. Whatever the host returns — an MCP result, a native tool call, a page you already fetched — can be imported with one command, either from a session-scoped file or from stdin. Whether that keeps the body out of the model's context depends on the host: only one that can call the tool from code and hand back just the code's output avoids the read. Even where it cannot, importing once stops the same body being read again on later turns. No host's credentials are shared, and provider charges are unchanged. See [`skills/digdig/references/importing-agent-results.md`](skills/digdig/references/importing-agent-results.md).
 
 Engine selection uses explicit `--engines`, then `DIGDIG_DEFAULT_ENGINE`, then `DIGDIG_ALLOWED_ENGINES`; when all are empty, the backend chooses its defaults. A nonempty allowlist also restricts the default engine. External providers generally require API keys and may incur charges; an installed Tavily CLI can also use its keyless mode.
 

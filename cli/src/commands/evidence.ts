@@ -77,6 +77,7 @@ export async function runEvidenceVerify(
   options: {
     claimId: string;
     evidenceFile?: string;
+    evidenceStdin?: boolean;
     stance: 'support' | 'refute' | 'insufficient';
     reason: string;
     confidence?: number;
@@ -93,7 +94,10 @@ export async function runEvidenceVerify(
     console.log(JSON.stringify(createErrorEnvelope('INVALID_CONFIDENCE', 'Confidence must be a number between 0 and 1'), null, 2));
     return 1;
   }
-  const input = readSessionJsonInput(sessionDir, [{ option: '--evidence-file', value: options.evidenceFile, file: true }]);
+  const input = readSessionJsonInput(sessionDir, [
+    { option: '--evidence-file', value: options.evidenceFile, file: true },
+    { option: '--evidence-stdin', stdin: options.evidenceStdin },
+  ]);
   if (!input.ok) {
     console.log(JSON.stringify(createErrorEnvelope(input.code, input.message), null, 2));
     return 1;
