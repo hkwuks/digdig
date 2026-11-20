@@ -1026,7 +1026,7 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## 订正三份 README 的过时内容：Query Plan/Quality Assess 阶段、provide
 
 - ID: TF-20261119-a4b3d4
-- Status: inbox
+- Status: promoted
 - Priority: normal
 - Owner: Claude
 - Source: direct user request
@@ -1034,5 +1034,5 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Added: 2026-11-19
 - Updated: 2026-11-19
 - Goal: 订正三份 README 的过时内容：Query Plan/Quality Assess 阶段、provider 列表、跨文件事务限制、悬空引用的 PRD-005、缺失命令与选项
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: `TaskFlowDocs/2026-11-19-readme-refresh/`
+- Next action: Complete PRD / Spec / Plan and request approval.
