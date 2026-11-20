@@ -2,7 +2,7 @@
 
 <p align="center">
   <b>A multi-backend web search CLI for agents</b><br>
-  SearXNG · Ollama · DeepSeek — privacy-respecting search from your terminal
+  SearXNG · Ollama · DeepSeek · Exa · Tavily · Firecrawl · Jina — privacy-respecting search from your terminal
 </p>
 
 <p align="center">
@@ -929,7 +929,7 @@ No extra npm dependencies needed — Obscura is called via CLI. Auto-detected fr
 
 | Option | Description |
 |--------|-------------|
-| `-e, --engines <list>` | Comma-separated list of search engines (e.g., `google,github`); `ollama` and `deepseek` route to those providers instead of SearXNG |
+| `-e, --engines <list>` | Comma-separated list of search engines (e.g., `google,github`); `ollama`, `deepseek`, `exa`, `tavily`, `firecrawl` and `jina` route to those providers instead of SearXNG |
 | `-c, --categories <list>` | Comma-separated list of categories (e.g., `it,science`) |
 | `-l, --limit <n>` | Maximum number of results (default: 10) |
 | `-p, --page <n>` | Page number for pagination |
@@ -1042,12 +1042,12 @@ Create `digdig.config.json`:
 
 ## 🧠 Deep Search
 
-Deep search enables multi-round iterative research with session accumulation, counted coverage facts, agent-controlled graph injection, and a Query Plan that records what is still missing.
+Deep search enables multi-round iterative research with session accumulation, counted coverage facts, agent-controlled graph injection, and a claim–evidence–review pipeline. The CLI reports what the session has gathered — `dg coverage` for the whole-session view, `--quality` for per-result extraction and verification state. Deciding which aspects remain uncovered is the Agent's judgement; no algorithm in the CLI scores it.
 
 ### Workflow
 
 ```
-Search → Extract → Quality Assess → Approve → Build Graph → (Loop or Explore)
+Search → Extract → Review Facts → Approve → Build Graph → (Loop or Explore)
                                                                          ↓
                                           (L2/L3) Claim—Evidence—Review → Final Output
 ```
@@ -1089,6 +1089,13 @@ A `--session` search shows only what that invocation found; earlier rounds still
 It reports counted facts, not conclusions: rounds with their queries and engines, how many results each round first introduced, how many it returned that an earlier round had already seen, which URLs recur across rounds, per round the terms confined to that round, which hosts the session actually drew from, and which of the common primary-source hosts (arXiv, GitHub, Stack Overflow, package registries) it has not touched. A round whose every result was already known is the clearest saturation signal. Terms spanning every round are the session's subject and are excluded, so each round is named by what it actually added.
 
 Deciding which aspects are covered and which are missing is the Agent's job. `dg coverage` supplies the numbers.
+
+`dg strategy-info` reports which stage the session has moved into (`broad_exploration` vs `targeted_deep_dive`) and the numbers behind that call:
+
+| Option | Description |
+|--------|-------------|
+| `--broad-rounds <n>` | Rounds before the transition check runs (default: 2) |
+| `--transition-threshold <n>` | Entity growth rate that triggers the stage change (default: 0.2) |
 
 ### Quality and Evidence Semantics
 
@@ -1148,6 +1155,20 @@ Two layers:
 | `p:` | Path node | `p:chain_001` |
 
 Graph navigation commands: `graph-search` (discover entities), `graph-explore` (view relations), `graph-drill` (follow specific relations), `graph-traverse` (traverse reasoning paths).
+
+Options on these commands:
+
+| Command | Option | Description |
+|---------|--------|-------------|
+| `graph-search` | `--keyword <term>`, `-l, --limit <n>` | Keyword to match; max results (default: 10) |
+| `graph-explore` | `--seed <entity>` | Entity ID or label to explore |
+| `graph-drill` | `--seed <entity>`, `--relations <list>` | Entity to start from; relations to follow |
+| `graph-traverse` | `--path <id>` | Path node ID from `graph-preprocess` |
+| `graph-preprocess` | `--top <n>` | Top N terms to return (default: 30) |
+| `graph-preprocess` | `--max-terms <n>` | Max terms for the co-occurrence matrix (default: 50) |
+| `graph-preprocess` | `--co-occurrence-threshold <n>` | Min co-occurrence count (default: 2) |
+| `graph-obfuscate` | `--list` / `--fallback-rules` / `--skip-types <t1,t2>` | List candidates (default); apply rule-based labels (experimental); skip entity types |
+| `graph-pending` | *(no options)* | Semantic facts awaiting source reconfirmation |
 
 `graph-preprocess` returns `resultProvenance` (`id`, `revision`, `url`, `title`, `approval`) for every extracted body. For each semantic entity or edge, copy one or more currently approved `id` values into `sourceResultIds`. This keeps semantic facts traceable to the exact approved bodies rather than a search round.
 
@@ -1222,12 +1243,10 @@ dg doc-search <session-name> "search query" --path ./docs
 
 ### Known Limitations
 
-- Session result and graph mutations use a per-session lock plus atomic replacement; Claim, Evidence, and Review files still have no cross-file transaction.
+- Session result and graph mutations use a per-session lock plus a transaction. Claims, evidence, verdicts and reviews live in the same `session.sqlite`, so one `evidence-verify` writes all four tables in a single transaction rather than across separate files.
 - URL extraction is not an SSRF security boundary; use only trusted public URLs.
 - Local document scanning has no defined symbolic-link boundary or cycle policy.
 - Index rebuilds overwrite the current persistence files; an interruption or disk failure can require re-indexing.
-
-See the local, not-yet-published PRD-005 design-improvements document for the deferred remediation plan.
 
 ---
 
