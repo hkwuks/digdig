@@ -17,6 +17,8 @@
 ## Acceptance Criteria
 1. explore 和 drill 可使用 ID，ID 与标签冲突时 ID 优先。
 2. 标题拼写错误可触发兜底；frontmatter 标题不重复。
+
+> **2026-11-21 补记** — 第 2 条当时只落实了一半：`searcher.ts` 加了 `headings[0] === title ? slice(1)` 的补偿，但源头 `scanner.ts` 仍在把 frontmatter 标题前插进 `headings`，于是「frontmatter 标题与 H1 同名」这种主流形态仍然输出 `My Title — My Title`。已由 `TF-20261121-567c56` 在源头修正（`headings` 只含章节标题），补偿逻辑随之删除。保留原文供追溯。
 3. 首次纯导入的轮次与 origin 一致，后续导入不额外开轮。
 4. 质量输出采用首次 origin 的工具。
 5. claim-add 无效输入不创建会话，其他相关命令校验后创建。
