@@ -1070,13 +1070,7 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## 收敛融合排序的分数与位次：单 ranking 时不写 fusionScore，rank
 
 - ID: TF-20261121-de31b6
-- Status: promoted
-- Priority: normal
-- Owner: Claude
-- Source: direct user request
-- Kind: capability
-- Added: 2026-11-21
-- Updated: 2026-11-21
+- Status: done
 - Goal: 收敛融合排序的分数与位次：单 ranking 时不写 fusionScore，rank 只在 fuse.ts 赋一次，删除 service.ts 与 fuse.ts 重复的过滤去重
-- Task: `TaskFlowDocs/2026-11-21-fusion-rank/`
-- Next action: Complete PRD / Spec / Plan and request approval.
+- Task: `TaskFlowDocs/achieved/2026-11-21-fusion-rank/`
+- Next action: None — completed and archived.

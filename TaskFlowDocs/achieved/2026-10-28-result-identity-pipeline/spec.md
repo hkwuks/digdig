@@ -129,6 +129,8 @@ function fuseResults(input: PipelineInput): PipelineOutput
 
 本任务的流水线在写库前统一设定 `rank`：融合后的位次即 `rank`，与 `fusionScore` 同源、同序。这样 `session.ts` 的覆写行为不再是"可能覆盖成另一个坐标系的数"，`graph.ts:166` 的 fallback 也只在图由非流水线路径构建时生效。
 
+> **2026-11-21 补记** — 本节描述的计划当时未落到代码：`service.ts:246` 仍按 provider 过滤后的下标赋值，`runCli.ts:793` 有会话时又覆盖一次。已由 `TF-20261121-de31b6` 完成，`rank` 现在只在 `fuse.ts` 按最终排序结果赋一次。保留原文供追溯。
+
 ### 3.6 `totalResults` 在融合前后不一致
 
 `runCli.ts:711`（单查询）用 `results.numberOfResults`，这是 `mergeResponses` 对**各 provider 自报数量**求和，包含被去重掉的那些；`:871`（多查询）用 `allResults.length`，是**去重前**的数组长度。两者的共同点是都不等于实际输出的条数。
