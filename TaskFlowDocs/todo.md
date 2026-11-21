@@ -1092,13 +1092,7 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## 忽略 Python 编译产物：.gitignore 加入 __pycache__/，并处理 D11 遗
 
 - ID: TF-20261121-0686e7
-- Status: promoted
-- Priority: normal
-- Owner: Claude
-- Source: direct user request
-- Kind: capability
-- Added: 2026-11-21
-- Updated: 2026-11-21
+- Status: done
 - Goal: 忽略 Python 编译产物：.gitignore 加入 __pycache__/，并处理 D11 遗留项与 source-migration 并发 flaky
-- Task: `TaskFlowDocs/2026-11-21-pycache-d11/`
-- Next action: Complete PRD / Spec / Plan and request approval.
+- Task: `TaskFlowDocs/achieved/2026-11-21-pycache-d11/`
+- Next action: None — completed and archived.
