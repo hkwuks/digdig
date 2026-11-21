@@ -100,6 +100,14 @@ export function fuseResults(input: FusionInput): FusionOutput {
 
     const fused = rankings.length > 0 ? rrf(rankings) : [];
 
+    // With one ranking there was nothing to fuse: `rrf` hands every id
+    // 1/(k + position), which is a monotone restatement of the position and not
+    // a second opinion about it. Writing that as `fusionScore` invites a reader
+    // to compare it against the provider's own `score`, which measures
+    // something else entirely. Absent is the honest answer; `rank` carries the
+    // position the caller actually asked for.
+    const fusedScore = rankings.length > 1;
+
     const originsByKey = new Map<string, ResultOrigin[]>();
     const currentKeys = new Set<string>();
     const current = new Map<string, SearchResult>();
@@ -131,7 +139,16 @@ export function fuseResults(input: FusionInput): FusionOutput {
         if (input.onlyCurrent && !currentKeys.has(item.id)) continue;
         const original = current.get(item.id);
         if (!original) continue;
-        projected.push({ ...original, fusionScore: item.score });
+        // `rank` is assigned here and nowhere else. Providers used to stamp their
+        // own position (service.ts) and the session path used to overwrite it
+        // after fusion, so one field meant two different orders depending on
+        // which path produced it. The position a caller can see is the position
+        // this function returns, so this is where it is decided.
+        projected.push({
+            ...original,
+            ...(fusedScore ? { fusionScore: item.score } : {}),
+            rank: projected.length + 1,
+        });
     }
 
     const display = input.limit > 0 ? projected.slice(0, input.limit) : projected;

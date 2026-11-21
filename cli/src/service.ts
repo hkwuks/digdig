@@ -6,7 +6,6 @@ import { feedbackLog } from './feedback-log.js';
 import axios, { AxiosInstance } from 'axios';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import { config } from './config.js';
-import { dedupe, filterEmptyResults } from './deep/dedupe.js';
 import { SearchError, searchErrorFromStatus } from './errors.js';
 
 export interface SearchOptions {
@@ -238,17 +237,15 @@ export class SearXNGService {
                 score: item.score
             }));
 
-            // Filter out results with empty title or content
-            const filtered = filterEmptyResults(results);
-
-            // Deduplicate: Jaccard removes near-duplicate content,
-            // URL dedup catches what SearXNG missed (e.g. trailing slash variants)
-            const deduped = dedupe(filtered).map((result, index) => ({ ...result, rank: index + 1 }));
-
-            feedbackLog('provider', 'ok', { provider: 'searxng', total: results.length, count: deduped.length, failed: results.length - filtered.length });
+            // No filtering or deduplication here. `fuse.ts` runs both over every
+            // provider response before ranking, and doing it twice meant two
+            // places had to agree about what "one result" is. The provider's own
+            // `--limit` stays: it is this provider's API ceiling, not a display
+            // decision.
+            feedbackLog('provider', 'ok', { provider: 'searxng', total: results.length, count: results.length, failed: 0 });
             const limitedResults = options.limit && options.limit > 0
-                ? deduped.slice(0, options.limit)
-                : deduped;
+                ? results.slice(0, options.limit)
+                : results;
 
             const searchResponse: SearchResponse = {
                 query: data.query || options.query,
