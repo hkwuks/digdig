@@ -214,4 +214,61 @@ describe('fuseResults', () => {
         expect(output.display).toEqual([]);
         expect(output.fused).toEqual([]);
     });
+
+    describe('rank and fusionScore', () => {
+        const two = (q: string, n: number) => response(q, [
+            result(`https://site${n}.test/a`, { content: 'alpha beta gamma' }),
+            result(`https://site${n}.test/b`, { content: 'delta epsilon zeta' }),
+        ]);
+
+        it('omits fusionScore when a single ranking means nothing was fused', () => {
+            const output = fuseResults({ responses: [two('q', 1)], onlyCurrent: false, limit: 10 });
+
+            // 1/(k+i) is a monotone restatement of the position, not a second
+            // opinion about it. Absent says that; a number would invite a
+            // comparison against the provider's own `score`.
+            expect(output.display.map(r => r.fusionScore)).toEqual([undefined, undefined]);
+            expect(output.display.map(r => r.rank)).toEqual([1, 2]);
+        });
+
+        it('writes fusionScore once more than one ranking participates', () => {
+            const output = fuseResults({
+                responses: [two('q1', 1), two('q2', 2)],
+                onlyCurrent: false,
+                limit: 10,
+            });
+
+            expect(output.display.every(r => typeof r.fusionScore === 'number')).toBe(true);
+            expect(output.display.map(r => r.rank)).toEqual([1, 2, 3, 4]);
+        });
+
+        it('numbers rank over the displayed set, not over each provider', () => {
+            const output = fuseResults({
+                responses: [response('q', [
+                    result('https://x.test/1'),
+                    result('https://x.test/2'),
+                    result('https://x.test/3'),
+                ])],
+                onlyCurrent: false,
+                limit: 2,
+            });
+
+            expect(output.display.map(r => r.rank)).toEqual([1, 2]);
+        });
+
+        it('numbers rank from one only after history stops contributing to the display', () => {
+            const output = fuseResults({
+                responses: [response('q', [result('https://new.test/1')])],
+                sessionSnapshot: [{ url: 'https://old.test/1' }, { url: 'https://old.test/2' }],
+                onlyCurrent: true,
+                limit: 10,
+            });
+
+            // History voted, so fusionScore is meaningful, but only the current
+            // result is shown — and its rank is its position among what is shown.
+            expect(output.display).toHaveLength(1);
+            expect(output.display[0].rank).toBe(1);
+            expect(typeof output.display[0].fusionScore).toBe('number');
+        });
+    });
 });

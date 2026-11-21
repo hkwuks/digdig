@@ -1311,7 +1311,9 @@ Rank: 1 · Engine: google · Category: general · Retrieved: 2026-09-09T00:00:00
 ```
 
 结果元数据中的 `score` 保留搜索引擎原始值，不表示跨引擎统一百分比；多查询和
-Session 融合时使用独立的 `fusionScore`。`publishedDate` 是来源发布时间（如引擎提供），
+Session 融合时使用独立的 `fusionScore`。单查询如果只用到一家 provider，就没有
+可融合的东西，此时 `fusionScore` 不出现，而不是把位置换算一遍——这种场景请看
+`score`，位置看 `rank`。`publishedDate` 是来源发布时间（如引擎提供），
 `retrievedAt` 是 digdig 收到结果的时间。
 
 #### JSON 信封格式

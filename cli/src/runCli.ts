@@ -788,11 +788,9 @@ async function runSearchInner(
         let sessionInfo: ReturnType<typeof appendAndInjectSessionResults> | null = null;
         if (options.session) {
             feedbackLog('session', 'start');
-            sessionInfo = appendAndInjectSessionResults(options.session, fusion.display.map((result, index) => ({
+            sessionInfo = appendAndInjectSessionResults(options.session, fusion.display.map(result => ({
                 ...result,
-                // The fused position, so `rank` and `fusionScore` describe the same
-                // order instead of one provider's and one RRF's.
-                rank: index + 1,
+                // `rank` comes from the fusion, so it is not restated here.
                 origins: fusion.originsByKey.get(resultUrlKey(result)),
             })), searchRound);
             feedbackLog('session', 'ok', { count: sessionInfo.added, total: sessionInfo.total });
