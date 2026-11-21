@@ -77,6 +77,35 @@ describe('local-doc scanner', () => {
         expect(chunks[0].title).toBe('no-frontmatter.md');
     });
 
+    it('keeps the document title out of the section headings', () => {
+        // The common shape: frontmatter title and the first H1 are the same
+        // words. `headings` is section headings only, so the title appears once.
+        testDir = createTestDir({
+            'same.md': '---\ntitle: My Title\n---\n\n# My Title\n\nBody text here.',
+        });
+        const chunks = scan(testDir);
+        expect(chunks[0].title).toBe('My Title');
+        expect(chunks[0].headings).toEqual(['My Title']);
+    });
+
+    it('leaves headings alone when there is no frontmatter title', () => {
+        testDir = createTestDir({
+            'plain.md': '# First\n\nOne.\n\n# Second\n\nTwo.',
+        });
+        const chunks = scan(testDir);
+        expect(chunks[0].headings).toEqual(['First']);
+        expect(chunks[1].headings).toEqual(['Second']);
+    });
+
+    it('does not duplicate a frontmatter title that differs from the heading', () => {
+        testDir = createTestDir({
+            'differs.md': '---\ntitle: Document Title\n---\n\n# Section A\n\nBody.',
+        });
+        const chunks = scan(testDir);
+        expect(chunks[0].title).toBe('Document Title');
+        expect(chunks[0].headings).toEqual(['Section A']);
+    });
+
     it('splits txt files by paragraphs', () => {
         testDir = createTestDir({
             'notes.txt': 'First paragraph.\n\nSecond paragraph.\n\nThird paragraph.',

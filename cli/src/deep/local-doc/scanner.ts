@@ -143,7 +143,11 @@ function scanFile(absFile: string, context: ScanContext): ScannedFile | null {
       filePath: relFile,
       title,
       content: chunkContent,
-      headings: frontmatterTitle ? [title, ...rawChunk.headings] : rawChunk.headings,
+      // Section headings only. The document title is already `title`; prefixing
+      // it here made `headings` carry two different things, so a file whose
+      // frontmatter title matches its first heading had that heading twice and
+      // no consumer could tell which copy was the document title.
+      headings: rawChunk.headings,
       chunkIndex: index,
       totalChunks: rawChunks.length,
     });
