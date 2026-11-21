@@ -1,6 +1,6 @@
 # Plan — 忽略 Python 编译产物、修复 WAL 切换竞态、删除图采样模块
 > Task version: v2
-> Status: planning
+> Status: completed
 
 No spec required — four changes, each independently verifiable, with the concurrency failure and the sampling module's call graph both already established.
 

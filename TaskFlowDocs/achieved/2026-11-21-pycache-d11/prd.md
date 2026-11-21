@@ -1,6 +1,6 @@
 # 忽略 Python 编译产物、修复 WAL 切换竞态、删除已废弃的图采样模块
 > Task version: v2
-> Status: planning
+> Status: completed
 
 ## Goal
 
