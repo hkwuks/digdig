@@ -5,7 +5,6 @@
  *
  * Targets:
  *   TF-IDF          <100ms / 100 results
- *   Graph sampling  <100ms / <1000 nodes
  *   Jaccard         <1ms   / query pair
  *   Quality assess  <50ms  / 500 results
  *   Graph explore   <100ms / <1000 nodes
@@ -16,7 +15,6 @@ import { describe, it, expect, vi } from 'vitest';
 import { DirectedGraph } from 'graphology';
 import { tokenize } from '../../src/deep/tfidf.js';
 import { getEntityDegree } from '../../src/deep/degree-utils.js';
-import { sampleGraph } from '../../src/deep/graph-sampling.js';
 import { checkQueryRedundancy } from '../../src/deep/query-redundancy.js';
 import {
     exploreSeedEntity,
@@ -113,28 +111,6 @@ describe('Performance Benchmarks', () => {
             expect(degree).toBeGreaterThanOrEqual(0);
             expect(elapsed).toBeLessThan(5);
             console.log(`  getEntityDegree (1000 nodes): ${elapsed.toFixed(3)}ms`);
-        });
-    });
-
-    describe('Graph sampling', () => {
-        it('samples a graph with <1000 nodes in <100ms', () => {
-            const graph = buildLargeGraph(900, 1.5);
-            const seedEntities: string[] = [];
-            graph.forEachNode((node: string, attrs: GraphNodeAttrs) => {
-                if (attrs.type === 'entity' && seedEntities.length < 2) {
-                    seedEntities.push(node);
-                }
-            });
-
-            const { result, elapsed } = measure(() => sampleGraph(graph, {
-                strategy: 'augmented_chain',
-                seedEntities: seedEntities.length > 0 ? seedEntities : ['n:0'],
-                maxHops: 5,
-            }));
-
-            expect(result.entities.length).toBeGreaterThanOrEqual(0);
-            expect(elapsed).toBeLessThan(100);
-            console.log(`  Graph sampling (900 nodes): ${elapsed.toFixed(2)}ms, entities=${result.entities.length}`);
         });
     });
 

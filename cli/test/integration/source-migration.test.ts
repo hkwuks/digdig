@@ -102,6 +102,37 @@ describe('source independence migration', () => {
     expect(db.prepare('SELECT count(*) AS n FROM review_history').get()?.n).toBe(1);
     db.close();
   }, 30000);
+
+  it('switches to WAL while another process holds a write transaction', async () => {
+    // The upgrade transaction is serialized by `BEGIN IMMEDIATE`, but the
+    // `PRAGMA journal_mode=WAL` that follows it is not: it needs an exclusive
+    // moment and, with another connection holding a write transaction, throws
+    // `database is locked` in 0 ms instead of honouring `timeout`. That is a
+    // distinct failure from the migration race above, and it only reproduces
+    // with a second *process* — inside one process SQLite does not yield to
+    // itself. Two workers opening one session file hit it whenever the first
+    // commits its upgrade while the second reaches the pragma.
+    const migrated = openSessionDatabase(file);
+    migrated.close();
+    const plain = new DatabaseSync(file);
+    expect(plain.prepare('PRAGMA journal_mode=DELETE').get()?.journal_mode).toBe('delete');
+    plain.close();
+
+    const holderScript = "const { DatabaseSync } = await import('node:sqlite'); const db = new DatabaseSync(process.argv[1], { timeout: 5000 }); db.exec('BEGIN IMMEDIATE'); console.log('HELD'); setTimeout(() => { try { db.exec('COMMIT'); } catch {} process.exit(0); }, 400);";
+    const holder = spawn(process.execPath, ['--experimental-transform-types', '--input-type=module', '-e', holderScript, file], { cwd: process.cwd(), stdio: ['ignore', 'pipe', 'ignore'] });
+    try {
+      await new Promise<void>((resolve, reject) => {
+        holder.stdout.once('data', () => resolve());
+        holder.once('error', reject);
+      });
+      const opened = openSessionDatabase(file);
+      expect(opened.prepare('PRAGMA journal_mode').get()?.journal_mode).toBe('wal');
+      opened.close();
+    } finally {
+      holder.kill();
+      await new Promise<void>(resolve => holder.once('exit', () => resolve()));
+    }
+  }, 30000);
 });
 
 it('also invalidates old automatic reviews imported from legacy JSON', () => {

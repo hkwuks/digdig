@@ -20,12 +20,7 @@ import { createProgram } from '../../src/runCli.js';
  * table. Each needs a reason: an unexplained entry is how an unwanted command
  * quietly stays hidden.
  */
-const EXEMPT: Array<{ name: string; reason: string }> = [
-    {
-        name: 'query-graph',
-        reason: 'deprecated in runCli.ts:809 in favor of graph-explore + graph-drill',
-    },
-];
+const EXEMPT: Array<{ name: string; reason: string }> = [];
 
 /**
  * Documents whose command tables must agree with `createProgram()`.

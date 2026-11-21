@@ -218,7 +218,25 @@ export function openSessionDatabase(file: string): DatabaseSync {
                 db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
             });
         }
-        db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;');
+        // Switching a database into WAL needs an exclusive moment, and it does
+        // **not** honour `timeout` the way `BEGIN IMMEDIATE` does: with another
+        // connection holding a write transaction this throws `database is
+        // locked` in 0 ms rather than waiting. Two processes opening the same
+        // session file race exactly here — the second one finishes its own
+        // migration and then collides with the first one's transaction — which
+        // is the `[1, 0]` the concurrency test saw. Retry briefly, and treat a
+        // database that is already in WAL as done.
+        for (let attempt = 0; ; attempt++) {
+            try {
+                const mode = db.prepare('PRAGMA journal_mode=WAL').get()?.journal_mode;
+                if (mode !== 'wal') throw new Error(`journal_mode is ${String(mode)}`);
+                db.exec('PRAGMA synchronous=FULL');
+                break;
+            } catch (error) {
+                if (attempt === 19) throw error;
+                Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50);
+            }
+        }
         return db;
     } catch (error) {
         db.close();

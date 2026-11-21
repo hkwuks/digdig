@@ -72,7 +72,11 @@ describe('CLI program (commander)', () => {
         const commandNames = program.commands.map(c => c.name());
         expect(commandNames).toContain('init');
         expect(commandNames).toContain('extract');
-        expect(commandNames).toContain('query-graph');
+        // Removed 2026-11-21: the whole sampling module went with it. It was
+        // query-blind topology (degree only), so a graph subgraph it returned
+        // answered "what does the corpus mention most", not "what does this
+        // question need" — `graph-explore` + `graph-drill` hold the query.
+        expect(commandNames).not.toContain('query-graph');
         expect(commandNames).toContain('graph-add');
         expect(commandNames).toContain('session-list');
         expect(commandNames).toContain('session-delete');
@@ -107,15 +111,6 @@ describe('CLI program (commander)', () => {
         expect(optionFlags.some(f => f.includes('--redundancy'))).toBe(true);
         expect(optionFlags.some(f => f.includes('--quality'))).toBe(true);
         expect(optionFlags.some(f => f.includes('--threshold-override'))).toBe(false);
-    });
-
-    it('query-graph has seeds, depth, and strategy options', () => {
-        const qg = program.commands.find(c => c.name() === 'query-graph');
-        expect(qg).toBeDefined();
-        const flags = qg!.options.map(o => o.flags);
-        expect(flags.some(f => f.includes('--seeds'))).toBe(true);
-        expect(flags.some(f => f.includes('--depth'))).toBe(true);
-        expect(flags.some(f => f.includes('--strategy'))).toBe(true);
     });
 
     it('registers JSON file input options for structured write commands', () => {

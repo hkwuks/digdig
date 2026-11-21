@@ -25,7 +25,7 @@ export const EDGE_RELATIONS = {
     includes: 'includes',             // path → entity
 } as const;
 
-export type PathType = 'composition_chain' | 'conjunction' | 'augmented_chain' | 'community_core_path' | 'dual_core_bridge';
+export type PathType = 'composition_chain' | 'conjunction';
 
 export interface GraphNodeAttrs {
     type: 'entity' | 'result' | 'query' | 'domain' | 'path';
@@ -102,9 +102,6 @@ export function domainId(domain: string): string {
 const PATH_TYPE_PREFIX: Record<PathType, string> = {
     composition_chain: 'chain',
     conjunction: 'conj',
-    augmented_chain: 'aug',
-    community_core_path: 'core',
-    dual_core_bridge: 'bridge',
 };
 
 /** Generate the next path node ID for a given path type.
