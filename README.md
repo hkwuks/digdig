@@ -1326,8 +1326,11 @@ Rank: 1 · Engine: google · Category: general · Retrieved: 2026-09-09T00:00:00
 
 Result metadata keeps the source engine's `score` unchanged. It is not a
 cross-engine percentage; multi-query and session fusion uses a separate
-`fusionScore`. `publishedDate` is the source publication date when available,
-while `retrievedAt` records when digdig received the result.
+`fusionScore`. A single query that never reached a second provider has nothing
+to fuse, so `fusionScore` is absent rather than a restatement of the position —
+read `score` there, and `rank` for the order. `publishedDate` is the source
+publication date when available, while `retrievedAt` records when digdig
+received the result.
 
 #### JSON Envelope Format
 

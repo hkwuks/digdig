@@ -368,6 +368,14 @@ See SOP for detailed L1/L2/L3 complexity guidelines.
 
 ## Result Quality Filtering
 
+### Reading the scores
+
+`score` is the source engine's own value. It means different things in different engines and is not comparable across them.
+
+`fusionScore` exists only when something was actually fused — multi-query, several providers, `--merge`, or session history. A single query that reached one provider has nothing to fuse, so the field is **absent**. Do not read that as zero or as a missing value, and do not rank results by it in that case; the order is already in `rank`.
+
+`rank` is the position in the output you received, assigned once, after any fusion. It is the only order signal that is always present.
+
 When presenting search results to the user, apply lightweight quality judgment based on your own understanding. This is not a separate step; just a natural part of reading and outputting results.
 
 **Filter out** results that clearly fall into these categories:

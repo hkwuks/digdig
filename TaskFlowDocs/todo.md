@@ -1066,3 +1066,17 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Goal: **2026-11-20 取消** — 整个方向被放弃，不是延后。跨宿主 hook 的兼容矩阵（Claude Code 的 `updatedToolOutput` 要求替换值与工具原输出形状一致、CodeBuddy 的 frontmatter hooks 只在 `context: fork` 生效、Codex/dsh/Trae 无改写字段）维护成本高于它挡住的那一次上下文读取。替代方案是 `--data-stdin`（`TF-20261120-b75811`）：一条命令、所有宿主通用、不需要插件或映射表。原始描述保留供追溯：把 MCP 桥接从 cli/ 内部挪成独立插件，按宿主分发 hooks 配置（Claude Code 改写、CodeBuddy 改写、Codex/dsh/Trae 附加上下文）。
 - Task: Not promoted.
 - Next action: None — superseded by `TF-20261120-b75811`.
+
+## 收敛融合排序的分数与位次：单 ranking 时不写 fusionScore，rank
+
+- ID: TF-20261121-de31b6
+- Status: promoted
+- Priority: normal
+- Owner: Claude
+- Source: direct user request
+- Kind: capability
+- Added: 2026-11-21
+- Updated: 2026-11-21
+- Goal: 收敛融合排序的分数与位次：单 ranking 时不写 fusionScore，rank 只在 fuse.ts 赋一次，删除 service.ts 与 fuse.ts 重复的过滤去重
+- Task: `TaskFlowDocs/2026-11-21-fusion-rank/`
+- Next action: Complete PRD / Spec / Plan and request approval.
