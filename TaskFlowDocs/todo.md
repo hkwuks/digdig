@@ -1082,3 +1082,17 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Goal: 清理四项遗留欠账：local-doc frontmatter 标题重复拼接、删除 suggest-queries 命令、config 文件 timeout 无类型校验、createErrorEnvelope 信封码无类型约束，并修正过期任务文档记录
 - Task: `TaskFlowDocs/achieved/2026-11-21-leftover-cleanup/`
 - Next action: None — completed and archived.
+
+## 忽略 Python 编译产物：.gitignore 加入 __pycache__/，并处理 D11 遗
+
+- ID: TF-20261121-0686e7
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: direct user request
+- Kind: capability
+- Added: 2026-11-21
+- Updated: 2026-11-21
+- Goal: 忽略 Python 编译产物：.gitignore 加入 __pycache__/，并处理 D11 遗留项与 source-migration 并发 flaky
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
