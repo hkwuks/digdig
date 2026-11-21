@@ -770,10 +770,16 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Owner: Claude
 - Source: code-review:2026-11-03-deep
 - Added: 2026-11-03
-- Updated: 2026-11-11
+- Updated: 2026-11-21
 - Goal: 一批已确认的小缺陷：graph-explore.ts:457-471 resultCount 按 mentions 入边自增而 resultIds 是 Set（一个结果同时提两个路径实体时 2 vs 1）；graph-sampling.ts:506 mixed 策略在没有 rngSeed 时固定播 42 且 CLI 从不传 seed，--strategy mixed 永远选 community_core_path；local-doc/searcher.ts:184 与 scanner.ts:146 frontmatter 标题重复拼接成 X — X；session.ts:651 对空字符串也赋值 excerpt，Jina/Obscura 的 excerpt:'' 会清掉搜索层摘要；graph-obfuscate.ts:48-55 --fallback-rules 用裸 writeFileSync 写 graph.json，绕开会话锁且非原子；extractor.ts:390-404 与 extract.ts:15-19 把 50-99 字符的 Defuddle 结果记为失败并丢弃可用文本；session.ts:654 写入的 contentLength 无人读取且 Defuddle 记词数、Jina/Obscura 记字符数
 - Task: Not promoted.
-- Next action: frontmatter 标题重复已在批量修复任务处理；PR #56 已处理会话图事务写入和独立图原子替换；PR #61 已处理摘要覆盖、短正文和长度口径；PR #63 已处理图来源计数。废弃命令 mixed 采样按用户决定暂缓；自定义路径只有 graph.json 时保持独立图语义，旧会话可通过目录进入迁移，独立图文件支持的后续处置需另行决定。
+- Next action: frontmatter 标题重复已在批量修复任务处理；PR #56 已处理会话图事务写入和独立图原子替换；PR #61 已处理摘要覆盖、短正文和长度口径；PR #63 已处理图来源计数。
+  **mixed 采样一项的处置于 2026-11-21 改判：整条采样链物理删除，不再是「暂缓」。** 删除范围 `cli/src/deep/graph-sampling.ts`(534 行)、`cli/src/commands/query-graph.ts`(251 行)、`graph.ts` 里三个只服务采样的 `PathType` 成员、3 个引用它的测试文件，以及 `runCli.ts` 的注册块与 import。`TF-20261121-0686e7` 执行。
+  判据上采样的整个前提就不成立，四处缺陷同源：`augmented_chain` 每跳取度数最大的邻居、`community_core_path` 从全图最高度 hub 出发 BFS、`deep_chain` 优化路径长度而非相关性——**度数 = 被提及得多，不等是回答问题所需**；关系名从不参与选择（`collectAllEdgesBetween` 全量收边，`relation` 只打包）；有向图被当无向图（`forEachNeighbor` 不分方向，抹平「A → B」与「B 提到 A」）；种子须一次点全、无反馈环，而 explore/drill 每次只读一个实体并给出 `nextSteps`。根因是这一层**没有 query-aware 输入**：`git grep -in "embedding|pagerank|personalized" -- cli/src` 只命中一行注释，graphology 无 PageRank。拿不到 query 的采样只能拿度数当判据。
+  外部对照（Microsoft GraphRAG / nano-graphrag / LightRAG / HippoRAG / LlamaIndex `KnowledgeGraphRAGRetriever` / Neo4j-NVIDIA G-Retriever）六家检索层**都不随机采样子图**，其「sampling」是 embedding 余弦 top-k、PPR 质量、token 预算切分。唯一检索时随机的 ToG-R 把随机放在 **LLM 已按问题筛完关系之后**的实体展开上，目的是省 LLM 调用——那正是 `graph-drill` 的位置，采样层没有位置。`LEGO-GraphRAG` 实测 random-walk 采样「Recall 上不到 60%，几乎无法在 GraphRAG 中使用」，且 PPR 在所有子图尺寸上全面优于它。
+  **本轮另有两次错误归因经实测否定，一并留痕**：(1) 我把 `source-migration.test.ts` 的 CI 并发失败归为「两进程抢 `BEGIN IMMEDIATE`，后到者无重试」——实测 `BEGIN IMMEDIATE` 是串行的且 `timeout` 生效（等满 5019 ms 才抛），16 进程压测 0 失败；真正的位置是迁移**之后**的 `cli/src/deep/session-db.ts:221`，`PRAGMA journal_mode=WAL` 需要独占时刻且**不遵守 timeout**，另一连接持写事务时 0–1 ms 抛 `database is locked`。跨进程探针：无修复 0 ms 抛，有修复 305 ms 后成功。注意进程内探针**做不到区分**（SQLite 不让路给自身），只有跨进程能复现。(2) 我一度称 mixed「不用修因为唯一调用者已废弃」——命令确实废弃，但 `sampleGraph` 能力仍在、12 个单测仍绿，正确理由是上面的判据问题。
+  自定义路径只有 graph.json 时保持独立图语义，旧会话可通过目录进入迁移，独立图文件支持的后续处置需另行决定。
+  **延后未处理**：`degree-utils.ts` 的 `getEntitiesWithDegrees` / `adaptiveDegreeRange` / `filterEntitiesByDegree` 在采样删除后已无生产调用者（仍有 18 个单测覆盖），属死代码清理，单独决定；`036e30f` 是一次 20+ 文件大重构，可能还有其他「同一次提交既加功能又标废弃」的遗留，未逐一排查。
 
 ## SKILL.md 命令表漏了 doc-index / doc-search，且没有任何校验
 
@@ -1086,7 +1092,7 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 ## 忽略 Python 编译产物：.gitignore 加入 __pycache__/，并处理 D11 遗
 
 - ID: TF-20261121-0686e7
-- Status: inbox
+- Status: promoted
 - Priority: normal
 - Owner: Claude
 - Source: direct user request
@@ -1094,5 +1100,5 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Added: 2026-11-21
 - Updated: 2026-11-21
 - Goal: 忽略 Python 编译产物：.gitignore 加入 __pycache__/，并处理 D11 遗留项与 source-migration 并发 flaky
-- Task: Not promoted.
-- Next action: Clarify and promote when ready.
+- Task: `TaskFlowDocs/2026-11-21-pycache-d11/`
+- Next action: Complete PRD / Spec / Plan and request approval.

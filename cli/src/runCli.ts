@@ -22,7 +22,6 @@ import { OllamaService, MAX_RESULTS as OLLAMA_MAX_RESULTS } from './ollama-servi
 import { DeepSeekService, MAX_RESULTS as DEEPSEEK_MAX_RESULTS } from './deepseek-service.js';
 import { initConfig } from './init.js';
 import { runExtract, ExtractOptions } from './commands/extract.js';
-import { runQueryGraph, QueryGraphOptions } from './commands/query-graph.js';
 import { runGraphAdd, GraphAddOptions } from './commands/graph-add.js';
 import { runResultsAdd, ResultsAddOptions } from './commands/results-add.js';
 import { runDocIndex } from './commands/doc-index.js';
@@ -942,27 +941,6 @@ export function createProgram(argv: string[] = []): Command {
                 obscura: opts.obscura ?? false,
             };
             const code = await runExtract(extractor, extractOptions);
-            process.exitCode = code;
-        });
-
-    program
-        .command('query-graph')
-        .argument('<path>', 'Graph file or session name')
-        .description('[DEPRECATED] Query subgraph via BFS. Use graph-explore + graph-drill instead.')
-        .option('--seeds <s1,s2>', 'Seed nodes for BFS')
-        .option('--depth <n>', 'BFS depth (default: 2)', val => parseInt(val, 10), 2)
-        .option('--strategy <strategy>', 'Sampling strategy: augmented_chain | dual_core_bridge | community_core_path | deep_chain | mixed')
-        .option('-f, --format <fmt>', 'Output format: md, json')
-        .action(async (path, opts, command) => {
-            console.warn('[DEPRECATED] query-graph is deprecated. Use graph-explore + graph-drill instead.');
-            const graphFormat = command.optsWithGlobals().format === 'json' ? 'json' : 'md';
-            const code = await runQueryGraph({
-                graphFile: path,
-                seeds: opts.seeds?.split(',').map((s: string) => s.trim()).filter(Boolean) || [],
-                depth: opts.depth ?? 2,
-                format: graphFormat,
-                strategy: opts.strategy,
-            });
             process.exitCode = code;
         });
 

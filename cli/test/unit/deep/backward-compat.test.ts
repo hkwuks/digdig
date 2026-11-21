@@ -2,8 +2,12 @@
  * Current session contract regression tests.
  *
  * Verifies:
- * - query-graph BFS behavior without --strategy
+ * - session files written by an older Agent still load
  * - Commander migration consistency
+ *
+ * The `query-graph BFS behavior without --strategy` case this header used to
+ * name never existed in the file, and `query-graph` itself is gone as of
+ * 2026-11-21.
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';

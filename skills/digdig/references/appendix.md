@@ -71,7 +71,6 @@ dg evidence-verify <session> --claim-id "cl_003" --evidence-file ./.digdig/sessi
 | Repeating queries wasting rounds | Use `--redundancy warn` to check redundancy |
 | Not recovering when rounds stop producing | Read `coverage` for per-round new/repeated counts and change direction |
 | Deleting sessions without user approval | Keep session inputs unless the user explicitly asks to delete them |
-| Using `query-graph` | Deprecated, use `graph-explore` + `graph-drill` |
 | Search backend fails -> abandon session | Switch backend (`-e ollama` / `-e deepseek`, or ollama/tavily/exa), inject via `results-add`, keep session |
 | SearXNG returns 0 results -> create new session | The session is decoupled from any backend; use `results-add` instead |
 | Inline JSON or a project-root temp file | Put UTF-8 JSON in `.digdig/sessions/<session>/agent-inputs/` and use `--*-file` |
