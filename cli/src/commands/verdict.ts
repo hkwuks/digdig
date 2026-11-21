@@ -9,7 +9,7 @@ import {
   assertClaimsStoreReadable,
 } from '../claims/store.js';
 import { resolveSessionPath } from '../deep/session.js';
-import { createSuccessEnvelope } from '../protocol.js';
+import { createErrorEnvelope, createSuccessEnvelope } from '../protocol.js';
 
 export async function runVerdictList(
   session: string,
@@ -25,7 +25,7 @@ export async function runVerdictList(
     verdicts = loadVerdicts(sessionDir).filter(v => v.claimId === options.claimId);
   } catch (error) {
     if (error instanceof ClaimsStateError) {
-      console.log(JSON.stringify({ status: 'error', error: { code: 'CLAIMS_STATE_CORRUPTED', message: error.message } }, null, 2));
+      console.log(JSON.stringify(createErrorEnvelope('CLAIMS_STATE_CORRUPTED', error.message), null, 2));
       return 1;
     }
     throw error;

@@ -97,6 +97,24 @@ function loadConfigFile(): Partial<SearXNGConfig> {
     }
 }
 
+/**
+ * Take a numeric field from the config file only if it really is a number.
+ *
+ * `JSON.parse` returns whatever the file says, and the `Partial<SearXNGConfig>`
+ * annotation on `loadConfigFile` is an assertion, not a check: `"timeout": "abc"`
+ * reached axios as a string. The environment-variable side already fell back to
+ * the default on unparseable input; this is the same rule for the file side.
+ *
+ * Falling back rather than failing is deliberate — one typo in a shared config
+ * file should not make the CLI unusable — so the fallback is reported on stderr,
+ * which keeps the JSON envelope on stdout clean.
+ */
+function numericFromFile(name: string, value: unknown, defaultValue: number): number {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    console.warn(`[config] ${name} must be a number; ignoring ${JSON.stringify(value) ?? String(value)} and using ${defaultValue}`);
+    return defaultValue;
+}
+
 function mergeConfig(): SearXNGConfig {
     const config: SearXNGConfig = { ...DEFAULT_CONFIG };
 
@@ -104,13 +122,13 @@ function mergeConfig(): SearXNGConfig {
     if (fileConfig.baseUrl !== undefined) config.baseUrl = fileConfig.baseUrl;
     if (fileConfig.defaultEngine !== undefined) config.defaultEngine = fileConfig.defaultEngine;
     if (fileConfig.allowedEngines !== undefined) config.allowedEngines = fileConfig.allowedEngines;
-    if (fileConfig.defaultLimit !== undefined) config.defaultLimit = fileConfig.defaultLimit;
+    if (fileConfig.defaultLimit !== undefined) config.defaultLimit = numericFromFile('defaultLimit', fileConfig.defaultLimit, DEFAULT_CONFIG.defaultLimit);
     if (fileConfig.defaultFormat !== undefined) config.defaultFormat = fileConfig.defaultFormat;
     if (fileConfig.useProxy !== undefined) config.useProxy = fileConfig.useProxy;
     if (fileConfig.proxyUrl !== undefined) config.proxyUrl = fileConfig.proxyUrl;
-    if (fileConfig.timeout !== undefined) config.timeout = fileConfig.timeout;
-    if (fileConfig.redundancyThreshold !== undefined) config.redundancyThreshold = fileConfig.redundancyThreshold;
-    if (fileConfig.redundancyBigramThreshold !== undefined) config.redundancyBigramThreshold = fileConfig.redundancyBigramThreshold;
+    if (fileConfig.timeout !== undefined) config.timeout = numericFromFile('timeout', fileConfig.timeout, DEFAULT_CONFIG.timeout);
+    if (fileConfig.redundancyThreshold !== undefined) config.redundancyThreshold = numericFromFile('redundancyThreshold', fileConfig.redundancyThreshold, DEFAULT_CONFIG.redundancyThreshold);
+    if (fileConfig.redundancyBigramThreshold !== undefined) config.redundancyBigramThreshold = numericFromFile('redundancyBigramThreshold', fileConfig.redundancyBigramThreshold, DEFAULT_CONFIG.redundancyBigramThreshold);
     if (fileConfig.ollamaApiKey !== undefined) config.ollamaApiKey = fileConfig.ollamaApiKey;
     if (fileConfig.deepseekApiKey !== undefined) config.deepseekApiKey = fileConfig.deepseekApiKey;
 

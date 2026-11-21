@@ -894,7 +894,6 @@ No extra npm dependencies needed — Obscura is called via CLI. Auto-detected fr
 | `dg --session new` | Create deep search session |
 | `dg --session <name> --quality` | List pending results with what the session has gathered, as counted facts |
 | `dg --session <name> --quality --approve-file <path>` | Approve verified pending results selected by `{id, revision}` JSON |
-| `dg suggest-queries <session>` | Get query suggestion data for Agent |
 | `dg strategy-info <session>` | Check current search stage |
 | `dg session-report <session>` | Full session analysis report |
 | `dg coverage <session>` | What the session has looked at so far, as counted facts (rounds, queries, new vs repeated, round-local terms) |

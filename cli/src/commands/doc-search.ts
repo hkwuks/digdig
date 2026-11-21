@@ -17,6 +17,18 @@ export interface DocSearchCliOptions {
   boost: string; // raw string from CLI, e.g. "title:3,headings:2,content:1"
 }
 
+/** Codes the local-doc layer attaches to plain `Error` objects. */
+const DOC_SEARCH_CODES = [
+  'INDEX_BUSY',
+  'INDEX_LOAD_ERROR',
+  'MEMORY_LIMIT_REACHED',
+  'NO_INDEXABLE_FILES',
+  'PATH_NOT_FOUND',
+  'EMPTY_QUERY',
+  'SEARCH_ERROR',
+] as const;
+type DocSearchCode = typeof DOC_SEARCH_CODES[number];
+
 export async function runDocSearch(options: DocSearchCliOptions): Promise<number> {
   try {
     const boost = parseBoost(options.boost);
@@ -41,7 +53,10 @@ export async function runDocSearch(options: DocSearchCliOptions): Promise<number
     return 0;
   } catch (err) {
     const error = err as Error & { code?: string };
-    const code = error.code || 'SEARCH_FAILED';
+    // The local-doc layer throws `{ code }` on plain `Error` objects, so the
+    // code has to be narrowed by hand. Anything unrecognised is a search
+    // failure rather than a new vocabulary word.
+    const code = DOC_SEARCH_CODES.includes(error.code as DocSearchCode) ? error.code as DocSearchCode : 'SEARCH_FAILED';
     const message = error.message || String(err);
     const envelope = createErrorEnvelope(
       code,

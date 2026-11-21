@@ -21,7 +21,7 @@ describe('read-only session commands', () => {
 
   it.each([
     (session: string) => ['session-report', session],
-    (session: string) => ['suggest-queries', session],
+    (session: string) => ['coverage', session],
     (session: string) => ['graph-preprocess', session],
     (session: string) => ['--session', session, '--quality'],
   ])('rejects a missing session without creating it', async args => {
@@ -34,7 +34,7 @@ describe('read-only session commands', () => {
 
   it.each([
     (session: string) => ['session-report', session],
-    (session: string) => ['suggest-queries', session],
+    (session: string) => ['coverage', session],
     (session: string) => ['graph-preprocess', session],
     (session: string) => ['--session', session, '--quality'],
   ])('rejects an existing empty session', async args => {
@@ -46,7 +46,7 @@ describe('read-only session commands', () => {
     expect(existsSync(join(empty, 'graph.json'))).toBe(false);
   });
 
-  it.each(['session-report', 'suggest-queries', 'graph-preprocess'])('supports populated sessions in %s', async command => {
+  it.each(['session-report', 'coverage', 'graph-preprocess'])('supports populated sessions in %s', async command => {
     const session = join(root, 'existing');
     initSessionDir(session);
     appendSessionResults(session, [{ url: 'https://example.com', title: 'Example', origins: [{ tool: 'digdig', query: 'q' }] }]);

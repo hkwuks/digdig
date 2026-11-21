@@ -98,8 +98,7 @@ dg --session <session> --quality --approve-file .\.digdig\sessions\<session>\age
 # Step 4: Agent writes graph.json with approved sourceResultIds, then builds the semantic graph.
 dg graph-add <session> --data-file .\.digdig\sessions\<session>\agent-inputs\graph.json
 
-# Step 5: If a Query Plan gap remains, get suggestions + supplementary search
-dg suggest-queries <session> --format json
+# Step 5: If a Query Plan gap remains, run a supplementary search
 dg --session <session> --queries "Pinecone pricing 2026,Weaviate vs Qdrant benchmark" --redundancy warn
 
 # Return to Steps 2-4 for every new result batch: extract, preprocess,
@@ -247,15 +246,16 @@ round tracking existed.
 
 **Query Plan update (mandatory):** Mark each sub-question as `covered`, `partial`, or `blocked` only from approved and, where needed, extracted results. Record the concrete missing item for every non-covered row: an official source, independent confirmation, counter-evidence, a current version, or a resolved conflict.
 
-#### Phase 5: Query Suggestions
+#### Phase 5: Deciding the Next Query
 
 ```bash
-dg suggest-queries <session> --format json
+dg session-report <session>   # entities the session has gathered, plus stage progression
+dg coverage <session>         # what has already been searched, as counted facts
 ```
 
 **Agent Decision Logic**:
-- `topEntities` has high degree x frequency but unexplored entities: search using them as keywords
-- `unexploredDomains` is non-empty: choose query terms related to new domains
+- An entity in the report is high-degree but unexplored: search using it as a keyword.
+- `coverage.untouchedSpecialized` is non-empty: choose query terms that would reach those hosts.
 - Choose only a query that closes one recorded Query Plan gap. If no gap remains, stop rather than searching for more supporting material.
 - When the gap is an official source, target the official publisher; when it is independence, seek a non-cross-posted source; when it is a conflict, seek the primary record or retain the disagreement.
 

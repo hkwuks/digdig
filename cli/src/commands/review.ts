@@ -19,7 +19,7 @@ import {
   PolicyInput,
 } from '../claims/policy.js';
 import { mutateSessionState, resolveSessionPath } from '../deep/session.js';
-import { createSuccessEnvelope } from '../protocol.js';
+import { createErrorEnvelope, createSuccessEnvelope } from '../protocol.js';
 import { policyInput } from '../claims/policy-input.js';
 
 // policy-aggregate
@@ -69,7 +69,7 @@ export async function runPolicyAggregate(
     });
   } catch (error) {
     if (error instanceof ClaimsStateError) {
-      console.log(JSON.stringify({ status: 'error', error: { code: 'CLAIMS_STATE_CORRUPTED', message: error.message } }, null, 2));
+      console.log(JSON.stringify(createErrorEnvelope('CLAIMS_STATE_CORRUPTED', error.message), null, 2));
       return 1;
     }
     throw error;
@@ -123,7 +123,7 @@ export async function runReviewList(
     history = loadReviewHistory(sessionDir);
   } catch (error) {
     if (error instanceof ClaimsStateError) {
-      console.log(JSON.stringify({ status: 'error', error: { code: 'CLAIMS_STATE_CORRUPTED', message: error.message } }, null, 2));
+      console.log(JSON.stringify(createErrorEnvelope('CLAIMS_STATE_CORRUPTED', error.message), null, 2));
       return 1;
     }
     throw error;

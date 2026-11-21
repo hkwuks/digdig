@@ -173,11 +173,9 @@ export async function docSearch(opts: DocSearchOptions): Promise<DocSearchResult
   for (const hit of searchResult.hits) {
     const doc = hit.document;
 
-    // Build title: "DocumentName — Section / Subsection"
-    const sectionParts: string[] = [];
-    if (doc.headings && doc.headings.length > 0) {
-      sectionParts.push(...(doc.headings[0] === doc.title ? doc.headings.slice(1) : doc.headings));
-    }
+    // Build title: "DocumentName — Section / Subsection". `headings` holds
+    // section headings only, so there is nothing to filter out here.
+    const sectionParts: string[] = doc.headings ?? [];
     let title: string;
     if (sectionParts.length > 0) {
       title = `${doc.title || doc.filePath} — ${sectionParts.join(' / ')}`;

@@ -30,8 +30,14 @@ interface EvidenceInput {
   contentHash?: string;
 }
 
+/**
+ * Codes this command raises itself. Narrow on purpose: `readonly code: string`
+ * would let a typo reach the envelope, which now rejects unknown codes.
+ */
+export type EvidenceCommandCode = 'CLAIM_NOT_FOUND' | 'RESULT_NOT_APPROVED' | 'OFFSET_OUT_OF_RANGE' | 'QUOTE_MISMATCH' | 'HASH_MISMATCH';
+
 class EvidenceCommandError extends Error {
-  constructor(readonly code: string, message: string) {
+  constructor(readonly code: EvidenceCommandCode, message: string) {
     super(message);
   }
 }

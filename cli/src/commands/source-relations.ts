@@ -10,8 +10,11 @@ import { isJsonObject, readSessionJsonInput } from './json-input.js';
 import { policyInput } from '../claims/policy-input.js';
 import { tokenize, jaccardSimilarity } from '../claims/deterministic-checks.js';
 
+/** Codes this command raises. Narrowed for the same reason `EvidenceCommandCode` is. */
+export type RelationCode = 'CLAIM_NOT_FOUND' | 'INVALID_SOURCE_RELATION' | 'SOURCE_RELATION_CONFLICT' | 'SOURCE_RELATION_NOT_FOUND';
+
 class RelationError extends Error {
-  constructor(readonly code: string, message: string) { super(message); }
+  constructor(readonly code: RelationCode, message: string) { super(message); }
 }
 
 export async function runSourceRelations(session: string, options: { claimId: string; dataFile?: string; dataStdin?: boolean }): Promise<number> {

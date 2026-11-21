@@ -78,7 +78,12 @@ describe('CLI program (commander)', () => {
         expect(commandNames).toContain('session-delete');
         expect(commandNames).toContain('graph-preprocess');
         expect(commandNames).toContain('graph-obfuscate');
-        expect(commandNames).toContain('suggest-queries');
+        expect(commandNames).not.toContain('recovery-analysis');
+        // Removed 2026-11-21: two of its four fields measured unusable, and the
+        // verdict it was blocked on has since been deleted. `session-report`
+        // still reports the same entities, and any test that pins it as present
+        // would pin a command nobody should call.
+        expect(commandNames).not.toContain('suggest-queries');
         expect(commandNames).toContain('strategy-info');
         expect(commandNames).not.toContain('recovery-analysis');
         expect(commandNames).toContain('session-report');
