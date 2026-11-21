@@ -65,9 +65,10 @@ describe('subcommand --format flag ownership', () => {
     // Eight subcommands never declared `-f` (init, extract, graph-add,
     // results-add, doc-index, doc-search, session-list, session-delete) — this
     // task does not add it to them, and must not take it away from the rest.
+    // `suggest-queries` left the set on 2026-11-21 when the command was removed.
     const program = createProgram([]);
     const declared = program.commands.filter(sub => sub.options.map(option => option.flags).join(' ').includes('-f, --format'));
-    expect(declared.length).toBe(19);
+    expect(declared.length).toBe(18);
   });
 
   it('keeps the root command advertising -f', () => {

@@ -37,8 +37,7 @@ import { runSessionList, runSessionDelete, getDefaultSessionRoot } from './comma
 import { graphPreprocess } from './deep/graph-preprocess.js';
 import { checkQueryRedundancy, RedundancyConfig } from './deep/query-redundancy.js';
 import { buildPendingReport, describeResult, PendingReport } from './deep/pending-facts.js';
-import { generateQuerySuggestions } from './deep/query-suggest.js';
-import { determineSearchStage, getStrategyInfo } from './deep/search-strategy.js';
+import { getStrategyInfo } from './deep/search-strategy.js';
 import { getSessionAnalysis } from './deep/iteration-data.js';
 import { runCoverage } from './commands/coverage.js';
 import { runGraphExplore } from './commands/graph-explore.js';
@@ -255,47 +254,6 @@ function formatFactsAsMarkdown(facts: PendingReport): string {
         facts.pending.forEach((fact, index) => {
             lines.push(`| ${index} | ${fact.id} | ${fact.revision} | ${fact.domain || '-'} | ${fact.contentLength} | ${fact.verified ? '✓' : '✗'} | ${fact.round ?? '-'} | ${fact.title || fact.url} |`);
         });
-        lines.push('');
-    }
-
-    return lines.join('\n');
-}
-
-function formatSuggestAsMarkdown(data: any): string {
-    const lines: string[] = [];
-    lines.push('## Query Suggestion Data');
-    lines.push('');
-    lines.push(`**Current Stage:** ${data.currentStage}`);
-    lines.push('');
-
-    if (data.topEntities?.length) {
-        lines.push('### Top Entities');
-        lines.push('');
-        lines.push('| Entity | Obfuscated Label | Degree | Frequency | Type |');
-        lines.push('|--------|------------------|--------|-----------|------|');
-        for (const e of data.topEntities.slice(0, 15)) {
-            lines.push(`| ${e.label} | ${e.obfuscatedLabel || '-'} | ${e.degree} | ${e.frequency} | ${e.entityType || '-'} |`);
-        }
-        lines.push('');
-    }
-
-    if (data.unexploredDomains?.length) {
-        lines.push('### Unexplored Domains');
-        lines.push('');
-        for (const d of data.unexploredDomains) {
-            lines.push(`- ${d}`);
-        }
-        lines.push('');
-    }
-
-    if (data.roundHistory?.length) {
-        lines.push('### Round History');
-        lines.push('');
-        lines.push('| Round | Query | Results |');
-        lines.push('|-------|-------|---------|');
-        for (const r of data.roundHistory) {
-            lines.push(`| ${r.round} | ${r.query} | ${r.resultCount} |`);
-        }
         lines.push('');
     }
 
@@ -1193,30 +1151,6 @@ Examples:
         });
 
     program
-        .command('suggest-queries')
-        .argument('<session>', 'Session directory or name')
-        .description('Output query suggestion data for Agent follow-up query generation')
-        .option('-f, --format <fmt>', 'Output format: json (default), md')
-        .addHelpText('after', `
-Examples:
-  dg suggest-queries my-session
-  dg suggest-queries my-session --format md`)
-        .action(async (session, opts, command) => {
-            const sessionDir = resolveSessionPath(session);
-            const results = loadSessionResults(sessionDir);
-            if (reportEmptySession(results.length)) return;
-            const graph = loadSessionGraph(sessionDir);
-            const stage = determineSearchStage(graph, undefined, loadSessionRounds(sessionDir));
-
-            const data = generateQuerySuggestions(graph, results, stage);
-
-            if (command.optsWithGlobals().format === 'md') {
-                console.log(formatSuggestAsMarkdown(data));
-            } else {
-                console.log(JSON.stringify(createSuccessEnvelope(data), null, 2));
-            }
-            process.exitCode = 0;
-        });
 
     program
         .command('strategy-info')

@@ -875,7 +875,6 @@ obscura --version
 | `dg --session new` | 创建深度搜索会话 |
 | `dg --session <name> --quality` | 列出待审结果与本会话已累积的可数事实 |
 | `dg --session <name> --quality --approve-file <path>` | 从 `{id, revision}` JSON 文件审批已验证的待审结果 |
-| `dg suggest-queries <session>` | 获取查询建议数据（供 Agent 使用） |
 | `dg strategy-info <session>` | 查看当前搜索阶段 |
 | `dg session-report <session>` | 完整会话分析报告 |
 | `dg coverage <session>` | 本会话已看过什么，以可数事实呈现（轮次、查询、新增与重复、轮内独有词） |

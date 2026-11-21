@@ -58,7 +58,6 @@ dg review-list <session>                    # List reviews
 dg --session <session> --quality  # List pending with what the session has gathered
 # Save selected {id, revision} objects from the output, then approve them.
 dg --session <session> --quality --approve-file .\.digdig\sessions\<session>\agent-inputs\approve.json
-dg suggest-queries <session>    # Get query suggestions
 dg coverage <session>           # What this session has looked at, as counted facts
 dg strategy-info <session>      # Check search stage
 dg session-report <session>     # Full session report
@@ -213,10 +212,8 @@ dg --session <session> --quality --approve-file .\.digdig\sessions\<session>\age
 dg graph-preprocess <session>
 dg graph-add <session> --data-file .\.digdig\sessions\<session>\agent-inputs\graph-data.json
 
-# Get suggestions if quality needs improvement
-dg suggest-queries <session>
-
-# Continue searching with redundancy check
+# Check what the session has already looked at, then continue with a redundancy check
+dg coverage <session>
 dg "follow-up" --session <session> --redundancy warn
 ```
 
@@ -337,7 +334,6 @@ See SOP for detailed L1/L2/L3 complexity guidelines.
 | `dg graph-drill` | Follow specific relations |
 | `dg graph-traverse` | Traverse reasoning path |
 | `dg graph-obfuscate` | Entity obfuscation (experimental) |
-| `dg suggest-queries` | Query suggestions for next round |
 | `dg coverage` | Whole-session view: rounds, queries, new vs repeated, round-local terms, untouched primary sources |
 | `dg strategy-info` | Current search stage |
 | `dg session-report` | What the session has gathered plus stage progression |

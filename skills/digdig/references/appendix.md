@@ -25,7 +25,6 @@ dg --session <session> --quality --approve-file ./.digdig/sessions/<session>/age
 dg graph-add <session> --data-file ./.digdig/sessions/<session>/agent-inputs/graph.json
 
 # Phase 5-6: If quality not met, supplementary search
-dg suggest-queries <session> --format json
 dg --session <session> --queries "Qdrant rust implementation,HNSW vs IVF performance" --redundancy warn
 
 # Re-extract + assess + approve + preprocess + add entities
