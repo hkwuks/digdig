@@ -1074,3 +1074,17 @@ Be precise about the reach, though: no subcommand was *observed* truncating — 
 - Goal: 收敛融合排序的分数与位次：单 ranking 时不写 fusionScore，rank 只在 fuse.ts 赋一次，删除 service.ts 与 fuse.ts 重复的过滤去重
 - Task: `TaskFlowDocs/achieved/2026-11-21-fusion-rank/`
 - Next action: None — completed and archived.
+
+## 清理四项遗留欠账：local-doc frontmatter 标题重复拼接、删除 sug
+
+- ID: TF-20261121-567c56
+- Status: inbox
+- Priority: normal
+- Owner: Claude
+- Source: direct user request
+- Kind: capability
+- Added: 2026-11-21
+- Updated: 2026-11-21
+- Goal: 清理四项遗留欠账：local-doc frontmatter 标题重复拼接、删除 suggest-queries 命令、config 文件 timeout 无类型校验、createErrorEnvelope 信封码无类型约束，并修正过期任务文档记录
+- Task: Not promoted.
+- Next action: Clarify and promote when ready.
