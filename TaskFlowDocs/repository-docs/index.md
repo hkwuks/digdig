@@ -15,7 +15,7 @@ This index is the authoritative routing and check record for repository document
 | repository-rule | `CODE_OF_CONDUCT.md` | all | no | optional |
 | repository-rule | `SECURITY.md` | code,review,release | no | optional |
 | repository-rule | `RELEASE.md` | release | no | optional |
-| repository-rule | `CHANGELOG.md` | release | no | optional |
+| repository-rule | `CHANGELOG.md` | release | yes | ready |
 | personal-rule | `TaskFlowDocs/repository-docs/personal.md` | all | local | local-only |
 
 ## Personal rules
